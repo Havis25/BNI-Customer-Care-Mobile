@@ -8,8 +8,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from '../constants/Colors';
+import { router } from 'expo-router';
 
-export default function WelcomePage({navigation}: {navigation: any}) {
+export default function WelcomePage() {
 
   return (
     <SafeAreaView style={styles.container}>
@@ -41,7 +42,7 @@ export default function WelcomePage({navigation}: {navigation: any}) {
 
         <TouchableOpacity
           style={styles.startButton}
-          onPress={() => navigation.navigate("Login")} 
+          onPress={() => router.push('/login')} 
         >
           <Text style={styles.startButtonText}>Start Now</Text>
         </TouchableOpacity>
