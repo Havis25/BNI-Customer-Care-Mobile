@@ -34,7 +34,7 @@ export default function TabLayout() {
           title: "Home",
           headerShown: false,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <MaterialIcons name="home" size={28} color={color} />
           ),
         }}
       />
@@ -44,7 +44,7 @@ export default function TabLayout() {
           title: "Riwayat",
           headerShown: false,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="clock.fill" color={color} />
+            <MaterialIcons name="history" size={28} color={color} />
           ),
         }}
       />
@@ -64,7 +64,7 @@ export default function TabLayout() {
           title: "Profile",
           headerShown: false,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
+            <MaterialIcons name="person" size={28} color={color} />
           ),
         }}
       />
