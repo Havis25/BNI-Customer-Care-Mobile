@@ -7,15 +7,26 @@ import {
   Text,
   View,
 } from 'react-native';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-const dummyNotifications = [
+interface Notification {
+  id: string;
+  title: string;
+  description: string;
+  timeAgo: string;
+  iconName: string;
+  iconColor: string;
+  read: boolean;
+  category: string;
+}
+
+const dummyNotifications: Notification[] = [
   {
     id: '1',
     title: 'Pengaduan Diterima',
     description: 'Pengaduan Anda telah diterima oleh sistem dan akan segera diproses.',
     timeAgo: '2 menit lalu',
-    iconName: 'email-receive',
+    iconName: 'email',
     iconColor: '#007bff',
     read: false,
     category: 'proses',
@@ -25,7 +36,7 @@ const dummyNotifications = [
     title: 'Validasi Data Pengaduan',
     description: 'Tim kami sedang melakukan validasi data pengaduan Anda.',
     timeAgo: '10 menit lalu',
-    iconName: 'clipboard-check',
+    iconName: 'assignment-turned-in',
     iconColor: '#f0ad4e',
     read: false,
     category: 'proses',
@@ -35,7 +46,7 @@ const dummyNotifications = [
     title: 'Pengaduan Diproses',
     description: 'Pengaduan Anda sedang dalam tahap pemrosesan oleh tim terkait.',
     timeAgo: '1 jam lalu',
-    iconName: 'progress-clock',
+    iconName: 'schedule',
     iconColor: '#17a2b8',
     read: true,
     category: 'proses',
@@ -55,7 +66,7 @@ const dummyNotifications = [
     title: 'Update Informasi',
     description: 'Ada update terbaru mengenai kebijakan layanan kami.',
     timeAgo: '2 hari lalu',
-    iconName: 'information',
+    iconName: 'info',
     iconColor: '#007bff',
     read: true,
     category: 'terbaru',
@@ -65,7 +76,7 @@ const dummyNotifications = [
     title: 'Pemberitahuan Umum',
     description: 'Jangan lupa cek fitur baru di aplikasi kami.',
     timeAgo: '3 hari lalu',
-    iconName: 'bell',
+    iconName: 'notifications',
     iconColor: '#6c757d',
     read: true,
     category: 'terbaru',
@@ -73,7 +84,7 @@ const dummyNotifications = [
 ];
 
 export default function NotificationScreen() {
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -85,11 +96,11 @@ export default function NotificationScreen() {
     return () => clearTimeout(timeout);
   }, []);
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }: { item: Notification }) => (
     <View style={styles.card}>
       <View style={styles.cardLeft}>
-        <MaterialCommunityIcons
-          name={item.iconName}
+        <MaterialIcons
+          name={item.iconName as any}
           size={30}
           color={item.iconColor}
           style={{ marginRight: 12 }}
