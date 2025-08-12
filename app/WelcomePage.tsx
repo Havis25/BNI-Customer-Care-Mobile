@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React from 'react';
 import {
     Image,
@@ -8,7 +9,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from '../constants/Colors';
-import { router } from 'expo-router';
 
 export default function WelcomePage() {
 
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: Colors.light.background,
         paddingTop: 20,
-        paddingHorizontal: 20,
+        paddingBottom: 26.
     },
 
     logoWrapper: {
@@ -66,6 +66,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         zIndex: 10,           
         position: 'relative',
+        paddingHorizontal: 24,
     },
     
     logo: {
@@ -85,8 +86,8 @@ const styles = StyleSheet.create({
     },
 
     illustration: {
-      width: "180%",
-      height: "180%",
+      width: "170%",
+      height: "170%",
     },
 
     textSection: {
