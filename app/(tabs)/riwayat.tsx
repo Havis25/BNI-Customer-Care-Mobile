@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Modal, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Fonts } from '@/constants/Fonts';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -65,6 +65,10 @@ export default function RiwayatScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <Text style={styles.title}>Riwayat Laporan</Text>
       
       <View style={styles.searchFilterContainer}>
@@ -82,7 +86,11 @@ export default function RiwayatScreen() {
         </TouchableOpacity>
       </View>
       
-      <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.listContainer} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {riwayatData.map((item) => (
           <TouchableOpacity 
             key={item.id} 
@@ -205,6 +213,7 @@ export default function RiwayatScreen() {
           </View>
         </View>
       </Modal>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -214,6 +223,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 16,
+  },
+  keyboardView: {
+    flex: 1,
   },
   title: {
     fontSize: 18,
