@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Image,
     StyleSheet,
@@ -9,8 +9,22 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from '../constants/Colors';
+import Splashscreen from '../components/Splashscreen';
 
 export default function WelcomePage() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return <Splashscreen />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>

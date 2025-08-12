@@ -2,6 +2,8 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,12 +20,21 @@ export default function ConfirmationScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Form Complain</Text>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Warning Box */}
         <View style={styles.warningBox}>
           <MaterialIcons name="error-outline" size={20} color="#FFC107" />
@@ -143,12 +154,14 @@ export default function ConfirmationScreen() {
           router.back();
         }}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
+  keyboardView: { flex: 1 },
   header: {
     alignItems: "center",
     justifyContent: "center",
@@ -163,7 +176,8 @@ const styles = StyleSheet.create({
     color: "#000",
     fontFamily: "Poppins",
   },
-  content: { flex: 1, padding: 16 },
+  content: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 120 },
 
   warningBox: {
     flexDirection: "row",
