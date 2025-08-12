@@ -18,6 +18,7 @@ export const Colors = {
     darkGreen: "#22413F",
     mediumGreen: "#396D6A",
     white: "#FFFFFF",
+    brightGreen: "#E0EE59"
   },
   dark: {
     text: '#ECEDEE',
