@@ -1,15 +1,18 @@
-import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
-import { Colors } from '../constants/Colors';
+import React from "react";
+import { Image, StyleSheet, View, StatusBar } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Splashscreen() {
   return (
     <View style={styles.container}>
-      <Image
-        source={require('../assets/images/log-bcare copy.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      <StatusBar backgroundColor="#E0EE59" barStyle="dark-content" />
+      <View style={styles.content}>
+        <Image
+          source={require("../assets/images/log-bcare-copy.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </View>
     </View>
   );
 }
@@ -17,9 +20,12 @@ export default function Splashscreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.brightGreen,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#E0EE59",
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   logo: {
     width: 200,

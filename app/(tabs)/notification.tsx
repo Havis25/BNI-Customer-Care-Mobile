@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -6,8 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+} from "react-native";
 
 interface Notification {
   id: string;
@@ -22,64 +22,67 @@ interface Notification {
 
 const dummyNotifications: Notification[] = [
   {
-    id: '1',
-    title: 'Pengaduan Diterima',
-    description: 'Pengaduan Anda telah diterima oleh sistem dan akan segera diproses.',
-    timeAgo: '2 menit lalu',
-    iconName: 'email',
-    iconColor: '#007bff',
+    id: "1",
+    title: "Pengaduan Diterima",
+    description:
+      "Pengaduan Anda telah diterima oleh sistem dan akan segera diproses.",
+    timeAgo: "2 menit lalu",
+    iconName: "email",
+    iconColor: "#007bff",
     read: false,
-    category: 'proses',
+    category: "proses",
   },
   {
-    id: '2',
-    title: 'Validasi Data Pengaduan',
-    description: 'Tim kami sedang melakukan validasi data pengaduan Anda.',
-    timeAgo: '10 menit lalu',
-    iconName: 'assignment-turned-in',
-    iconColor: '#f0ad4e',
+    id: "2",
+    title: "Validasi Data Pengaduan",
+    description: "Tim kami sedang melakukan validasi data pengaduan Anda.",
+    timeAgo: "10 menit lalu",
+    iconName: "assignment-turned-in",
+    iconColor: "#f0ad4e",
     read: false,
-    category: 'proses',
+    category: "proses",
   },
   {
-    id: '3',
-    title: 'Pengaduan Diproses',
-    description: 'Pengaduan Anda sedang dalam tahap pemrosesan oleh tim terkait.',
-    timeAgo: '1 jam lalu',
-    iconName: 'schedule',
-    iconColor: '#17a2b8',
+    id: "3",
+    title: "Pengaduan Diproses",
+    description:
+      "Pengaduan Anda sedang dalam tahap pemrosesan oleh tim terkait.",
+    timeAgo: "1 jam lalu",
+    iconName: "schedule",
+    iconColor: "#17a2b8",
     read: true,
-    category: 'proses',
+    category: "proses",
   },
   {
-    id: '4',
-    title: 'Pengaduan Selesai',
-    description: 'Pengaduan Anda telah selesai diproses. Terima kasih atas kesabaran Anda.',
-    timeAgo: '1 hari lalu',
-    iconName: 'check-circle',
-    iconColor: '#28a745',
+    id: "4",
+    title: "Pengaduan Selesai",
+    description:
+      "Pengaduan Anda telah selesai diproses. Terima kasih atas kesabaran Anda.",
+    timeAgo: "1 hari lalu",
+    iconName: "check-circle",
+    iconColor: "#28a745",
     read: true,
-    category: 'proses',
+    category: "proses",
   },
   {
-    id: '5',
-    title: 'Update Informasi',
-    description: 'Ada update terbaru mengenai kebijakan layanan kami.',
-    timeAgo: '2 hari lalu',
-    iconName: 'info',
-    iconColor: '#007bff',
+    id: "5",
+    title: "Update Informasi",
+    description: "Ada update terbaru mengenai kebijakan layanan kami.",
+    timeAgo: "2 hari lalu",
+    iconName: "info",
+    iconColor: "#007bff",
     read: true,
-    category: 'terbaru',
+    category: "terbaru",
   },
   {
-    id: '6',
-    title: 'Pemberitahuan Umum',
-    description: 'Jangan lupa cek fitur baru di aplikasi kami.',
-    timeAgo: '3 hari lalu',
-    iconName: 'notifications',
-    iconColor: '#6c757d',
+    id: "6",
+    title: "Pemberitahuan Umum",
+    description: "Jangan lupa cek fitur baru di aplikasi kami.",
+    timeAgo: "3 hari lalu",
+    iconName: "notifications",
+    iconColor: "#6c757d",
     read: true,
-    category: 'terbaru',
+    category: "terbaru",
   },
 ];
 
@@ -106,7 +109,7 @@ export default function NotificationScreen() {
           style={{ marginRight: 12 }}
         />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, !item.read && { fontWeight: 'bold' }]}>
+          <Text style={[styles.title, !item.read && { fontWeight: "bold" }]}>
             {item.title}
           </Text>
           {item.description ? (
@@ -150,60 +153,60 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
     paddingHorizontal: 16,
     paddingTop: 16,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 12,
     paddingHorizontal: 8,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
+    fontWeight: "bold",
+    color: "#111",
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 16,
     marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 4,
     elevation: 2,
   },
   cardLeft: {
-    flexDirection: 'row',
+    flexDirection: "row",
     flex: 1,
   },
   title: {
-    fontWeight: 'normal',
+    fontWeight: "normal",
     fontSize: 16,
     marginBottom: 4,
-    color: '#111',
+    color: "#111",
   },
   description: {
     fontSize: 14,
-    color: '#555',
+    color: "#555",
     lineHeight: 20,
   },
   time: {
     fontSize: 12,
-    color: '#999',
+    color: "#999",
     marginLeft: 8,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   loaderContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

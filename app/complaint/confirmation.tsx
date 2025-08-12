@@ -2,36 +2,39 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BottomSheet from "@/components/modals/BottomSheet";
 
 export default function ConfirmationScreen() {
   const [isChecked, setIsChecked] = useState(false);
-  const [showCallModal, setShowCallModal] = useState(false);
-  const [callStatus, setCallStatus] = useState('incoming');
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Form Complain</Text>
-        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Warning Box */}
         <View style={styles.warningBox}>
           <MaterialIcons name="error-outline" size={20} color="#FFC107" />
@@ -47,6 +50,16 @@ export default function ConfirmationScreen() {
           <TextInput
             style={styles.textInput}
             value="User Complain"
+            editable={false}
+          />
+        </View>
+
+        {/* No Rekening */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.label}>No Rekening</Text>
+          <TextInput
+            style={styles.textInput}
+            value="512372891238"
             editable={false}
           />
         </View>
@@ -95,123 +108,107 @@ export default function ConfirmationScreen() {
             benar.
           </Text>
         </TouchableOpacity>
-
-        {/* Button */}
-        <TouchableOpacity
-          style={[
-            styles.submitButton,
-            isChecked ? styles.enabledButton : styles.disabledButton,
-          ]}
-          disabled={!isChecked}
-          onPress={() => {
-            if (isChecked) {
-              setShowCallModal(true);
-            }
-          }}
-        >
-          <Text
-            style={[
-              styles.submitText,
-              isChecked ? styles.enabledText : styles.disabledText,
-            ]}
-          >
-            Selesai
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
 
-      {/* Call Modal */}
-      <Modal
-        visible={showCallModal}
-        transparent={true}
-        animationType="fade"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.callModal}>
-            <MaterialIcons name="account-circle" size={80} color="#666" />
-            <Text style={styles.callerName}>BNI Agent</Text>
-            <Text style={styles.callStatus}>
-              {callStatus === 'incoming' ? 'Panggilan Masuk...' : 
-               callStatus === 'active' ? 'Sedang Terhubung' : 'Panggilan Berakhir'}
-            </Text>
-            
-            {callStatus === 'incoming' && (
-              <View style={styles.callButtons}>
-                <TouchableOpacity 
-                  style={styles.declineButton}
-                  onPress={() => {
-                    setCallStatus('ended');
-                    setTimeout(() => {
-                      setShowCallModal(false);
-                      router.push('/complaint/chat?callDeclined=true');
-                    }, 1500);
-                  }}
-                >
-                  <MaterialIcons name="call-end" size={30} color="#FFF" />
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.acceptButton}
-                  onPress={() => {
-                    setCallStatus('active');
-                    setTimeout(() => {
-                      setCallStatus('ended');
-                      setTimeout(() => {
-                        setShowCallModal(false);
-                        router.push('/complaint/chat');
-                      }, 1500);
-                    }, 3000);
-                  }}
-                >
-                  <MaterialIcons name="call" size={30} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-            )}
+      {/* Buttons */}
+      <View style={styles.buttonWrapper}>
+        <View style={styles.buttonCard}>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setShowBottomSheet(true)}
+            >
+              <Text style={styles.backButtonText}>Kembali</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                isChecked ? styles.enabledButton : styles.disabledButton,
+              ]}
+              disabled={!isChecked}
+              onPress={() => {
+                if (isChecked) {
+                  router.push("/complaint/chat?fromConfirmation=true");
+                }
+              }}
+            >
+              <Text
+                style={[
+                  styles.submitText,
+                  isChecked ? styles.enabledText : styles.disabledText,
+                ]}
+              >
+                Selesai
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </View>
+
+      <BottomSheet
+        visible={showBottomSheet}
+        onClose={() => setShowBottomSheet(false)}
+        onConfirm={() => {
+          setShowBottomSheet(false);
+          router.back();
+        }}
+      />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
+  keyboardView: { flex: 1 },
   header: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
   },
-  backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: "600", color: "#000" },
-  content: { flex: 1, padding: 16 },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#000",
+    fontFamily: "Poppins",
+  },
+  content: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 120 },
 
   warningBox: {
     flexDirection: "row",
     backgroundColor: "#FFF8E1",
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
     marginBottom: 20,
     alignItems: "center",
+    gap: 8,
   },
   warningText: {
     flex: 1,
-    marginLeft: 8,
     fontSize: 14,
     color: "#333",
+    fontFamily: "Poppins",
   },
 
   fieldContainer: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: "500", marginBottom: 8 },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 8,
+    fontFamily: "Poppins",
+  },
   textInput: {
     backgroundColor: "#F0F0F0",
     padding: 12,
     borderRadius: 8,
     fontSize: 14,
     color: "#333",
+    fontFamily: "Poppins",
   },
   textArea: { minHeight: 80, textAlignVertical: "top" },
 
@@ -231,58 +228,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   checkboxChecked: { backgroundColor: "#2196F3", borderColor: "#2196F3" },
-  checkboxText: { flex: 1, fontSize: 14, color: "#333" },
+  checkboxText: { flex: 1, fontSize: 14, color: "#333", fontFamily: "Poppins" },
 
-  submitButton: { padding: 16, borderRadius: 8, alignItems: "center" },
+  buttonWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 24,
+  },
+  buttonCard: {
+    backgroundColor: "white",
+    marginHorizontal: 16,
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    paddingTop: 16,
+    paddingBottom: 42,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#E0E0E0",
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#666",
+    fontFamily: "Poppins",
+  },
+  submitButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "center",
+  },
   enabledButton: { backgroundColor: "#52B5AB" },
   disabledButton: { backgroundColor: "#E0E0E0" },
-  submitText: { fontSize: 16, fontWeight: "bold" },
+  submitText: { fontSize: 16, fontWeight: "bold", fontFamily: "Poppins" },
   enabledText: { color: "#FFF" },
   disabledText: { color: "#999" },
-  
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  callModal: {
-    backgroundColor: '#FFF',
-    padding: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    width: 300,
-  },
-  callerName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 16,
-  },
-  callStatus: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
-    marginBottom: 30,
-  },
-  callButtons: {
-    flexDirection: 'row',
-    gap: 40,
-  },
-  acceptButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  declineButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#F44336',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 });

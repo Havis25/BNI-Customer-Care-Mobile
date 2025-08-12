@@ -1,17 +1,24 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-  Modal,
-  TextInput,
-  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import CallModal from "@/components/modals/CallModal";
+import BottomSheet from "@/components/modals/BottomSheet";
 
 const chatMessages = [
   {
@@ -45,41 +52,156 @@ const chatMessages = [
     timestamp: "10:32",
     hasButtons: true,
   },
-  {
-    id: 6,
-    text: "📞 Panggilan dari BNI Agent diangkat",
-    isBot: true,
-    timestamp: "10:35",
-    isCallLog: true,
-  },
-  {
-    id: 7,
-    text: "📞 Panggilan berakhir - Durasi: 3 menit",
-    isBot: true,
-    timestamp: "10:38",
-    isCallLog: true,
-  },
 ];
 
 export default function ChatScreen() {
-  const { callDeclined } = useLocalSearchParams();
+  const { callDeclined, fromConfirmation, callEnded } = useLocalSearchParams();
   const [messages, setMessages] = useState(chatMessages);
   const [showLiveChatModal, setShowLiveChatModal] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [callStatus, setCallStatus] = useState("incoming");
   const [isLiveChat, setIsLiveChat] = useState(false);
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState("");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
+  const [timeoutId, setTimeoutId] = useState<number | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const messageIdRef = useRef(1000);
+
+  const getUniqueId = () => {
+    messageIdRef.current += 1;
+    return messageIdRef.current;
+  };
+
+  const showAgentChatQuestion = () => {
+    const agentChatQuestion = {
+      id: getUniqueId(),
+      text: "Apakah Anda ingin melakukan chat dengan agent kami?",
+      isBot: true,
+      timestamp: new Date().toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      hasLiveChatButtons: true,
+    };
+    setMessages((prev) => [...prev, agentChatQuestion]);
+  };
+
+  const startTimeout = () => {
+    if (timeoutId) clearTimeout(timeoutId);
+    const id = setTimeout(() => {
+      showAgentChatQuestion();
+    }, 10000);
+    setTimeoutId(id);
+  };
+
+  const clearCurrentTimeout = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      setTimeoutId(null);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+      
+      if (!result.canceled && result.assets[0]) {
+        const file = result.assets[0];
+        const fileMessage = {
+          id: messages.length + 1,
+          text: `📎 File: ${file.name}`,
+          isBot: false,
+          timestamp: new Date().toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          isFile: true,
+          fileName: file.name,
+        };
+        setMessages((prev) => [...prev, fileMessage]);
+        setShowUploadModal(false);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Gagal mengupload file');
+    }
+  };
+
+  const handleImageUpload = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+      
+      if (!result.canceled && result.assets[0]) {
+        const image = result.assets[0];
+        const imageMessage = {
+          id: messages.length + 1,
+          text: `🖼️ Gambar dikirim`,
+          isBot: false,
+          timestamp: new Date().toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          isImage: true,
+          imageUri: image.uri,
+        };
+        setMessages((prev) => [...prev, imageMessage]);
+        setShowUploadModal(false);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Gagal mengupload gambar');
+    }
+  };
 
   useEffect(() => {
-    if (callDeclined === 'true') {
+    if (fromConfirmation === "true") {
+      const verificationMessage = {
+        id: messages.length + 1,
+        text: "Terima kasih telah mengisi formulir complaint. Selanjutnya adalah tahapan verifikasi. Agent kami akan melakukan panggilan untuk verifikasi data Anda. Apakah Anda siap menerima panggilan?",
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        hasVerificationButtons: true,
+      };
+      setMessages((prev) => [...prev, verificationMessage]);
+    }
+    
+    if (callDeclined === "true") {
       const newMessage = {
         id: messages.length + 1,
-        text: "Apakah Anda ingin melakukan live chat dengan agent kami?",
+        text: "Panggilan tidak dapat terhubung. Apakah Anda ingin melakukan live chat dengan agent kami?",
         isBot: true,
-        timestamp: "10:40",
-        hasLiveChatButtons: true
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        hasLiveChatButtons: true,
       };
-      setMessages(prev => [...prev, newMessage]);
+      setMessages((prev) => [...prev, newMessage]);
     }
-  }, [callDeclined]);
+    
+    if (callEnded === "true") {
+      const endMessage = {
+        id: messages.length + 1,
+        text: "Panggilan dengan agent telah berakhir. Terima kasih atas waktu Anda. Apakah ada yang bisa kami bantu lagi?",
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages((prev) => [...prev, endMessage]);
+    }
+  }, [callDeclined, fromConfirmation, callEnded]);
 
   const handleSendMessage = () => {
     if (inputText.trim() && isLiveChat) {
@@ -87,45 +209,72 @@ export default function ChatScreen() {
         id: messages.length + 1,
         text: inputText,
         isBot: false,
-        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
-      setMessages(prev => [...prev, newMessage]);
-      setInputText('');
+      setMessages((prev) => [...prev, newMessage]);
+      setInputText("");
     }
   };
 
+  useEffect(() => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [timeoutId]);
+
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => setShowBottomSheet(true)}
         >
           <MaterialIcons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
 
         <View style={styles.avatarContainer}>
-          <Image 
-            source={require('@/assets/images/log-bcare.png')}
+          <Image
+            source={require("@/assets/images/log-bcare.png")}
             style={styles.avatarImage}
             resizeMode="contain"
           />
         </View>
-        
+
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle}>Chat Agent</Text>
-          <View style={styles.statusContainer}>
-            <MaterialIcons name="circle" size={8} color="#4CAF50" />
-            <Text style={styles.statusText}>Online</Text>
-          </View>
+          {isLiveChat && (
+            <View style={styles.statusContainer}>
+              <MaterialIcons name="circle" size={8} color="#4CAF50" />
+              <Text style={styles.statusText}>Online</Text>
+            </View>
+          )}
         </View>
 
         <View style={{ width: 24 }} />
       </View>
 
       {/* Chat Messages */}
-      <ScrollView style={styles.chatContainer}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.chatContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {messages.map((message) => (
           <View
             key={message.id}
@@ -163,15 +312,116 @@ export default function ChatScreen() {
                 </TouchableOpacity>
               </View>
             )}
+            {(message as any).hasVerificationButtons && (
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.yesButton}
+                  onPress={() => {
+                    const callStartMessage = {
+                      id: messages.length + 1,
+                      text: "📞 Panggilan dari BNI Agent diangkat",
+                      isBot: true,
+                      timestamp: new Date().toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
+                      isCallLog: true,
+                    };
+                    setMessages((prev) => [...prev, callStartMessage]);
+                    setShowCallModal(true);
+                  }}
+                >
+                  <Text style={styles.buttonText}>Iya</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.noButton}
+                  onPress={() => {
+                    const complaintMessage = {
+                      id: messages.length + 1,
+                      text: "Pengajuan complaint harus membutuhkan konfirmasi. Apakah Anda ingin melakukan chat dengan agent kami?",
+                      isBot: true,
+                      timestamp: new Date().toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
+                      hasLiveChatButtons: true,
+                    };
+                    setMessages((prev) => [...prev, complaintMessage]);
+                    startTimeout();
+                  }}
+                >
+                  <Text style={styles.buttonText}>Tidak</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             {(message as any).hasLiveChatButtons && (
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
                   style={styles.yesButton}
-                  onPress={() => setShowLiveChatModal(true)}
+                  onPress={() => {
+                    clearCurrentTimeout();
+                    const liveChatConnected = {
+                      id: messages.length + 1,
+                      text: "Sekarang Anda terhubung ke live chat. Apakah Anda ingin melakukan konfirmasi by call?",
+                      isBot: true,
+                      timestamp: new Date().toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
+                      hasCallConfirmButtons: true,
+                    };
+                    setMessages((prev) => [...prev, liveChatConnected]);
+                    setIsLiveChat(true);
+                  }}
                 >
                   <Text style={styles.buttonText}>Ya</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.noButton}>
+                <TouchableOpacity 
+                  style={styles.noButton}
+                  onPress={() => {
+                    clearCurrentTimeout();
+                    const complaintMessage = {
+                      id: messages.length + 1,
+                      text: "Pengajuan complaint harus membutuhkan konfirmasi. Apakah Anda ingin melakukan chat dengan agent kami?",
+                      isBot: true,
+                      timestamp: new Date().toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
+                      hasLiveChatButtons: true,
+                    };
+                    setMessages((prev) => [...prev, complaintMessage]);
+                    startTimeout();
+                  }}
+                >
+                  <Text style={styles.buttonText}>Tidak</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {(message as any).hasCallConfirmButtons && (
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.yesButton}
+                  onPress={() => setShowCallModal(true)}
+                >
+                  <Text style={styles.buttonText}>Iya</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.noButton}
+                  onPress={() => {
+                    const repeatQuestion = {
+                      id: messages.length + 1,
+                      text: "Baik, Anda tetap terhubung dengan live chat. Apakah Anda ingin melakukan konfirmasi by call?",
+                      isBot: true,
+                      timestamp: new Date().toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
+                      hasCallConfirmButtons: true,
+                    };
+                    setMessages((prev) => [...prev, repeatQuestion]);
+                  }}
+                >
                   <Text style={styles.buttonText}>Tidak</Text>
                 </TouchableOpacity>
               </View>
@@ -182,21 +432,23 @@ export default function ChatScreen() {
 
       {/* Input Area */}
       <View style={styles.inputContainer}>
-        <TouchableOpacity style={styles.addFileButton}>
+        <TouchableOpacity 
+          style={styles.addFileButton}
+          onPress={() => setShowUploadModal(true)}
+        >
           <MaterialIcons name="add" size={24} color="#FFF" />
         </TouchableOpacity>
         <TextInput
           style={styles.textInput}
-          placeholder={isLiveChat ? "Ketik pesan Anda..." : "Live chat tidak aktif"}
+          placeholder={
+            isLiveChat ? "Ketik pesan Anda..." : "Live chat tidak aktif"
+          }
           value={inputText}
           onChangeText={setInputText}
           editable={isLiveChat}
           multiline
         />
-        <TouchableOpacity 
-          onPress={handleSendMessage}
-          disabled={!isLiveChat}
-        >
+        <TouchableOpacity onPress={handleSendMessage} disabled={!isLiveChat}>
           <MaterialIcons name="send" size={20} color="#FF8636" />
         </TouchableOpacity>
       </View>
@@ -211,20 +463,25 @@ export default function ChatScreen() {
           <View style={styles.liveChatModal}>
             <MaterialIcons name="support-agent" size={60} color="#52B5AB" />
             <Text style={styles.modalTitle}>Menghubungkan ke Live Chat</Text>
-            <Text style={styles.modalSubtitle}>Sedang mencari agent yang tersedia...</Text>
-            
-            <TouchableOpacity 
+            <Text style={styles.modalSubtitle}>
+              Sedang mencari agent yang tersedia...
+            </Text>
+
+            <TouchableOpacity
               style={styles.connectButton}
               onPress={() => {
                 setShowLiveChatModal(false);
                 setIsLiveChat(true);
                 const connectMessage = {
                   id: messages.length + 1,
-                  text: "✅ Anda telah terhubung dengan live chat. Silakan mulai percakapan.",
+                  text: "Anda telah terhubung dengan live chat. Silakan mulai percakapan.",
                   isBot: true,
-                  timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                  timestamp: new Date().toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
                 };
-                setMessages(prev => [...prev, connectMessage]);
+                setMessages((prev) => [...prev, connectMessage]);
               }}
             >
               <Text style={styles.connectButtonText}>Terhubung</Text>
@@ -232,6 +489,65 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
+      
+      {/* Upload Modal */}
+      <Modal
+        visible={showUploadModal}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.uploadModal}>
+            <View style={styles.uploadHeader}>
+              <Text style={styles.uploadTitle}>Upload File</Text>
+              <TouchableOpacity onPress={() => setShowUploadModal(false)}>
+                <MaterialIcons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity style={styles.uploadOption} onPress={handleImageUpload}>
+              <MaterialIcons name="photo" size={24} color="#52B5AB" />
+              <Text style={styles.uploadOptionText}>Upload Gambar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.uploadOption} onPress={handleFileUpload}>
+              <MaterialIcons name="attach-file" size={24} color="#52B5AB" />
+              <Text style={styles.uploadOptionText}>Upload Dokumen</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Call Modal */}
+      <CallModal
+        visible={showCallModal}
+        callStatus={callStatus}
+        onStatusChange={setCallStatus}
+        onClose={() => {
+          setShowCallModal(false);
+          const callEndMessage = {
+            id: messages.length + 1,
+            text: "📞 Panggilan berakhir - Durasi: 3 menit",
+            isBot: true,
+            timestamp: new Date().toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            isCallLog: true,
+          };
+          setMessages((prev) => [...prev, callEndMessage]);
+        }}
+      />
+      
+      <BottomSheet
+        visible={showBottomSheet}
+        onClose={() => setShowBottomSheet(false)}
+        onConfirm={() => {
+          setShowBottomSheet(false);
+          router.replace("/(tabs)");
+        }}
+      />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -241,12 +557,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
+  keyboardView: {
+    flex: 1,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 24,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
@@ -259,7 +578,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   avatarImage: {
     width: 40,
@@ -290,7 +609,7 @@ const styles = StyleSheet.create({
   chatContainer: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#FFFFFF",
   },
   messageContainer: {
     marginBottom: 16,
@@ -375,43 +694,43 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.8)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   liveChatModal: {
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
     padding: 30,
     borderRadius: 20,
-    alignItems: 'center',
+    alignItems: "center",
     width: 280,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginTop: 16,
-    textAlign: 'center',
+    textAlign: "center",
     fontFamily: "Poppins",
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginTop: 8,
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
     fontFamily: "Poppins",
   },
   connectButton: {
-    backgroundColor: '#52B5AB',
+    backgroundColor: "#52B5AB",
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 25,
   },
   connectButtonText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontFamily: "Poppins",
   },
   buttonContainer: {
@@ -435,6 +754,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     color: "#000",
+    fontFamily: "Poppins",
+  },
+  uploadModal: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  uploadHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  uploadTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    fontFamily: "Poppins",
+  },
+  uploadOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    borderRadius: 10,
+    backgroundColor: "#F5F5F5",
+  },
+  uploadOptionText: {
+    fontSize: 16,
+    color: "#333",
+    marginLeft: 15,
     fontFamily: "Poppins",
   },
 });

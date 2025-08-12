@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/ThemedText";
+import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React from "react";
@@ -22,7 +23,7 @@ export default function FAQCard() {
             Lihat pertanyaan yang sering ditanyakan
           </ThemedText>
         </View>
-        <ThemedText style={styles.cardArrow}>›</ThemedText>
+        <MaterialIcons name="arrow-forward-ios" size={18} color="black" />
       </View>
     </TouchableOpacity>
   );
@@ -31,21 +32,15 @@ export default function FAQCard() {
 const styles = StyleSheet.create({
   faqCard: {
     backgroundColor: "white",
-    borderRadius: 20,
-    padding: 25,
-    marginBottom: 20,
+    borderRadius: 12,
+    padding: 24,
+    // marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#FFE4D6",
-    shadowColor: "#E0EE59",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: "#D9D9D9",
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
   },
   iconContainer: {
     width: 50,
@@ -54,7 +49,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#D32F2F",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 15,
+    marginRight: 24,
   },
   cardTextContainer: {
     flex: 1,
@@ -62,17 +57,18 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: "black",
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: Fonts.semiBold,
   },
   cardSubtitle: {
     color: "black",
     fontSize: 12,
-    opacity: 0.6,
-    marginTop: 2,
+    opacity: 0.7,
+    lineHeight: 17,
+    marginRight: 24,
   },
   cardArrow: {
     fontSize: 20,
-    color: "#8E8E93",
+    color: "black",
   },
   faqPreview: {
     backgroundColor: "#FFF3E0",

@@ -3,6 +3,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import ComplaintCard from "./ComplaintCard";
 import FAQCard from "./FAQCard";
+import { Fonts } from "@/constants/Fonts";
 
 export default function LayananKami() {
   return (
@@ -16,12 +17,16 @@ export default function LayananKami() {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: 14,
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 16
   },
+
   title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 15,
+    fontSize: 16,
+    fontFamily: Fonts.semiBold,
+    color: "black",
+    marginBottom: 16,
   },
 });

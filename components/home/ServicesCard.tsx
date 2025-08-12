@@ -1,23 +1,24 @@
 import { ThemedText } from "@/components/ThemedText";
+import { Fonts } from "@/constants/Fonts";
 import { router } from "expo-router";
 import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, Image } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const services = [
-  { id: 1, name: "Produk", icon: "💳" },
-  { id: 2, name: "Promo", icon: "🎁" },
-  { id: 3, name: "Cabang Dana TM", icon: "🏪" },
-  { id: 4, name: "Layanan Digital", icon: "📱" },
-  { id: 5, name: "Agent BNI", icon: "👨‍💼" },
-  { id: 6, name: "Wondr by BNI", icon: "✨" },
+  { id: 1, name: "Produk Bank BNI", icon: "credit-card-multiple-outline", bgColor: "#1F72F1" },
+  { id: 2, name: "Promo BNI", icon: "shopping", bgColor: "#71DAD3" },
+  { id: 3, name: "Cabang & ATM", icon: "home-city-outline", bgColor: "#9C7FDC" },
+  { id: 4, name: "Merchant Agen 46", icon: "face-agent", bgColor: "#FFC533" },
+  { id: 5, name: "Layanan Digital", icon: "cellphone", bgColor: "#FF8636" },
+  { id: 6, name: "Wondr by BNI", icon: require("@/assets/images/wondr.png"), bgColor: "#E0EE59", isImage: true },
 ];
 
 export default function ServicesCard() {
   return (
     <View style={styles.servicesCard}>
       <View style={styles.cardHeader}>
-        <ThemedText style={styles.cardIcon}>🏦</ThemedText>
-        <ThemedText type="subtitle" style={styles.cardTitle}>
+        <ThemedText style={styles.cardTitle}>
           Layanan BNI
         </ThemedText>
       </View>
@@ -52,8 +53,24 @@ export default function ServicesCard() {
               router.push(route as any);
             }}
           >
-            <View style={styles.serviceIconContainer}>
-              <ThemedText style={styles.serviceIcon}>{service.icon}</ThemedText>
+            <View
+              style={[
+                styles.serviceIconContainer,
+                { backgroundColor: service.bgColor },
+              ]}
+            >
+              {service.isImage ? (
+                <Image
+                  source={service.icon}
+                  style={{ width: 24, height: 24, resizeMode: "contain" }}
+                />
+              ) : (
+                <MaterialCommunityIcons
+                  name={service.icon as any}
+                  size={24}
+                  color="white"
+                />
+              )}
             </View>
             <ThemedText style={styles.serviceName}>{service.name}</ThemedText>
           </TouchableOpacity>
@@ -66,29 +83,19 @@ export default function ServicesCard() {
 const styles = StyleSheet.create({
   servicesCard: {
     backgroundColor: "white",
-    borderRadius: 20,
-    padding: 25,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#FFE4D6",
-    shadowColor: "#E0EE59",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 80,
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
   },
-  cardIcon: {
-    fontSize: 24,
-    marginRight: 15,
-  },
   cardTitle: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: Fonts.semiBold,
+    color: "black",
   },
   servicesGrid: {
     flexDirection: "row",
@@ -98,26 +105,23 @@ const styles = StyleSheet.create({
   serviceItem: {
     width: "30%",
     alignItems: "center",
-    marginBottom: 20,
+    // marginBottom: 24,
   },
   serviceIconContainer: {
     width: 50,
     height: 50,
-    backgroundColor: "#FFF3E0",
-    borderRadius: 25,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#FFE0B2",
-  },
-  serviceIcon: {
-    fontSize: 20,
   },
   serviceName: {
-    fontSize: 11,
+    fontSize: 12,
     textAlign: "center",
-    color: "#333",
-    fontWeight: "500",
+    color: "black",
+    paddingHorizontal: 20,
+    lineHeight: 16,
+    fontFamily: Fonts.medium,
+    marginBottom: 16,
   },
 });
