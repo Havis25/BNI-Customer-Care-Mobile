@@ -1,9 +1,18 @@
-import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
-import { Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Fonts } from '../../constants/Fonts';
+import { MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React from "react";
+import {
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
   const handlePress = async (url: string) => {
@@ -20,19 +29,15 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Kamu yakin ingin keluar?",
-      [
-        { text: "Batal", style: "cancel" },
-        { 
-          text: "Ya", 
-          onPress: () => {
-            router.replace('/login'); // ganti dengan path login kamu
-          } 
-        }
-      ]
-    );
+    Alert.alert("Logout", "Kamu yakin ingin keluar?", [
+      { text: "Batal", style: "cancel" },
+      {
+        text: "Ya",
+        onPress: () => {
+          router.replace("/login"); // ganti dengan path login kamu
+        },
+      },
+    ]);
   };
 
   return (
@@ -79,7 +84,8 @@ export default function ProfileScreen() {
 
           <Text style={styles.infoLabel}>Alamat</Text>
           <Text style={styles.infoValue}>
-            Jalan Melati Raya No. 12, Kel. Sukamaju, Kec. Setiabudi, Jakarta Selatan, DKI Jakarta 12930
+            Jalan Melati Raya No. 12, Kel. Sukamaju, Kec. Setiabudi, Jakarta
+            Selatan, DKI Jakarta 12930
           </Text>
         </View>
 
@@ -89,33 +95,53 @@ export default function ProfileScreen() {
         </View>
 
         {/* Container tiap item */}
-        <TouchableOpacity style={styles.socialRow} onPress={() => handlePress('https://api.whatsapp.com/send?phone=6281237812391')}>
+        <TouchableOpacity
+          style={styles.socialRow}
+          onPress={() =>
+            handlePress("https://api.whatsapp.com/send?phone=6281237812391")
+          }
+        >
           <View style={styles.socialLeft}>
             <Text style={styles.socialTitle}>Whatsapp</Text>
             <View style={styles.socialIconSubtitleRow}>
-              <Image source={require('../../assets/images/icon_whatsapp.png')} style={styles.socialIcon} />
+              <Image
+                source={require("../../assets/images/icon_whatsapp.png")}
+                style={styles.socialIcon}
+              />
               <Text style={styles.socialSubtitle}>081237812391</Text>
             </View>
           </View>
           <MaterialIcons name="chevron-right" size={24} color="#000" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.socialRow} onPress={() => handlePress('mailto:bnicall@bni.co.id')}>
+        <TouchableOpacity
+          style={styles.socialRow}
+          onPress={() => handlePress("mailto:bnicall@bni.co.id")}
+        >
           <View style={styles.socialLeft}>
             <Text style={styles.socialTitle}>Email</Text>
             <View style={styles.socialIconSubtitleRow}>
-              <Image source={require('../../assets/images/icon_email.png')} style={styles.socialIcon} />
+              <Image
+                source={require("../../assets/images/icon_email.png")}
+                style={styles.socialIcon}
+              />
               <Text style={styles.socialSubtitle}>bnicall@bni.co.id</Text>
             </View>
           </View>
           <MaterialIcons name="chevron-right" size={24} color="#000" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.socialRow} onPress={() => handlePress('https://www.instagram.com/bni46')}>
+        <TouchableOpacity
+          style={styles.socialRow}
+          onPress={() => handlePress("https://www.instagram.com/bni46")}
+        >
           <View style={styles.socialLeft}>
             <Text style={styles.socialTitle}>Instagram</Text>
             <View style={styles.socialIconSubtitleRow}>
-              <Image source={require('../../assets/images/icon_instagram.png')} style={styles.socialIcon} />
+              <Image
+                source={require("../../assets/images/icon_instagram.png")}
+                style={styles.socialIcon}
+              />
               <Text style={styles.socialSubtitle}>bni46</Text>
             </View>
           </View>
@@ -133,160 +159,160 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-safeArea: { 
-    flex: 1, 
-    backgroundColor: '#FFFFFF'
-},
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
 
-headerTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    textAlign: 'center', 
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
     marginTop: 10,
     fontFamily: Fonts.regular,
-},
+  },
 
-avatarContainer: { 
-    alignSelf: 'center', 
-    width: 80, 
-    height: 80, 
-    borderRadius: 40, 
-    backgroundColor: '#FFF4EC', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginTop: 20 
-},
+  avatarContainer: {
+    alignSelf: "center",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#FFF4EC",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+  },
 
-userName: { 
-    fontSize: 16, 
-    fontWeight: 'bold', 
-    textAlign: 'center', 
+  userName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
     marginTop: 10,
     fontFamily: Fonts.regular,
-},
+  },
 
-userEmail: { 
-    fontSize: 12, 
-    color: '#555', 
-    textAlign: 'center', 
+  userEmail: {
+    fontSize: 12,
+    color: "#555",
+    textAlign: "center",
     marginBottom: 20,
     fontFamily: Fonts.regular,
-},
+  },
 
-sectionHeader: { 
-    backgroundColor: '#F3F3F3', 
-    paddingVertical: 6, 
-    paddingHorizontal: 16 
-},
-  
-sectionHeaderText: { 
-    fontSize: 14, 
-    fontWeight: 'bold', 
-    color: '#999',
+  sectionHeader: {
+    backgroundColor: "#F3F3F3",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+
+  sectionHeaderText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#999",
     fontFamily: Fonts.bold,
-},
+  },
 
-  statsRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    paddingHorizontal: 16, 
-    paddingVertical: 16 
-},
-  statBox: { 
-    flex: 1, 
-    alignItems: 'center' 
-},
-  statNumber: { 
-    fontSize: 20, 
-    fontWeight: 'bold',
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: "bold",
     fontFamily: Fonts.regular,
-},
-  statLabel: { 
-    fontSize: 12, 
-    color: '#555',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#555",
     fontFamily: Fonts.regular,
-},
-  divider: { 
-    width: 1, 
-    backgroundColor: '#DDD', 
-    height: '100%' 
-},
+  },
+  divider: {
+    width: 1,
+    backgroundColor: "#DDD",
+    height: "100%",
+  },
 
-infoContainer: { 
-    padding: 16 
-},
-  
-infoLabel: { 
-    fontSize: 14, 
-    fontWeight: 'bold', 
+  infoContainer: {
+    padding: 16,
+  },
+
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: "bold",
     marginTop: 10,
     fontFamily: Fonts.bold,
-},
-  
-infoValue: { 
-    fontSize: 14, 
-    color: '#333', 
+  },
+
+  infoValue: {
+    fontSize: 14,
+    color: "#333",
     marginTop: 2,
     fontFamily: Fonts.regular,
-},
+  },
 
   socialRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    borderBottomColor: "#EEE",
   },
   socialLeft: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    flexDirection: "column",
+    alignItems: "flex-start",
     flexShrink: 1,
     flexGrow: 1,
     paddingLeft: 4,
   },
   socialTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 6,
     fontFamily: Fonts.semiBold,
   },
   socialIconSubtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   socialIcon: {
     width: 45,
     height: 45,
-    resizeMode: 'contain',
+    resizeMode: "contain",
     marginRight: 8,
   },
   socialSubtitle: {
     fontSize: 13,
-    color: '#555',
+    color: "#555",
     fontFamily: Fonts.regular,
   },
 
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginHorizontal: 16,
     marginTop: 40,
     paddingVertical: 12,
     borderWidth: 1.5,
-    borderColor: '#D32F2F',
+    borderColor: "#D32F2F",
     borderRadius: 8,
     gap: 8,
-    backgroundColor: 'rgba(211,47,47,0.1)', 
+    backgroundColor: "rgba(211,47,47,0.1)",
   },
-  
+
   logoutText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: 'red',
+    fontWeight: "bold",
+    color: "red",
     fontFamily: Fonts.semiBold,
   },
 });
