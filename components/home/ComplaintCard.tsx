@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/ThemedText";
+import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React from "react";
@@ -22,7 +23,9 @@ export default function ComplaintCard() {
             Ajukan laporan kendala yang anda alami disini
           </ThemedText>
         </View>
-        <ThemedText style={styles.cardArrow}>›</ThemedText>
+        <ThemedText style={styles.cardArrow}>
+          <MaterialIcons name="arrow-forward-ios" size={18} color="black" />
+        </ThemedText>
       </View>
     </TouchableOpacity>
   );
@@ -31,22 +34,18 @@ export default function ComplaintCard() {
 const styles = StyleSheet.create({
   complaintCard: {
     backgroundColor: "white",
-    borderRadius: 20,
+    borderRadius: 12,
     padding: 25,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#FFE4D6",
-    shadowColor: "#E0EE59",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: "#D9D9D9",
   },
+
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
   },
+
   iconContainer: {
     width: 50,
     height: 50,
@@ -54,25 +53,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#2196F3",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 15,
+    marginRight: 24,
   },
+
   cardTextContainer: {
     flex: 1,
   },
+
   cardTitle: {
     color: "black",
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: Fonts.semiBold,
   },
   cardSubtitle: {
     color: "black",
     fontSize: 12,
-    opacity: 0.6,
-    marginTop: 2,
+    opacity: 0.7,
+    lineHeight: 17,
+    marginRight: 24,
   },
   cardArrow: {
     fontSize: 20,
-    color: "#8E8E93",
+    color: "black",
   },
   chatbotIndicator: {
     backgroundColor: "#34C759",
