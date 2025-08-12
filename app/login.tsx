@@ -1,17 +1,18 @@
+import { Fonts } from "@/constants/Fonts";
+import { MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
+  Alert,
+  Image,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
-  StyleSheet,
-  Image,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { MaterialIcons } from "@expo/vector-icons";
-import { Fonts } from "@/constants/Fonts";
+
 
 export default function LoginScreen() {
   const [username, setUsername] = useState("");
