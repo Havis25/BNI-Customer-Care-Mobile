@@ -9,6 +9,7 @@ import {
   View,
   Modal,
   TextInput,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -105,7 +106,11 @@ export default function ChatScreen() {
         </TouchableOpacity>
 
         <View style={styles.avatarContainer}>
-          <MaterialIcons name="account-circle" size={40} color="#666" />
+          <Image 
+            source={require('@/assets/images/log-bcare.png')}
+            style={styles.avatarImage}
+            resizeMode="contain"
+          />
         </View>
         
         <View style={styles.headerInfo}>
@@ -116,7 +121,7 @@ export default function ChatScreen() {
           </View>
         </View>
 
-        <MaterialIcons name="more-vert" size={24} color="#333" />
+        <View style={{ width: 24 }} />
       </View>
 
       {/* Chat Messages */}
@@ -177,6 +182,9 @@ export default function ChatScreen() {
 
       {/* Input Area */}
       <View style={styles.inputContainer}>
+        <TouchableOpacity style={styles.addFileButton}>
+          <MaterialIcons name="add" size={24} color="#FFF" />
+        </TouchableOpacity>
         <TextInput
           style={styles.textInput}
           placeholder={isLiveChat ? "Ketik pesan Anda..." : "Live chat tidak aktif"}
@@ -186,11 +194,10 @@ export default function ChatScreen() {
           multiline
         />
         <TouchableOpacity 
-          style={[styles.sendButton, !isLiveChat && styles.disabledSendButton]}
           onPress={handleSendMessage}
           disabled={!isLiveChat}
         >
-          <MaterialIcons name="send" size={20} color={isLiveChat ? "#FFF" : "#999"} />
+          <MaterialIcons name="send" size={20} color="#FF8636" />
         </TouchableOpacity>
       </View>
 
@@ -249,6 +256,14 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginLeft: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
   },
   headerInfo: {
     flex: 1,
@@ -259,6 +274,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
+    fontFamily: "Poppins",
   },
   statusContainer: {
     flexDirection: "row",
@@ -269,6 +285,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#4CAF50",
     marginLeft: 4,
+    fontFamily: "Poppins",
   },
   chatContainer: {
     flex: 1,
@@ -290,28 +307,30 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   botBubble: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF3EB",
     borderBottomLeftRadius: 4,
   },
   userBubble: {
-    backgroundColor: "#a19a9aff",
+    backgroundColor: "#FF8636",
     borderBottomRightRadius: 4,
   },
   messageText: {
     fontSize: 14,
     lineHeight: 20,
+    fontFamily: "Poppins",
   },
   botText: {
-    color: "#333",
+    color: "#000",
   },
   userText: {
-    color: "black",
+    color: "#FFF",
   },
   timestamp: {
     fontSize: 10,
     opacity: 0.6,
     marginTop: 4,
     alignSelf: "flex-end",
+    fontFamily: "Poppins",
   },
   inputContainer: {
     flexDirection: "row",
@@ -332,11 +351,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5",
     fontSize: 14,
     maxHeight: 100,
+    fontFamily: "Poppins",
+  },
+  addFileButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#FF8636",
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
   },
   sendButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#52B5AB",
+    backgroundColor: "#FF8636",
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
@@ -363,6 +392,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 16,
     textAlign: 'center',
+    fontFamily: "Poppins",
   },
   modalSubtitle: {
     fontSize: 14,
@@ -370,6 +400,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 20,
     textAlign: 'center',
+    fontFamily: "Poppins",
   },
   connectButton: {
     backgroundColor: '#52B5AB',
@@ -381,6 +412,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: "Poppins",
   },
   buttonContainer: {
     flexDirection: "row",
@@ -388,13 +420,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   yesButton: {
-    backgroundColor: "#333",
+    backgroundColor: "#FFF3EB",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
   },
   noButton: {
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "#FFF3EB",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
@@ -402,6 +434,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#FFF",
+    color: "#000",
+    fontFamily: "Poppins",
   },
 });

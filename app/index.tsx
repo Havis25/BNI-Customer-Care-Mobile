@@ -1,9 +1,9 @@
-import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { router } from "expo-router";
+import { useEffect } from "react";
 
 export default function Index() {
   useEffect(() => {
-    router.replace('/WelcomePage');
+    router.replace("/WelcomePage");
   }, []);
 
   return null;
