@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="services/produk" options={{ headerShown: false }} />
         <Stack.Screen name="services/promo" options={{ headerShown: false }} />
         <Stack.Screen name="services/cabang" options={{ headerShown: false }} />
+        <Stack.Screen name="riwayat/[id]" options={{ headerShown: false }} />
         <Stack.Screen
           name="services/digital"
           options={{ headerShown: false }}
