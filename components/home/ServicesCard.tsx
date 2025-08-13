@@ -41,10 +41,10 @@ export default function ServicesCard() {
                   route = "services/cabang";
                   break;
                 case 4:
-                  route = "services/digital";
+                  route = "services/agent";
                   break;
                 case 5:
-                  route = "services/agent";
+                  route = "services/digital";
                   break;
                 case 6:
                   route = "services/wondr";
