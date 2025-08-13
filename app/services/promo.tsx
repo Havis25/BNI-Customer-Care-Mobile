@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   FlatList,
   Image,
@@ -9,55 +9,56 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Fonts } from '@/constants/Fonts';
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Fonts } from "@/constants/Fonts";
 
 const promoData = {
   featured: [
     {
-      id: '1',
-      title: 'Cashback 50% Belanja Online',
-      description: 'Dapatkan cashback hingga Rp 100.000 untuk transaksi e-commerce',
-      image: 'https://picsum.photos/id/100/300/180',
-      validUntil: '31 Des 2024',
-      category: 'E-Commerce',
+      id: "1",
+      title: "Cashback 50% Belanja Online",
+      description:
+        "Dapatkan cashback hingga Rp 100.000 untuk transaksi e-commerce",
+      image: "https://picsum.photos/id/100/300/180",
+      validUntil: "31 Des 2024",
+      category: "E-Commerce",
     },
     {
-      id: '2',
-      title: 'Gratis Biaya Admin 6 Bulan',
-      description: 'Buka rekening BNI Taplus dan nikmati bebas biaya admin',
-      image: 'https://picsum.photos/id/101/300/180',
-      validUntil: '15 Jan 2025',
-      category: 'Tabungan',
+      id: "2",
+      title: "Gratis Biaya Admin 6 Bulan",
+      description: "Buka rekening BNI Taplus dan nikmati bebas biaya admin",
+      image: "https://picsum.photos/id/101/300/180",
+      validUntil: "15 Jan 2025",
+      category: "Tabungan",
     },
   ],
   lifestyle: [
     {
-      id: '3',
-      title: 'Diskon 25% Restoran Partner',
-      description: 'Nikmati diskon di 500+ restoran favorit Anda',
-      image: 'https://picsum.photos/id/102/300/180',
-      validUntil: '28 Feb 2025',
-      category: 'F&B',
+      id: "3",
+      title: "Diskon 25% Restoran Partner",
+      description: "Nikmati diskon di 500+ restoran favorit Anda",
+      image: "https://picsum.photos/id/102/300/180",
+      validUntil: "28 Feb 2025",
+      category: "F&B",
     },
     {
-      id: '4',
-      title: 'Cashback 20% Transportasi',
-      description: 'Hemat perjalanan dengan cashback ojek online dan taksi',
-      image: 'https://picsum.photos/id/103/300/180',
-      validUntil: '31 Mar 2025',
-      category: 'Transport',
+      id: "4",
+      title: "Cashback 20% Transportasi",
+      description: "Hemat perjalanan dengan cashback ojek online dan taksi",
+      image: "https://picsum.photos/id/103/300/180",
+      validUntil: "31 Mar 2025",
+      category: "Transport",
     },
     {
-      id: '5',
-      title: 'Diskon Hotel hingga 40%',
-      description: 'Liburan lebih hemat dengan promo hotel eksklusif',
-      image: 'https://picsum.photos/id/104/300/180',
-      validUntil: '30 Apr 2025',
-      category: 'Travel',
+      id: "5",
+      title: "Diskon Hotel hingga 40%",
+      description: "Liburan lebih hemat dengan promo hotel eksklusif",
+      image: "https://picsum.photos/id/104/300/180",
+      validUntil: "30 Apr 2025",
+      category: "Travel",
     },
   ],
 };
@@ -83,7 +84,9 @@ export default function PromoScreen() {
         <Text style={styles.featuredDesc}>{item.description}</Text>
         <View style={styles.validUntilContainer}>
           <Ionicons name="time-outline" size={14} color="#666" />
-          <Text style={styles.validUntilText}>Berlaku hingga {item.validUntil}</Text>
+          <Text style={styles.validUntilText}>
+            Berlaku hingga {item.validUntil}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -106,44 +109,47 @@ export default function PromoScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
-        colors={['#DEEF5A', '#FCFDEE']}
+        colors={["#DEEF5A", "#FCFDEE"]}
         locations={[0.23, 0.37]}
         style={StyleSheet.absoluteFill}
       />
-      
+
       <View style={styles.headerSection}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color="black" />
           </TouchableOpacity>
           <Text style={styles.header}>Promo BNI</Text>
         </View>
       </View>
 
-      <ScrollView style={styles.container}>
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>Promo Unggulan</Text>
-          <FlatList
-            data={promoData.featured}
-            renderItem={renderFeaturedPromo}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>Lifestyle & Entertainment</Text>
-          <FlatList
-            data={promoData.lifestyle}
-            renderItem={renderLifestylePromo}
-            keyExtractor={(item) => item.id}
-            numColumns={1}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
-      </ScrollView>
+      <FlatList
+        style={styles.container}
+        data={promoData.lifestyle}
+        keyExtractor={(item) => String(item.id)}
+        showsVerticalScrollIndicator={false}
+        numColumns={1}
+        ListHeaderComponent={
+          <View style={styles.section}>
+            <Text style={styles.subHeader}>Promo Unggulan</Text>
+            <FlatList
+              data={promoData.featured}
+              renderItem={renderFeaturedPromo}
+              keyExtractor={(item) => String(item.id)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+            />
+            <View style={{ height: 20 }}>
+              <Text style={styles.subHeader}>Lifestyle & Entertainment</Text>
+            </View>
+          </View>
+        }
+        renderItem={renderLifestylePromo}
+      />
     </SafeAreaView>
   );
 }
@@ -158,8 +164,8 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   backButton: {
     marginRight: 16,
@@ -170,7 +176,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   section: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -178,27 +184,27 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 24,
     fontFamily: Fonts.bold,
-    color: 'black',
+    color: "black",
     flex: 1,
   },
   subHeader: {
     fontSize: 16,
     fontFamily: Fonts.semiBold,
-    color: 'black',
+    color: "black",
     marginBottom: 16,
   },
   horizontalList: {
     paddingRight: 16,
   },
   featuredCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     marginRight: 16,
     width: 280,
-    overflow: 'hidden',
+    overflow: "hidden",
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 4,
@@ -209,60 +215,60 @@ const styles = StyleSheet.create({
     }),
   },
   featuredImage: {
-    width: '100%',
+    width: "100%",
     height: 160,
-    resizeMode: 'cover',
+    resizeMode: "cover",
   },
   featuredContent: {
     padding: 16,
   },
   categoryBadge: {
-    backgroundColor: '#FF6600',
+    backgroundColor: "#FF6600",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginBottom: 8,
   },
   categoryText: {
     fontSize: 10,
     fontFamily: Fonts.medium,
-    color: 'white',
+    color: "white",
   },
   featuredTitle: {
     fontSize: 16,
     fontFamily: Fonts.semiBold,
-    color: 'black',
+    color: "black",
     marginBottom: 6,
   },
   featuredDesc: {
     fontSize: 12,
     fontFamily: Fonts.medium,
-    color: '#666',
+    color: "#666",
     lineHeight: 16,
     marginBottom: 12,
   },
   validUntilContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   validUntilText: {
     fontSize: 11,
     fontFamily: Fonts.medium,
-    color: '#666',
+    color: "#666",
     marginLeft: 4,
   },
   lifestyleCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
     borderRadius: 12,
     marginBottom: 12,
-    overflow: 'hidden',
-    flexDirection: 'row',
+    overflow: "hidden",
+    flexDirection: "row",
   },
   lifestyleImage: {
     width: 100,
     height: 100,
-    resizeMode: 'cover',
+    resizeMode: "cover",
   },
   lifestyleContent: {
     flex: 1,
@@ -271,13 +277,13 @@ const styles = StyleSheet.create({
   lifestyleTitle: {
     fontSize: 14,
     fontFamily: Fonts.semiBold,
-    color: 'black',
+    color: "black",
     marginBottom: 4,
   },
   lifestyleDesc: {
     fontSize: 11,
     fontFamily: Fonts.medium,
-    color: '#666',
+    color: "#666",
     lineHeight: 14,
     marginBottom: 8,
   },

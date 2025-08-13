@@ -144,7 +144,11 @@ export default function RiwayatDetailScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+      >
         {item.status === "Diterima" && (
           <View style={styles.warningContainer}>
             <MaterialIcons name="warning" size={20} color="#D32F2F" />
