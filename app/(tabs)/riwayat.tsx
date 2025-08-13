@@ -14,105 +14,106 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
+import FeedbackModal from "@/components/FeedbackModal";
 
 const riwayatData = [
   {
-    id: "LP-202508061234",
+    id: "LP-202412151234",
     status: "Diterima",
-    judul: "Masalah ATM tidak bisa tarik tunai",
-    tanggal: "15 Jan 2024",
+    judul: "ATM tidak mengeluarkan uang tunai",
+    tanggal: "15 Des 2024",
     jam: "14:30",
   },
   {
-    id: "LP-202508061235",
+    id: "LP-202412141235",
     status: "Validasi",
-    judul: "Kartu kredit terblokir",
-    tanggal: "14 Mar 2024",
-    jam: "09:15",
-  },
-  {
-    id: "LP-202508061236",
-    status: "Diproses",
-    judul: "Transfer gagal tapi saldo terpotong",
-    tanggal: "13 Feb 2024",
-    jam: "16:45",
-  },
-  {
-    id: "LP-202508061237",
-    status: "Selesai",
-    judul: "Aplikasi mobile banking error",
-    tanggal: "12 Jun 2024",
-    jam: "11:20",
-  },
-  {
-    id: "LP-202508061238",
-    status: "Validasi",
-    judul: "Kartu kredit terblokir",
-    tanggal: "14 Jun 2024",
-    jam: "09:15",
-  },
-  {
-    id: "LP-202508061239",
-    status: "Selesai",
-    judul: "Aplikasi mobile banking error",
-    tanggal: "12 Jul 2024",
-    jam: "11:20",
-  },
-  {
-    id: "LP-202508061240",
-    status: "Validasi",
-    judul: "Kartu kredit terblokir",
+    judul: "Kartu debit terblokir mendadak",
     tanggal: "14 Des 2024",
     jam: "09:15",
   },
   {
-    id: "LP-202508061241",
+    id: "LP-202412131236",
     status: "Diproses",
-    judul: "Transfer gagal tapi saldo terpotong",
+    judul: "Transfer online gagal saldo terpotong",
     tanggal: "13 Des 2024",
     jam: "16:45",
   },
   {
-    id: "LP-202508061242",
-    status: "Diterima",
-    judul: "Masalah ATM tidak bisa tarik tunai",
-    tanggal: "15 Des 2024",
-    jam: "14:30",
-  },
-  {
-    id: "LP-202508061243",
+    id: "LP-202412121237",
     status: "Selesai",
-    judul: "Aplikasi mobile banking error",
+    judul: "Mobile banking tidak bisa login",
     tanggal: "12 Des 2024",
     jam: "11:20",
   },
   {
-    id: "LP-202508061244",
-    status: "Diterima",
-    judul: "Masalah ATM tidak bisa tarik tunai",
-    tanggal: "15 Des 2024",
-    jam: "14:30",
+    id: "LP-202412111238",
+    status: "Validasi",
+    judul: "Saldo rekening tidak sesuai",
+    tanggal: "11 Des 2024",
+    jam: "13:45",
   },
   {
-    id: "LP-202508061245",
-    status: "Diproses",
-    judul: "Transfer gagal tapi saldo terpotong",
-    tanggal: "13 Des 2024",
-    jam: "16:45",
-  },
-  {
-    id: "LP-202508061246",
+    id: "LP-202412101239",
     status: "Selesai",
-    judul: "Aplikasi mobile banking error",
-    tanggal: "12 Des 2024",
-    jam: "11:20",
+    judul: "Biaya admin tidak wajar",
+    tanggal: "10 Des 2024",
+    jam: "08:30",
   },
   {
-    id: "LP-202508061247",
+    id: "LP-202412091240",
+    status: "Diterima",
+    judul: "Kartu kredit limit berkurang",
+    tanggal: "09 Des 2024",
+    jam: "15:20",
+  },
+  {
+    id: "LP-202412081241",
     status: "Diproses",
-    judul: "Transfer gagal tapi saldo terpotong",
-    tanggal: "13 Des 2024",
-    jam: "16:45",
+    judul: "Internet banking error 500",
+    tanggal: "08 Des 2024",
+    jam: "10:15",
+  },
+  {
+    id: "LP-202412071242",
+    status: "Selesai",
+    judul: "PIN ATM tidak bisa diganti",
+    tanggal: "07 Des 2024",
+    jam: "12:00",
+  },
+  {
+    id: "LP-202412061243",
+    status: "Validasi",
+    judul: "Transaksi ditolak tanpa alasan",
+    tanggal: "06 Des 2024",
+    jam: "17:30",
+  },
+  {
+    id: "LP-202412051244",
+    status: "Diproses",
+    judul: "Notifikasi SMS tidak masuk",
+    tanggal: "05 Des 2024",
+    jam: "14:45",
+  },
+  {
+    id: "LP-202412041245",
+    status: "Selesai",
+    judul: "Buku tabungan tidak ter-update",
+    tanggal: "04 Des 2024",
+    jam: "09:30",
+  },
+  {
+    id: "LP-202412031246",
+    status: "Diterima",
+    judul: "Layanan customer service lambat",
+    tanggal: "03 Des 2024",
+    jam: "16:15",
+  },
+  {
+    id: "LP-202412021247",
+    status: "Selesai",
+    judul: "Aplikasi sering force close",
+    tanggal: "02 Des 2024",
+    jam: "11:45",
   },
 ];
 
@@ -192,6 +193,7 @@ export default function RiwayatScreen() {
   const [appliedSortBy, setAppliedSortBy] = useState("");
   const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
   const slideAnim = new Animated.Value(300);
 
   useEffect(() => {
@@ -299,9 +301,13 @@ export default function RiwayatScreen() {
                 shadowColor: getShadowColor(item.status),
               },
             ]}
-            onPress={() =>
-              router.push(`/riwayat/${item.id}` as any)
-            }
+            onPress={() => {
+              if (item.status === "Selesai") {
+                setShowFeedback(true);
+              } else {
+                router.push(`/riwayat/${item.id}` as any);
+              }
+            }}
           >
             <View style={styles.cardHeader}>
               <Text style={styles.cardId}>{item.id}</Text>
@@ -510,6 +516,11 @@ export default function RiwayatScreen() {
           </Animated.View>
         </TouchableOpacity>
       </Modal>
+
+      <FeedbackModal 
+        visible={showFeedback} 
+        onClose={() => setShowFeedback(false)} 
+      />
     </SafeAreaView>
   );
 }
