@@ -2,19 +2,21 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import {
-  Alert,
-  Image,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+
   const handlePress = async (url: string) => {
     try {
       const supported = await Linking.canOpenURL(url);
@@ -34,7 +36,7 @@ export default function ProfileScreen() {
       {
         text: "Ya",
         onPress: () => {
-          router.replace("/login"); // ganti dengan path login kamu
+          router.replace("/login");
         },
       },
     ]);
@@ -42,7 +44,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         {/* Judul */}
         <Text style={styles.headerTitle}>Profile</Text>
 
@@ -94,7 +96,6 @@ export default function ProfileScreen() {
           <Text style={styles.sectionHeaderText}>MEDIA SOSIAL</Text>
         </View>
 
-        {/* Container tiap item */}
         <TouchableOpacity
           style={styles.socialRow}
           onPress={() =>
@@ -148,7 +149,7 @@ export default function ProfileScreen() {
           <MaterialIcons name="chevron-right" size={24} color="#000" />
         </TouchableOpacity>
 
-        {/* Tombol Keluar dengan MaterialIcons */}
+        {/* Tombol Keluar */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={24} color="red" />
           <Text style={styles.logoutText}>Keluar</Text>
@@ -163,34 +164,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-
   headerTitle: {
     fontSize: 18,
-    fontWeight: "bold",
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 12,
     fontFamily: Fonts.regular,
   },
-
   avatarContainer: {
     alignSelf: "center",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     backgroundColor: "#FFF4EC",
     justifyContent: "center",
     alignItems: "center",
     marginTop: 20,
   },
-
   userName: {
     fontSize: 16,
-    fontWeight: "bold",
     textAlign: "center",
     marginTop: 10,
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.bold,
   },
-
   userEmail: {
     fontSize: 12,
     color: "#555",
@@ -198,20 +193,19 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontFamily: Fonts.regular,
   },
-
   sectionHeader: {
+    fontSize: 14,
+    color: "#939393",
     backgroundColor: "#F3F3F3",
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 16,
+    fontFamily: Fonts.regular,
   },
-
   sectionHeaderText: {
     fontSize: 14,
-    fontWeight: "bold",
     color: "#999",
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
-
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -224,13 +218,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
-    fontFamily: Fonts.regular,
+    fontSize: 18,
+    fontFamily: Fonts.semiBold,
   },
   statLabel: {
     fontSize: 12,
-    color: "#555",
     fontFamily: Fonts.regular,
   },
   divider: {
@@ -238,33 +230,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDD",
     height: "100%",
   },
-
   infoContainer: {
     padding: 16,
   },
-
   infoLabel: {
+    marginTop: 12,
     fontSize: 14,
-    fontWeight: "bold",
-    marginTop: 10,
     fontFamily: Fonts.bold,
   },
-
   infoValue: {
     fontSize: 14,
-    color: "#333",
     marginTop: 2,
     fontFamily: Fonts.regular,
   },
-
   socialRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
   },
   socialLeft: {
     flexDirection: "column",
@@ -275,8 +259,7 @@ const styles = StyleSheet.create({
   },
   socialTitle: {
     fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 6,
+    marginBottom: 12,
     fontFamily: Fonts.semiBold,
   },
   socialIconSubtitleRow: {
@@ -287,31 +270,28 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     resizeMode: "contain",
-    marginRight: 8,
+    marginRight: 12,
   },
   socialSubtitle: {
     fontSize: 13,
     color: "#555",
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.semiBold,
   },
-
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: 16,
-    marginTop: 40,
+    marginTop: 16,
     paddingVertical: 12,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "#D32F2F",
     borderRadius: 8,
-    gap: 8,
+    gap: 12,
     backgroundColor: "rgba(211,47,47,0.1)",
   },
-
   logoutText: {
     fontSize: 14,
-    fontWeight: "bold",
     color: "red",
     fontFamily: Fonts.semiBold,
   },
