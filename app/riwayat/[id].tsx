@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -381,9 +381,65 @@ const riwayatData = [
 
 export default function RiwayatDetailScreen() {
   const { id } = useLocalSearchParams();
-  const item = riwayatData.find((data) => data.id === id);
+  const [ticket, setTicket] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!item) {
+  useEffect(() => {
+    fetchTicketDetail();
+  }, [id]);
+
+  const fetchTicketDetail = async () => {
+    try {
+      const response = await fetch(`http://34.121.13.94:3000/tickets/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTicket(data);
+      }
+    } catch (error) {
+      console.error('Error fetching ticket detail:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Dummy progress data
+  const progressData = [
+    {
+      status: "Diterima",
+      tanggal: ticket ? `${formatDate(ticket.created_time)}, ${formatTime(ticket.created_time)}` : "",
+      penjelasan: "Laporan telah diterima dan akan segera ditindaklanjuti",
+    },
+    { status: "Validasi", tanggal: " ", penjelasan: " " },
+    { status: "Diproses", tanggal: " ", penjelasan: " " },
+    { status: "Selesai", tanggal: " ", penjelasan: " " },
+  ];
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!ticket) {
     return (
       <SafeAreaView style={styles.container}>
         <Text>Data tidak ditemukan</Text>
@@ -413,39 +469,31 @@ export default function RiwayatDetailScreen() {
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled={true}
       >
-        {item.status === "Diterima" && (
-          <View style={styles.warningContainer}>
-            <MaterialIcons name="warning" size={20} color="#D32F2F" />
-            <Text style={styles.warningText}>
-              Mohon kirimkan berkas anda sesuai ketentuan
-            </Text>
-          </View>
-        )}
         <View style={styles.complaintContainer}>
           <View style={styles.detailHeader}>
-            <Text style={styles.detailId}>{item.id}</Text>
+            <Text style={styles.detailId}>{ticket.ticket_number}</Text>
             <Text style={styles.detailDateTime}>
-              {item.tanggal}, {item.jam}
+              {formatDate(ticket.created_time)}, {formatTime(ticket.created_time)}
             </Text>
           </View>
 
-          <Text style={styles.detailTitle}>{item.judul}</Text>
+          <Text style={styles.detailTitle}>{ticket.title}</Text>
 
           <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>Deskripsi</Text>
-            <Text style={styles.descriptionText}>{item.deskripsi}</Text>
+            <Text style={styles.descriptionText}>{ticket.description}</Text>
           </View>
         </View>
 
         <View style={styles.progressSection}>
           <Text style={styles.progressTitle}>Status Progress</Text>
           <View style={styles.progressCard}>
-            {item.progressData?.map((step: any, index: number) => {
+            {ticket?.map((step: any, index: number) => {
               const stepStatus = getProgressStepStatus(
-                item.status,
+                ticket.customer_status,
                 step.status
               );
-              const isLast = index === item.progressData.length - 1;
+              const isLast = index === ticket.length - 1;
 
               return (
                 <View key={step.status} style={styles.progressStep}>
@@ -722,5 +770,12 @@ const styles = StyleSheet.create({
     color: "black",
     lineHeight: 16,
     marginBottom: 4,
+  },
+  loadingText: {
+    textAlign: "center",
+    fontSize: 16,
+    fontFamily: Fonts.medium,
+    color: "#666",
+    marginTop: 50,
   },
 });

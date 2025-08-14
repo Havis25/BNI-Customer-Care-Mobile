@@ -15,6 +15,7 @@ import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import FeedbackModal from "@/components/FeedbackModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const riwayatData = [
   {
@@ -194,7 +195,49 @@ export default function RiwayatScreen() {
   const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const slideAnim = new Animated.Value(300);
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const fetchTickets = async () => {
+    try {
+      const customerData = await AsyncStorage.getItem("customer");
+      if (customerData) {
+        const customer = JSON.parse(customerData);
+        const response = await fetch(`http://34.121.13.94:3000/tickets/`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setTickets(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   useEffect(() => {
     if (showFilter) {
@@ -215,34 +258,30 @@ export default function RiwayatScreen() {
   const hasFilters = sortBy !== "" || selectedStatus.length > 0;
 
   const getFilteredData = () => {
-    let filteredData = [...riwayatData];
+    let filteredData = [...tickets];
 
     // Filter by search query
     if (searchQuery.trim() !== "") {
       filteredData = filteredData.filter((item) =>
-        item.judul.toLowerCase().includes(searchQuery.toLowerCase())
+        item.title.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     // Filter by status if any status is applied
     if (appliedStatus.length > 0) {
       filteredData = filteredData.filter((item) =>
-        appliedStatus.includes(item.status)
+        appliedStatus.includes(item.customer_status)
       );
     }
 
     // Sort by date if applied
     if (appliedSortBy === "tanggal-terbaru") {
       filteredData.sort((a, b) => {
-        const dateA = parseIndonesianDate(a.tanggal, a.jam);
-        const dateB = parseIndonesianDate(b.tanggal, b.jam);
-        return dateB.getTime() - dateA.getTime(); // Sort by newest first
+        return new Date(b.created_time).getTime() - new Date(a.created_time).getTime();
       });
     } else if (appliedSortBy === "tanggal-terlama") {
       filteredData.sort((a, b) => {
-        const dateA = parseIndonesianDate(a.tanggal, a.jam);
-        const dateB = parseIndonesianDate(b.tanggal, b.jam);
-        return dateA.getTime() - dateB.getTime(); // Sort by oldest first
+        return new Date(a.created_time).getTime() - new Date(b.created_time).getTime();
       });
     }
 
@@ -290,49 +329,53 @@ export default function RiwayatScreen() {
         style={styles.listContainer}
         showsVerticalScrollIndicator={false}
       >
-        {getFilteredData().map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={[
-              styles.card,
-              {
-                borderLeftColor: getStatusColorText(item.status),
-                backgroundColor: getStatusColorBackground(item.status),
-                shadowColor: getShadowColor(item.status),
-              },
-            ]}
-            onPress={() => {
-              if (item.status === "Selesai") {
-                setShowFeedback(true);
-              } else {
-                router.push(`/riwayat/${item.id}` as any);
-              }
-            }}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardId}>{item.id}</Text>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: getStatusColorBadge(item.status) },
-                ]}
-              >
-                <Text
+        {loading ? (
+          <Text style={styles.loadingText}>Loading...</Text>
+        ) : (
+          getFilteredData().map((item) => (
+            <TouchableOpacity
+              key={item.ticket_number}
+              style={[
+                styles.card,
+                {
+                  borderLeftColor: getStatusColorText(item.customer_status),
+                  backgroundColor: getStatusColorBackground(item.customer_status),
+                  shadowColor: getShadowColor(item.customer_status),
+                },
+              ]}
+              onPress={() => {
+                if (item.customer_status === "Selesai") {
+                  setShowFeedback(true);
+                } else {
+                  router.push(`/riwayat/${item.ticket_id}` as any);
+                }
+              }}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardId}>{item.ticket_number}</Text>
+                <View
                   style={[
-                    styles.statusText,
-                    { color: getStatusColorText(item.status) },
+                    styles.statusBadge,
+                    { backgroundColor: getStatusColorBadge(item.customer_status) },
                   ]}
                 >
-                  {item.status}
-                </Text>
+                  <Text
+                    style={[
+                      styles.statusText,
+                      { color: getStatusColorText(item.customer_status) },
+                    ]}
+                  >
+                    {item.customer_status}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <Text style={styles.cardTitle}>{item.judul}</Text>
-            <Text style={styles.cardDateTime}>
-              {item.tanggal}, {item.jam}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              <Text style={styles.cardDateTime}>
+                {formatDate(item.created_time)}, {formatTime(item.created_time)}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
 
       <Modal visible={showFilter} transparent animationType="fade">
@@ -701,5 +744,12 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: "#999",
+  },
+  loadingText: {
+    textAlign: "center",
+    fontSize: 16,
+    fontFamily: Fonts.medium,
+    color: "#666",
+    marginTop: 50,
   },
 });
