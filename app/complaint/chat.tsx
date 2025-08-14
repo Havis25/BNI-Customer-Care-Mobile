@@ -15,10 +15,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 import CallModal from "@/components/modals/CallModal";
 import BottomSheet from "@/components/modals/BottomSheet";
+import UploadModal from "@/components/modals/UploadModal";
+import { useUser } from "@/hooks/useUser";
 
 const chatMessages = [
   {
@@ -56,6 +56,7 @@ const chatMessages = [
 
 export default function ChatScreen() {
   const { callDeclined, fromConfirmation, callEnded } = useLocalSearchParams();
+  const { user } = useUser();
   const [messages, setMessages] = useState(chatMessages);
   const [showLiveChatModal, setShowLiveChatModal] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
@@ -102,62 +103,20 @@ export default function ChatScreen() {
     }
   };
 
-  const handleFileUpload = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: true,
-      });
-      
-      if (!result.canceled && result.assets[0]) {
-        const file = result.assets[0];
-        const fileMessage = {
-          id: messages.length + 1,
-          text: `📎 File: ${file.name}`,
-          isBot: false,
-          timestamp: new Date().toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          isFile: true,
-          fileName: file.name,
-        };
-        setMessages((prev) => [...prev, fileMessage]);
-        setShowUploadModal(false);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Gagal mengupload file');
-    }
-  };
-
-  const handleImageUpload = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-      
-      if (!result.canceled && result.assets[0]) {
-        const image = result.assets[0];
-        const imageMessage = {
-          id: messages.length + 1,
-          text: `🖼️ Gambar dikirim`,
-          isBot: false,
-          timestamp: new Date().toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          isImage: true,
-          imageUri: image.uri,
-        };
-        setMessages((prev) => [...prev, imageMessage]);
-        setShowUploadModal(false);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Gagal mengupload gambar');
-    }
+  const handleUploadSuccess = (fileName: string, type: 'image' | 'document') => {
+    const message = {
+      id: getUniqueId(),
+      text: type === 'image' ? `🖼️ ${fileName} berhasil dikirim` : `📎 ${fileName} berhasil dikirim`,
+      isBot: false,
+      timestamp: new Date().toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      isFile: type === 'document',
+      isImage: type === 'image',
+      fileName,
+    };
+    setMessages((prev) => [...prev, message]);
   };
 
   useEffect(() => {
@@ -490,33 +449,12 @@ export default function ChatScreen() {
         </View>
       </Modal>
       
-      {/* Upload Modal */}
-      <Modal
+      <UploadModal
         visible={showUploadModal}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.uploadModal}>
-            <View style={styles.uploadHeader}>
-              <Text style={styles.uploadTitle}>Upload File</Text>
-              <TouchableOpacity onPress={() => setShowUploadModal(false)}>
-                <MaterialIcons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            
-            <TouchableOpacity style={styles.uploadOption} onPress={handleImageUpload}>
-              <MaterialIcons name="photo" size={24} color="#52B5AB" />
-              <Text style={styles.uploadOptionText}>Upload Gambar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.uploadOption} onPress={handleFileUpload}>
-              <MaterialIcons name="attach-file" size={24} color="#52B5AB" />
-              <Text style={styles.uploadOptionText}>Upload Dokumen</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowUploadModal(false)}
+        onUploadSuccess={handleUploadSuccess}
+        activityId="1"
+      />
       
       {/* Call Modal */}
       <CallModal
@@ -756,41 +694,5 @@ const styles = StyleSheet.create({
     color: "#000",
     fontFamily: "Poppins",
   },
-  uploadModal: {
-    backgroundColor: "#FFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  uploadHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  uploadTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    fontFamily: "Poppins",
-  },
-  uploadOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    borderRadius: 10,
-    backgroundColor: "#F5F5F5",
-  },
-  uploadOptionText: {
-    fontSize: 16,
-    color: "#333",
-    marginLeft: 15,
-    fontFamily: "Poppins",
-  },
+
 });
