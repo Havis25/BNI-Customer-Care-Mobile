@@ -1,7 +1,11 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useUser } from "@/hooks/useUser";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -11,10 +15,52 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const { user, loading: userLoading, accounts } = useUser();
+  const [totalReports, setTotalReports] = useState(0);
+  const [completedReports, setCompletedReports] = useState(0);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.customer_id) {
+      fetchTicketStats();
+    }
+  }, [user?.customer_id]);
+
+  const fetchTicketStats = async () => {
+    setStatsLoading(true);
+    try {
+      const response = await axios.get(
+        `http://34.121.13.94:3000/ticket?customer_id=${user?.customer_id}`
+      );
+      const tickets = response.data;
+
+      if (Array.isArray(tickets)) {
+        setTotalReports(tickets.length);
+        const selesaiCount = tickets.filter(
+          (t) => t.agent_status?.toLowerCase() === "selesai"
+        ).length;
+        setCompletedReports(selesaiCount);
+      } else {
+        setTotalReports(0);
+        setCompletedReports(0);
+      }
+    } catch (error) {
+      console.error("Error fetching ticket stats:", error);
+      setTotalReports(0);
+      setCompletedReports(0);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   const handlePress = async (url: string) => {
     try {
       const supported = await Linking.canOpenURL(url);
@@ -33,16 +79,31 @@ export default function ProfileScreen() {
       { text: "Batal", style: "cancel" },
       {
         text: "Ya",
-        onPress: () => {
-          router.replace("/login"); // ganti dengan path login kamu
+        onPress: async () => {
+          await AsyncStorage.removeItem("customer");
+          await AsyncStorage.removeItem("isLoggedIn");
+          router.replace("/login");
         },
       },
     ]);
   };
 
+  if (userLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color="#FF6600" />
+          <Text style={{ marginTop: 12, fontFamily: Fonts.regular }}>
+            Memuat data...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         {/* Judul */}
         <Text style={styles.headerTitle}>Profile</Text>
 
@@ -52,8 +113,8 @@ export default function ProfileScreen() {
         </View>
 
         {/* Nama & Email */}
-        <Text style={styles.userName}>Havis Aprinaldi</Text>
-        <Text style={styles.userEmail}>user@gmail.com</Text>
+        <Text style={styles.userName}>{user?.full_name || "User"}</Text>
+        <Text style={styles.userEmail}>{user?.email || "user@gmail.com"}</Text>
 
         {/* Statistik Akun */}
         <View style={styles.sectionHeader}>
@@ -61,13 +122,13 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>40</Text>
+            <Text style={styles.statNumber}>{totalReports}</Text>
             <Text style={styles.statLabel}>Total Laporan</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>30</Text>
-            <Text style={styles.statLabel}>Laporan selesai</Text>
+            <Text style={styles.statNumber}>{completedReports}</Text>
+            <Text style={styles.statLabel}>Laporan Selesai</Text>
           </View>
         </View>
 
@@ -77,16 +138,21 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.infoContainer}>
           <Text style={styles.infoLabel}>Nomor Rekening</Text>
-          <Text style={styles.infoValue}>512372891238</Text>
+          {accounts.length > 0 ? (
+            accounts.map((account, index) => (
+              <Text key={index} style={styles.infoValue}>
+                {account.account_number} ({account.account_type})
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.infoValue}>Nomor rekening tidak tersedia</Text>
+          )}
 
           <Text style={styles.infoLabel}>No Handphone</Text>
-          <Text style={styles.infoValue}>082137987456</Text>
+          <Text style={styles.infoValue}>{user?.phone_number || "N/A"}</Text>
 
           <Text style={styles.infoLabel}>Alamat</Text>
-          <Text style={styles.infoValue}>
-            Jalan Melati Raya No. 12, Kel. Sukamaju, Kec. Setiabudi, Jakarta
-            Selatan, DKI Jakarta 12930
-          </Text>
+          <Text style={styles.infoValue}>{user?.address || "N/A"}</Text>
         </View>
 
         {/* Media Sosial */}
@@ -94,11 +160,10 @@ export default function ProfileScreen() {
           <Text style={styles.sectionHeaderText}>MEDIA SOSIAL</Text>
         </View>
 
-        {/* Container tiap item */}
         <TouchableOpacity
           style={styles.socialRow}
           onPress={() =>
-            handlePress("https://api.whatsapp.com/send?phone=6281237812391")
+            handlePress("https://api.whatsapp.com/send?phone=628118611946")
           }
         >
           <View style={styles.socialLeft}>
@@ -108,7 +173,7 @@ export default function ProfileScreen() {
                 source={require("../../assets/images/icon_whatsapp.png")}
                 style={styles.socialIcon}
               />
-              <Text style={styles.socialSubtitle}>081237812391</Text>
+              <Text style={styles.socialSubtitle}>WhatsApp BNI</Text>
             </View>
           </View>
           <MaterialIcons name="chevron-right" size={24} color="#000" />
@@ -148,7 +213,7 @@ export default function ProfileScreen() {
           <MaterialIcons name="chevron-right" size={24} color="#000" />
         </TouchableOpacity>
 
-        {/* Tombol Keluar dengan MaterialIcons */}
+        {/* Tombol Keluar */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={24} color="red" />
           <Text style={styles.logoutText}>Keluar</Text>
@@ -163,34 +228,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-
   headerTitle: {
     fontSize: 18,
-    fontWeight: "bold",
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 12,
     fontFamily: Fonts.regular,
   },
-
   avatarContainer: {
     alignSelf: "center",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     backgroundColor: "#FFF4EC",
     justifyContent: "center",
     alignItems: "center",
     marginTop: 20,
   },
-
   userName: {
     fontSize: 16,
-    fontWeight: "bold",
     textAlign: "center",
     marginTop: 10,
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.bold,
   },
-
   userEmail: {
     fontSize: 12,
     color: "#555",
@@ -198,20 +257,19 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontFamily: Fonts.regular,
   },
-
   sectionHeader: {
+    fontSize: 14,
+    color: "#939393",
     backgroundColor: "#F3F3F3",
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 16,
+    fontFamily: Fonts.regular,
   },
-
   sectionHeaderText: {
     fontSize: 14,
-    fontWeight: "bold",
     color: "#999",
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
-
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -224,13 +282,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
-    fontFamily: Fonts.regular,
+    fontSize: 18,
+    fontFamily: Fonts.semiBold,
   },
   statLabel: {
     fontSize: 12,
-    color: "#555",
     fontFamily: Fonts.regular,
   },
   divider: {
@@ -238,33 +294,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDD",
     height: "100%",
   },
-
   infoContainer: {
     padding: 16,
   },
-
   infoLabel: {
+    marginTop: 12,
     fontSize: 14,
-    fontWeight: "bold",
-    marginTop: 10,
     fontFamily: Fonts.bold,
   },
-
   infoValue: {
     fontSize: 14,
-    color: "#333",
     marginTop: 2,
     fontFamily: Fonts.regular,
   },
-
   socialRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
   },
   socialLeft: {
     flexDirection: "column",
@@ -275,8 +323,7 @@ const styles = StyleSheet.create({
   },
   socialTitle: {
     fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 6,
+    marginBottom: 12,
     fontFamily: Fonts.semiBold,
   },
   socialIconSubtitleRow: {
@@ -287,31 +334,28 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     resizeMode: "contain",
-    marginRight: 8,
+    marginRight: 12,
   },
   socialSubtitle: {
     fontSize: 13,
     color: "#555",
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.semiBold,
   },
-
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: 16,
-    marginTop: 40,
+    marginTop: 16,
     paddingVertical: 12,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "#D32F2F",
     borderRadius: 8,
-    gap: 8,
+    gap: 12,
     backgroundColor: "rgba(211,47,47,0.1)",
   },
-
   logoutText: {
     fontSize: 14,
-    fontWeight: "bold",
     color: "red",
     fontFamily: Fonts.semiBold,
   },

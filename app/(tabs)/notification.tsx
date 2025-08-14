@@ -1,13 +1,16 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import React, { useEffect, useState } from "react";
+import { Fonts } from '@/constants/Fonts';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   SafeAreaView,
   StyleSheet,
   Text,
-  View,
-} from "react-native";
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 interface Notification {
   id: string;
@@ -23,66 +26,123 @@ interface Notification {
 const dummyNotifications: Notification[] = [
   {
     id: "1",
-    title: "Pengaduan Diterima",
-    description:
-      "Pengaduan Anda telah diterima oleh sistem dan akan segera diproses.",
-    timeAgo: "2 menit lalu",
-    iconName: "email",
-    iconColor: "#007bff",
+    title: "Laporan Diterima",
+    description: "Laporan keluhan ATM tidak berfungsi telah diterima sistem.",
+    timeAgo: "5 menit lalu",
+    iconName: "mail",
+    iconColor: "#2196F3",
     read: false,
-    category: "proses",
+    category: "laporan",
   },
   {
     id: "2",
-    title: "Validasi Data Pengaduan",
-    description: "Tim kami sedang melakukan validasi data pengaduan Anda.",
-    timeAgo: "10 menit lalu",
-    iconName: "assignment-turned-in",
-    iconColor: "#f0ad4e",
+    title: "Laporan Divalidasi",
+    description: "Tim customer service sedang memvalidasi laporan Anda.",
+    timeAgo: "15 menit lalu",
+    iconName: "document-text",
+    iconColor: "#FF9800",
     read: false,
-    category: "proses",
+    category: "laporan",
   },
   {
     id: "3",
-    title: "Pengaduan Diproses",
-    description:
-      "Pengaduan Anda sedang dalam tahap pemrosesan oleh tim terkait.",
+    title: "Laporan Diterima",
+    description: "Laporan masalah mobile banking telah kami terima.",
     timeAgo: "1 jam lalu",
-    iconName: "schedule",
-    iconColor: "#17a2b8",
-    read: true,
-    category: "proses",
+    iconName: "mail",
+    iconColor: "#2196F3",
+    read: false,
+    category: "laporan",
   },
   {
     id: "4",
-    title: "Pengaduan Selesai",
-    description:
-      "Pengaduan Anda telah selesai diproses. Terima kasih atas kesabaran Anda.",
-    timeAgo: "1 hari lalu",
-    iconName: "check-circle",
-    iconColor: "#28a745",
+    title: "Laporan Diproses",
+    description: "Laporan kartu kredit bermasalah sedang diproses tim teknis.",
+    timeAgo: "2 jam lalu",
+    iconName: "time",
+    iconColor: "#FF6600",
     read: true,
-    category: "proses",
+    category: "laporan",
   },
   {
     id: "5",
-    title: "Update Informasi",
-    description: "Ada update terbaru mengenai kebijakan layanan kami.",
-    timeAgo: "2 hari lalu",
-    iconName: "info",
-    iconColor: "#007bff",
-    read: true,
-    category: "terbaru",
+    title: "Laporan Divalidasi",
+    description: "Validasi data untuk laporan transaksi gagal sedang berlangsung.",
+    timeAgo: "4 jam lalu",
+    iconName: "document-text",
+    iconColor: "#FF9800",
+    read: false,
+    category: "laporan",
   },
   {
     id: "6",
-    title: "Pemberitahuan Umum",
-    description: "Jangan lupa cek fitur baru di aplikasi kami.",
-    timeAgo: "3 hari lalu",
-    iconName: "notifications",
-    iconColor: "#6c757d",
+    title: "Laporan Selesai",
+    description: "Masalah internet banking telah berhasil diperbaiki.",
+    timeAgo: "6 jam lalu",
+    iconName: "checkmark-circle",
+    iconColor: "#4CAF50",
     read: true,
-    category: "terbaru",
+    category: "laporan",
+  },
+  {
+    id: "7",
+    title: "Laporan Diproses",
+    description: "Tim IT sedang menangani laporan error aplikasi mobile.",
+    timeAgo: "8 jam lalu",
+    iconName: "time",
+    iconColor: "#FF6600",
+    read: true,
+    category: "laporan",
+  },
+  {
+    id: "8",
+    title: "Laporan Diterima",
+    description: "Laporan keluhan biaya admin tidak sesuai telah diterima.",
+    timeAgo: "12 jam lalu",
+    iconName: "mail",
+    iconColor: "#2196F3",
+    read: false,
+    category: "laporan",
+  },
+  {
+    id: "9",
+    title: "Laporan Selesai",
+    description: "Pengembalian saldo yang terpotong salah telah selesai diproses.",
+    timeAgo: "1 hari lalu",
+    iconName: "checkmark-circle",
+    iconColor: "#4CAF50",
+    read: true,
+    category: "laporan",
+  },
+  {
+    id: "10",
+    title: "Laporan Divalidasi",
+    description: "Validasi laporan kartu hilang sedang dalam proses verifikasi.",
+    timeAgo: "1 hari lalu",
+    iconName: "document-text",
+    iconColor: "#FF9800",
+    read: true,
+    category: "laporan",
+  },
+  {
+    id: "11",
+    title: "Laporan Selesai",
+    description: "Pemblokiran kartu yang hilang telah berhasil dilakukan.",
+    timeAgo: "2 hari lalu",
+    iconName: "checkmark-circle",
+    iconColor: "#4CAF50",
+    read: true,
+    category: "laporan",
+  },
+  {
+    id: "12",
+    title: "Laporan Diproses",
+    description: "Pengajuan buku tabungan baru sedang dalam tahap pencetakan.",
+    timeAgo: "3 hari lalu",
+    iconName: "time",
+    iconColor: "#FF6600",
+    read: true,
+    category: "laporan",
   },
 ];
 
@@ -99,34 +159,62 @@ export default function NotificationScreen() {
     return () => clearTimeout(timeout);
   }, []);
 
-  const renderItem = ({ item }: { item: Notification }) => (
-    <View style={styles.card}>
-      <View style={styles.cardLeft}>
-        <MaterialIcons
-          name={item.iconName as any}
-          size={30}
-          color={item.iconColor}
-          style={{ marginRight: 12 }}
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, !item.read && { fontWeight: "bold" }]}>
-            {item.title}
-          </Text>
-          {item.description ? (
-            <Text style={styles.description}>{item.description}</Text>
-          ) : null}
+  const markAsRead = (id: string) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === id ? { ...notif, read: true } : notif
+      )
+    );
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notif => ({ ...notif, read: true }))
+    );
+  };
+
+  const renderItem = ({ item, index }: { item: Notification, index: number }) => (
+    <TouchableOpacity 
+      style={[
+        styles.card, 
+        !item.read && styles.unreadCard,
+        index === 0 && styles.firstCard
+      ]}
+      onPress={() => markAsRead(item.id)}
+    >
+      <View style={styles.cardContent}>
+        <View style={[styles.iconContainer, { backgroundColor: `${item.iconColor}20` }]}>
+          <Ionicons
+            name={item.iconName as any}
+            size={20}
+            color={item.iconColor}
+          />
+        </View>
+        <View style={styles.textContainer}>
+          <View style={styles.titleRow}>
+            <Text style={[styles.title, !item.read && styles.unreadTitle]}>
+              {item.title}
+            </Text>
+            {!item.read && <View style={styles.unreadDot} />}
+          </View>
+          <Text style={styles.description}>{item.description}</Text>
+          <Text style={styles.time}>{item.timeAgo}</Text>
         </View>
       </View>
-      <Text style={styles.time}>{item.timeAgo}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <LinearGradient
+          colors={['#DEEF5A', '#FCFDEE']}
+          locations={[0.23, 0.37]}
+          style={StyleSheet.absoluteFill}
+        />
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
-          <Text>Memuat notifikasi...</Text>
+          <ActivityIndicator size="large" color="#FF6600" />
+          <Text style={styles.loadingText}>Memuat notifikasi...</Text>
         </View>
       </SafeAreaView>
     );
@@ -134,18 +222,39 @@ export default function NotificationScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Notifications</Text>
+      <LinearGradient
+        colors={['#DEEF5A', '#FCFDEE']}
+        locations={[0.23, 0.37]}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <View style={styles.headerSection}>
+        <View style={styles.headerRow}>
+          <Text style={styles.header}>Notifikasi</Text>
+          {notifications.some(n => !n.read) && (
+            <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
+              <Text style={styles.markAllText}>Tandai Semua</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.headerStats}>
+          <Text style={styles.headerStatsText}>
+            {notifications.filter(n => !n.read).length} belum dibaca
+          </Text>
+        </View>
       </View>
 
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingVertical: 12 }}
-        showsVerticalScrollIndicator={false}
-      />
+      <View style={styles.container}>
+        <View style={styles.listWrapper}>
+          <FlatList
+            data={notifications}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item, index }) => renderItem({ item, index })}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -153,60 +262,132 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f9f9f9",
-    paddingHorizontal: 16,
-    paddingTop: 16,
+  },
+  headerSection: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  markAllButton: {
+    backgroundColor: '#FF6600',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  markAllText: {
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+    color: 'white',
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    paddingHorizontal: 8,
+    fontSize: 24,
+    fontFamily: Fonts.bold,
+    color: 'black',
+    marginBottom: 8,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111",
+  headerStats: {
+    backgroundColor: 'rgba(255, 102, 0, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  headerStatsText: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: '#FF6600',
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  listWrapper: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
+  },
+  listContainer: {
+    paddingBottom: 20,
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: 'white',
+    marginBottom: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  cardLeft: {
-    flexDirection: "row",
+  unreadCard: {
+    backgroundColor: '#fff8f0',
+  },
+  firstCard: {
+    // Radius handled by wrapper
+  },
+  cardContent: {
+    flexDirection: 'row',
+    padding: 12,
+    alignItems: 'center',
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  textContainer: {
     flex: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
   title: {
-    fontWeight: "normal",
-    fontSize: 16,
-    marginBottom: 4,
-    color: "#111",
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
+    color: '#333',
+    flex: 1,
+  },
+  unreadTitle: {
+    color: '#000',
+    fontFamily: Fonts.bold,
+  },
+  unreadDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF6600',
+    marginLeft: 8,
   },
   description: {
-    fontSize: 14,
-    color: "#555",
-    lineHeight: 20,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: '#666',
+    lineHeight: 16,
+    marginBottom: 4,
   },
   time: {
-    fontSize: 12,
-    color: "#999",
-    marginLeft: 8,
-    alignSelf: "flex-start",
+    fontSize: 11,
+    fontFamily: Fonts.medium,
+    color: '#999',
   },
   loaderContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    color: '#666',
+    marginTop: 12,
   },
 });

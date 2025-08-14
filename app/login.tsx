@@ -1,9 +1,7 @@
 import { Fonts } from "@/constants/Fonts";
 import { MaterialIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -15,19 +13,17 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "@/hooks/useAuth";
 
 
 export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const { login, isLoading } = useAuth();
 
   const handleLogin = () => {
-    if (username === "admin" && password === "password") {
-      router.replace("/(tabs)");
-    } else {
-      Alert.alert("Error", "Username atau password salah");
-    }
+    login(username, password);
   };
 
   return (
@@ -113,8 +109,14 @@ export default function LoginScreen() {
           </View>
 
           {/* Login Button */}
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginText}>Login</Text>
+          <TouchableOpacity 
+            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            <Text style={styles.loginText}>
+              {isLoading ? "Loading..." : "Login"}
+            </Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.disclaimer}>
@@ -211,6 +213,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 5,
     alignItems: "center",
+  },
+  loginButtonDisabled: {
+    backgroundColor: "#A0A0A0",
   },
   loginText: {
     color: "white",

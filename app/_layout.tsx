@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="services/produk" options={{ headerShown: false }} />
         <Stack.Screen name="services/promo" options={{ headerShown: false }} />
         <Stack.Screen name="services/cabang" options={{ headerShown: false }} />
+        <Stack.Screen name="riwayat/[id]" options={{ headerShown: false }} />
         <Stack.Screen
           name="services/digital"
           options={{ headerShown: false }}
@@ -47,18 +48,7 @@ export default function RootLayout() {
           name="complaint/confirmation"
           options={{ headerShown: false }}
         />
-        <Stack.Screen
-          name="complaint/ticket"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="complaint/history"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="complaint/tracking"
-          options={{ headerShown: false }}
-        />
+
         <Stack.Screen name="+not-found" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
