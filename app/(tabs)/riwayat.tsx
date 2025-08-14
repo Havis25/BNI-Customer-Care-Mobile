@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  Modal,
-  Animated,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import FeedbackModal from "@/components/FeedbackModal";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { router } from "expo-router";
-import FeedbackModal from "@/components/FeedbackModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  Animated,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const riwayatData = [
   {
@@ -171,13 +171,23 @@ const getShadowColor = (status: string) => {
 
 const parseIndonesianDate = (tanggal: string, jam: string) => {
   const monthMap: { [key: string]: number } = {
-    'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'Mei': 4, 'Jun': 5,
-    'Jul': 6, 'Agu': 7, 'Sep': 8, 'Okt': 9, 'Nov': 10, 'Des': 11
+    Jan: 0,
+    Feb: 1,
+    Mar: 2,
+    Apr: 3,
+    Mei: 4,
+    Jun: 5,
+    Jul: 6,
+    Agu: 7,
+    Sep: 8,
+    Okt: 9,
+    Nov: 10,
+    Des: 11,
   };
-  
-  const [day, month, year] = tanggal.split(' ');
-  const [hour, minute] = jam.split(':');
-  
+
+  const [day, month, year] = tanggal.split(" ");
+  const [hour, minute] = jam.split(":");
+
   return new Date(
     parseInt(year),
     monthMap[month],
@@ -209,14 +219,14 @@ export default function RiwayatScreen() {
       if (customerData) {
         const customer = JSON.parse(customerData);
         const response = await fetch(`http://34.121.13.94:3000/tickets/`);
-        
+
         if (response.ok) {
           const data = await response.json();
           setTickets(data);
         }
       }
     } catch (error) {
-      console.error('Error fetching tickets:', error);
+      console.error("Error fetching tickets:", error);
     } finally {
       setLoading(false);
     }
@@ -224,18 +234,18 @@ export default function RiwayatScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -263,7 +273,7 @@ export default function RiwayatScreen() {
     // Filter by search query
     if (searchQuery.trim() !== "") {
       filteredData = filteredData.filter((item) =>
-        item.title.toLowerCase().includes(searchQuery.toLowerCase())
+        item.channel.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -277,11 +287,17 @@ export default function RiwayatScreen() {
     // Sort by date if applied
     if (appliedSortBy === "tanggal-terbaru") {
       filteredData.sort((a, b) => {
-        return new Date(b.created_time).getTime() - new Date(a.created_time).getTime();
+        return (
+          new Date(b.created_time).getTime() -
+          new Date(a.created_time).getTime()
+        );
       });
     } else if (appliedSortBy === "tanggal-terlama") {
       filteredData.sort((a, b) => {
-        return new Date(a.created_time).getTime() - new Date(b.created_time).getTime();
+        return (
+          new Date(a.created_time).getTime() -
+          new Date(b.created_time).getTime()
+        );
       });
     }
 
@@ -339,7 +355,9 @@ export default function RiwayatScreen() {
                 styles.card,
                 {
                   borderLeftColor: getStatusColorText(item.customer_status),
-                  backgroundColor: getStatusColorBackground(item.customer_status),
+                  backgroundColor: getStatusColorBackground(
+                    item.customer_status
+                  ),
                   shadowColor: getShadowColor(item.customer_status),
                 },
               ]}
@@ -356,7 +374,11 @@ export default function RiwayatScreen() {
                 <View
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: getStatusColorBadge(item.customer_status) },
+                    {
+                      backgroundColor: getStatusColorBadge(
+                        item.customer_status
+                      ),
+                    },
                   ]}
                 >
                   <Text
@@ -369,7 +391,7 @@ export default function RiwayatScreen() {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.cardTitle}>{item.title}</Text>
+              <Text style={styles.cardTitle}>{item.channel}</Text>
               <Text style={styles.cardDateTime}>
                 {formatDate(item.created_time)}, {formatTime(item.created_time)}
               </Text>
@@ -379,13 +401,16 @@ export default function RiwayatScreen() {
       </ScrollView>
 
       <Modal visible={showFilter} transparent animationType="fade">
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowFilter(false)}
         >
-          <Animated.View 
-            style={[styles.bottomSheet, { transform: [{ translateY: slideAnim }] }]}
+          <Animated.View
+            style={[
+              styles.bottomSheet,
+              { transform: [{ translateY: slideAnim }] },
+            ]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.sheetHeader}>
@@ -399,7 +424,11 @@ export default function RiwayatScreen() {
               <Text style={styles.sectionTitle}>Sort By</Text>
               <TouchableOpacity
                 style={styles.sortOption}
-                onPress={() => setSortBy(sortBy === "tanggal-terbaru" ? "" : "tanggal-terbaru")}
+                onPress={() =>
+                  setSortBy(
+                    sortBy === "tanggal-terbaru" ? "" : "tanggal-terbaru"
+                  )
+                }
               >
                 <MaterialIcons
                   name="calendar-today"
@@ -420,7 +449,11 @@ export default function RiwayatScreen() {
 
               <TouchableOpacity
                 style={styles.sortOption}
-                onPress={() => setSortBy(sortBy === "tanggal-terlama" ? "" : "tanggal-terlama")}
+                onPress={() =>
+                  setSortBy(
+                    sortBy === "tanggal-terlama" ? "" : "tanggal-terlama"
+                  )
+                }
               >
                 <MaterialIcons
                   name="calendar-today"
@@ -560,9 +593,9 @@ export default function RiwayatScreen() {
         </TouchableOpacity>
       </Modal>
 
-      <FeedbackModal 
-        visible={showFeedback} 
-        onClose={() => setShowFeedback(false)} 
+      <FeedbackModal
+        visible={showFeedback}
+        onClose={() => setShowFeedback(false)}
       />
     </SafeAreaView>
   );

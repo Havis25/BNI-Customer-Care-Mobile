@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { useUser } from "@/hooks/useUser";
 import {
   ActivityIndicator,
   Alert,
@@ -22,74 +23,22 @@ import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [userName, setUserName] = useState("Loading...");
-  const [userEmail, setUserEmail] = useState("Loading...");
-  const [accountNumbers, setAccountNumbers] = useState<string[]>([]);
-  const [userPhone, setUserPhone] = useState("Loading...");
-  const [userAddress, setUserAddress] = useState("Loading...");
+  const { user, loading: userLoading, accounts } = useUser();
   const [totalReports, setTotalReports] = useState(0);
   const [completedReports, setCompletedReports] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    loadUserData();
-  }, []);
-
-  useEffect(() => {
-    if (customerId) {
-      fetchAllData();
+    if (user?.customer_id) {
+      fetchTicketStats();
     }
-  }, [customerId]);
-
-  const loadUserData = async () => {
-    try {
-      const userData = await AsyncStorage.getItem("customer");
-      if (userData) {
-        const user = JSON.parse(userData);
-        setUserName(user.full_name || "Nama tidak tersedia");
-        setUserEmail(user.email || "Email tidak tersedia");
-        setUserPhone(user.phone_number || "Nomor HP tidak tersedia");
-        setUserAddress(user.address || "Alamat tidak tersedia");
-        setCustomerId(user.customer_id?.toString() || null);
-      }
-    } catch (error) {
-      console.error("Error loading user data:", error);
-      setUserName("Error loading name");
-      setUserEmail("Error loading email");
-    }
-  };
-
-  const fetchAllData = async () => {
-    setLoading(true);
-    await Promise.all([fetchAccountData(), fetchTicketStats()]);
-    setLoading(false);
-  };
-
-  const fetchAccountData = async () => {
-    try {
-      const response = await axios.get(
-        `http://34.121.13.94:3000/account?customer_id=${customerId}`
-      );
-      const data = response.data;
-
-      if (Array.isArray(data) && data.length > 0) {
-
-        setAccountNumbers(data.map((s) => s?.account_number || "-"));
-
-      } else {
-        setAccountNumbers([]);
-      }
-    } catch (error) {
-      console.error("Error fetching account data:", error);
-      setAccountNumbers([]);
-    }
-  };
+  }, [user?.customer_id]);
 
   const fetchTicketStats = async () => {
+    setStatsLoading(true);
     try {
       const response = await axios.get(
-        `http://34.121.13.94:3000/ticket?customer_id=${customerId}`
+        `http://34.121.13.94:3000/ticket?customer_id=${user?.customer_id}`
       );
       const tickets = response.data;
 
@@ -97,7 +46,6 @@ export default function ProfileScreen() {
         setTotalReports(tickets.length);
         const selesaiCount = tickets.filter(
           (t) => t.agent_status?.toLowerCase() === "selesai"
-
         ).length;
         setCompletedReports(selesaiCount);
       } else {
@@ -108,6 +56,8 @@ export default function ProfileScreen() {
       console.error("Error fetching ticket stats:", error);
       setTotalReports(0);
       setCompletedReports(0);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -138,7 +88,7 @@ export default function ProfileScreen() {
     ]);
   };
 
-  if (loading) {
+  if (userLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -163,8 +113,8 @@ export default function ProfileScreen() {
         </View>
 
         {/* Nama & Email */}
-        <Text style={styles.userName}>{userName}</Text>
-        <Text style={styles.userEmail}>{userEmail}</Text>
+        <Text style={styles.userName}>{user?.full_name || "User"}</Text>
+        <Text style={styles.userEmail}>{user?.email || "user@gmail.com"}</Text>
 
         {/* Statistik Akun */}
         <View style={styles.sectionHeader}>
@@ -188,10 +138,10 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.infoContainer}>
           <Text style={styles.infoLabel}>Nomor Rekening</Text>
-          {accountNumbers.length > 0 ? (
-            accountNumbers.map((number, index) => (
+          {accounts.length > 0 ? (
+            accounts.map((account, index) => (
               <Text key={index} style={styles.infoValue}>
-                {number}
+                {account.account_number} ({account.account_type})
               </Text>
             ))
           ) : (
@@ -199,10 +149,10 @@ export default function ProfileScreen() {
           )}
 
           <Text style={styles.infoLabel}>No Handphone</Text>
-          <Text style={styles.infoValue}>{userPhone}</Text>
+          <Text style={styles.infoValue}>{user?.phone_number || "N/A"}</Text>
 
           <Text style={styles.infoLabel}>Alamat</Text>
-          <Text style={styles.infoValue}>{userAddress}</Text>
+          <Text style={styles.infoValue}>{user?.address || "N/A"}</Text>
         </View>
 
         {/* Media Sosial */}

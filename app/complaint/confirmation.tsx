@@ -29,11 +29,11 @@ const API_URL = "http://34.121.13.94:3000/tickets";
 const HEADER_HEIGHT = 56;
 
 type TicketPayload = {
-  nama: string;
-  noRekening: string;
+  full_name: string;
+  account_number: string;
   channel: string;
   category: string;
-  deskripsi: string;
+  description: string;
 };
 
 const CHANNELS = [
@@ -154,17 +154,17 @@ function SelectField({
 
 export default function ConfirmationScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useUser();
+  const { user, selectAccount, account_number, accounts } = useUser();
 
-  const namaAuto = (user?.full_name || "").trim() || "User Complain";
-  const norekAuto = (user?.account_number || "").trim() || "N/A";
+  const full_nameauto = (user?.full_name || "").trim() || "User Complain";
+  const norekAuto = account_number;
 
   // Editable
   const [channel, setChannel] = useState<Channel>("Mobile Banking");
   const [category, setCategory] = useState<string>(
     CATEGORY_MAP["Mobile Banking"][0]
   );
-  const [deskripsi, setDeskripsi] = useState<string>("");
+  const [description, setdescription] = useState<string>("");
 
   // UI
   const [isChecked, setIsChecked] = useState(false);
@@ -186,14 +186,14 @@ export default function ConfirmationScreen() {
   }, [channel]);
 
   const isValid =
-    isChecked && !!channel && !!category && deskripsi.trim().length >= 8;
+    isChecked && !!channel && !!category && description.trim().length >= 8;
 
   const payload: TicketPayload = {
-    nama: namaAuto,
-    noRekening: norekAuto,
+    full_name: full_nameauto,
+    account_number: account_number,
     channel,
     category,
-    deskripsi: deskripsi.trim(),
+    description: description.trim(),
   };
 
   const handleSubmit = async () => {
@@ -259,21 +259,41 @@ export default function ConfirmationScreen() {
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Nama</Text>
                 <TextInput
-                  value={namaAuto}
+                  value={full_nameauto}
                   editable={false}
                   style={styles.textInput}
                 />
               </View>
 
               {/* No Rekening */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>No Rekening</Text>
-                <TextInput
-                  value={norekAuto}
-                  editable={false}
-                  style={styles.textInput}
+              {accounts.length > 1 ? (
+                <SelectField
+                  label="No Rekening"
+                  value={`${user?.selectedAccount?.account_number || "N/A"} (${
+                    user?.selectedAccount?.account_type || ""
+                  })`}
+                  options={accounts.map(
+                    (acc) => `${acc.account_number} (${acc.account_type})`
+                  )}
+                  onChange={(selectedValue) => {
+                    const selectedAccount = accounts.find((acc) =>
+                      selectedValue.includes(acc.account_number)
+                    );
+                    if (selectedAccount) {
+                      selectAccount(selectedAccount);
+                    }
+                  }}
                 />
-              </View>
+              ) : (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>No Rekening</Text>
+                  <TextInput
+                    value={norekAuto}
+                    editable={false}
+                    style={styles.textInput}
+                  />
+                </View>
+              )}
 
               {/* Channel */}
               <SelectField
@@ -293,11 +313,11 @@ export default function ConfirmationScreen() {
 
               {/* Deskripsi */}
               <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Deskripsi</Text>
+                <Text style={styles.label}>Description</Text>
                 <TextInput
                   style={[styles.textInput, styles.textArea]}
-                  value={deskripsi}
-                  onChangeText={setDeskripsi}
+                  value={description}
+                  onChangeText={setdescription}
                   multiline
                   placeholder="Tulis kronologi keluhan (min. 8 karakter)…"
                   maxLength={1000}
@@ -306,7 +326,7 @@ export default function ConfirmationScreen() {
                   onSubmitEditing={Keyboard.dismiss}
                 />
                 <Text style={styles.helper}>
-                  {deskripsi.trim().length}/1000
+                  {description.trim().length}/1000
                 </Text>
               </View>
 

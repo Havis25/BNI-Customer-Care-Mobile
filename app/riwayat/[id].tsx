@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Platform,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const riwayatData = [
   {
@@ -396,7 +396,7 @@ export default function RiwayatDetailScreen() {
         setTicket(data);
       }
     } catch (error) {
-      console.error('Error fetching ticket detail:', error);
+      console.error("Error fetching ticket detail:", error);
     } finally {
       setLoading(false);
     }
@@ -404,18 +404,18 @@ export default function RiwayatDetailScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -423,7 +423,11 @@ export default function RiwayatDetailScreen() {
   const progressData = [
     {
       status: "Diterima",
-      tanggal: ticket ? `${formatDate(ticket.created_time)}, ${formatTime(ticket.created_time)}` : "",
+      tanggal: ticket
+        ? `${formatDate(ticket.created_time)}, ${formatTime(
+            ticket.created_time
+          )}`
+        : "",
       penjelasan: "Laporan telah diterima dan akan segera ditindaklanjuti",
     },
     { status: "Validasi", tanggal: " ", penjelasan: " " },
@@ -473,11 +477,12 @@ export default function RiwayatDetailScreen() {
           <View style={styles.detailHeader}>
             <Text style={styles.detailId}>{ticket.ticket_number}</Text>
             <Text style={styles.detailDateTime}>
-              {formatDate(ticket.created_time)}, {formatTime(ticket.created_time)}
+              {formatDate(ticket.created_time)},{" "}
+              {formatTime(ticket.created_time)}
             </Text>
           </View>
 
-          <Text style={styles.detailTitle}>{ticket.title}</Text>
+          <Text style={styles.detailTitle}>{ticket.channel}</Text>
 
           <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>Deskripsi</Text>
