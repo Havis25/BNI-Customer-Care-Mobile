@@ -488,12 +488,12 @@ export default function RiwayatDetailScreen() {
         <View style={styles.progressSection}>
           <Text style={styles.progressTitle}>Status Progress</Text>
           <View style={styles.progressCard}>
-            {ticket?.map((step: any, index: number) => {
+            {progressData?.map((step: any, index: number) => {
               const stepStatus = getProgressStepStatus(
                 ticket.customer_status,
                 step.status
               );
-              const isLast = index === ticket.length - 1;
+              const isLast = index === progressData.length - 1;
 
               return (
                 <View key={step.status} style={styles.progressStep}>
