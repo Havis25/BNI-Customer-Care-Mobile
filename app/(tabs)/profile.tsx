@@ -4,6 +4,7 @@ import axios from "axios";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -21,14 +22,15 @@ import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const [customerId, setCustomerId] = useState(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [userName, setUserName] = useState("Loading...");
   const [userEmail, setUserEmail] = useState("Loading...");
-  const [accountNumber, setAccountNumber] = useState("Loading...");
+  const [accountNumbers, setAccountNumbers] = useState<string[]>([]);
   const [userPhone, setUserPhone] = useState("Loading...");
   const [userAddress, setUserAddress] = useState("Loading...");
   const [totalReports, setTotalReports] = useState(0);
   const [completedReports, setCompletedReports] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadUserData();
@@ -36,8 +38,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (customerId) {
-      fetchAccountData();
-      fetchTicketStats();
+      fetchAllData();
     }
   }, [customerId]);
 
@@ -50,13 +51,19 @@ export default function ProfileScreen() {
         setUserEmail(user.email || "Email tidak tersedia");
         setUserPhone(user.phone_number || "Nomor HP tidak tersedia");
         setUserAddress(user.address || "Alamat tidak tersedia");
-        setCustomerId(user.customer_id);
+        setCustomerId(user.customer_id?.toString() || null);
       }
     } catch (error) {
       console.error("Error loading user data:", error);
       setUserName("Error loading name");
       setUserEmail("Error loading email");
     }
+  };
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    await Promise.all([fetchAccountData(), fetchTicketStats()]);
+    setLoading(false);
   };
 
   const fetchAccountData = async () => {
@@ -67,14 +74,15 @@ export default function ProfileScreen() {
       const data = response.data;
 
       if (Array.isArray(data) && data.length > 0) {
-        setAccountNumber(
-          data[0].account_number || "Nomor rekening tidak tersedia"
-        );
+
+        setAccountNumbers(data.map((s) => s?.account_number || "-"));
+
       } else {
-        setAccountNumber("Nomor rekening tidak tersedia");
+        setAccountNumbers([]);
       }
     } catch (error) {
-      setAccountNumber("Nomor rekening tidak tersedia");
+      console.error("Error fetching account data:", error);
+      setAccountNumbers([]);
     }
   };
 
@@ -88,7 +96,8 @@ export default function ProfileScreen() {
       if (Array.isArray(tickets)) {
         setTotalReports(tickets.length);
         const selesaiCount = tickets.filter(
-          (t) => t.agent_status && t.agent_status.toLowerCase() === "selesai"
+          (t) => t.agent_status?.toLowerCase() === "selesai"
+
         ).length;
         setCompletedReports(selesaiCount);
       } else {
@@ -96,6 +105,7 @@ export default function ProfileScreen() {
         setCompletedReports(0);
       }
     } catch (error) {
+      console.error("Error fetching ticket stats:", error);
       setTotalReports(0);
       setCompletedReports(0);
     }
@@ -128,6 +138,19 @@ export default function ProfileScreen() {
     ]);
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color="#FF6600" />
+          <Text style={{ marginTop: 12, fontFamily: Fonts.regular }}>
+            Memuat data...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
@@ -155,7 +178,7 @@ export default function ProfileScreen() {
           <View style={styles.divider} />
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{completedReports}</Text>
-            <Text style={styles.statLabel}>Laporan selesai</Text>
+            <Text style={styles.statLabel}>Laporan Selesai</Text>
           </View>
         </View>
 
@@ -165,7 +188,15 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.infoContainer}>
           <Text style={styles.infoLabel}>Nomor Rekening</Text>
-          <Text style={styles.infoValue}>{accountNumber}</Text>
+          {accountNumbers.length > 0 ? (
+            accountNumbers.map((number, index) => (
+              <Text key={index} style={styles.infoValue}>
+                {number}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.infoValue}>Nomor rekening tidak tersedia</Text>
+          )}
 
           <Text style={styles.infoLabel}>No Handphone</Text>
           <Text style={styles.infoValue}>{userPhone}</Text>
