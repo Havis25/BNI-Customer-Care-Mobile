@@ -1,21 +1,96 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const [customerId, setCustomerId] = useState(null);
+  const [userName, setUserName] = useState("Loading...");
+  const [userEmail, setUserEmail] = useState("Loading...");
+  const [accountNumber, setAccountNumber] = useState("Loading...");
+  const [userPhone, setUserPhone] = useState("Loading...");
+  const [userAddress, setUserAddress] = useState("Loading...");
+  const [totalReports, setTotalReports] = useState(0);
+  const [completedReports, setCompletedReports] = useState(0);
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  useEffect(() => {
+    if (customerId) {
+      fetchAccountData();
+      fetchTicketStats();
+    }
+  }, [customerId]);
+
+  const loadUserData = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('customer');
+      if (userData) {
+        const user = JSON.parse(userData);
+        setUserName(user.full_name || "Nama tidak tersedia");
+        setUserEmail(user.email || "Email tidak tersedia");
+        setUserPhone(user.phone_number || "Nomor HP tidak tersedia");
+        setUserAddress(user.address || "Alamat tidak tersedia");
+        setCustomerId(user.customer_id);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      setUserName("Error loading name");
+      setUserEmail("Error loading email");
+    }
+  };
+
+  const fetchAccountData = async () => {
+    try {
+      const response = await axios.get(`http://34.121.13.94:3000/account?customer_id=${customerId}`);
+      const data = response.data;
+
+      if (Array.isArray(data) && data.length > 0) {
+        setAccountNumber(data[0].account_number || "Nomor rekening tidak tersedia");
+      } else {
+        setAccountNumber("Nomor rekening tidak tersedia");
+      }
+    } catch (error) {
+      setAccountNumber("Nomor rekening tidak tersedia");
+    }
+  };
+
+  const fetchTicketStats = async () => {
+    try {
+      const response = await axios.get(`http://34.121.13.94:3000/ticket?customer_id=${customerId}`);
+      const tickets = response.data;
+  
+      if (Array.isArray(tickets)) {
+        setTotalReports(tickets.length);
+        const selesaiCount = tickets.filter(
+          t => t.agent_status && t.agent_status.toLowerCase() === "selesai"
+        ).length;
+        setCompletedReports(selesaiCount);
+      } else {
+        setTotalReports(0);
+        setCompletedReports(0);
+      }
+    } catch (error) {
+      setTotalReports(0);
+      setCompletedReports(0);
+    }
+  };
 
   const handlePress = async (url: string) => {
     try {
@@ -35,7 +110,9 @@ export default function ProfileScreen() {
       { text: "Batal", style: "cancel" },
       {
         text: "Ya",
-        onPress: () => {
+        onPress: async () => {
+          await AsyncStorage.removeItem('customer');
+          await AsyncStorage.removeItem('isLoggedIn');
           router.replace("/login");
         },
       },
@@ -54,8 +131,8 @@ export default function ProfileScreen() {
         </View>
 
         {/* Nama & Email */}
-        <Text style={styles.userName}>Havis Aprinaldi</Text>
-        <Text style={styles.userEmail}>user@gmail.com</Text>
+        <Text style={styles.userName}>{userName}</Text>
+        <Text style={styles.userEmail}>{userEmail}</Text>
 
         {/* Statistik Akun */}
         <View style={styles.sectionHeader}>
@@ -63,12 +140,12 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>40</Text>
+            <Text style={styles.statNumber}>{totalReports}</Text>
             <Text style={styles.statLabel}>Total Laporan</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>30</Text>
+            <Text style={styles.statNumber}>{completedReports}</Text>
             <Text style={styles.statLabel}>Laporan selesai</Text>
           </View>
         </View>
@@ -79,16 +156,13 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.infoContainer}>
           <Text style={styles.infoLabel}>Nomor Rekening</Text>
-          <Text style={styles.infoValue}>512372891238</Text>
+          <Text style={styles.infoValue}>{accountNumber}</Text>
 
           <Text style={styles.infoLabel}>No Handphone</Text>
-          <Text style={styles.infoValue}>082137987456</Text>
+          <Text style={styles.infoValue}>{userPhone}</Text>
 
           <Text style={styles.infoLabel}>Alamat</Text>
-          <Text style={styles.infoValue}>
-            Jalan Melati Raya No. 12, Kel. Sukamaju, Kec. Setiabudi, Jakarta
-            Selatan, DKI Jakarta 12930
-          </Text>
+          <Text style={styles.infoValue}>{userAddress}</Text>
         </View>
 
         {/* Media Sosial */}
@@ -99,7 +173,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.socialRow}
           onPress={() =>
-            handlePress("https://api.whatsapp.com/send?phone=6281237812391")
+            handlePress("https://api.whatsapp.com/send?phone=628118611946")
           }
         >
           <View style={styles.socialLeft}>
@@ -109,7 +183,7 @@ export default function ProfileScreen() {
                 source={require("../../assets/images/icon_whatsapp.png")}
                 style={styles.socialIcon}
               />
-              <Text style={styles.socialSubtitle}>081237812391</Text>
+              <Text style={styles.socialSubtitle}>WhatsApp BNI</Text>
             </View>
           </View>
           <MaterialIcons name="chevron-right" size={24} color="#000" />
