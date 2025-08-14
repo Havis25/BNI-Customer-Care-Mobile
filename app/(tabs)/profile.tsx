@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -13,7 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
@@ -40,7 +43,7 @@ export default function ProfileScreen() {
 
   const loadUserData = async () => {
     try {
-      const userData = await AsyncStorage.getItem('customer');
+      const userData = await AsyncStorage.getItem("customer");
       if (userData) {
         const user = JSON.parse(userData);
         setUserName(user.full_name || "Nama tidak tersedia");
@@ -50,7 +53,7 @@ export default function ProfileScreen() {
         setCustomerId(user.customer_id);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error("Error loading user data:", error);
       setUserName("Error loading name");
       setUserEmail("Error loading email");
     }
@@ -58,11 +61,15 @@ export default function ProfileScreen() {
 
   const fetchAccountData = async () => {
     try {
-      const response = await axios.get(`http://34.121.13.94:3000/account?customer_id=${customerId}`);
+      const response = await axios.get(
+        `http://34.121.13.94:3000/account?customer_id=${customerId}`
+      );
       const data = response.data;
 
       if (Array.isArray(data) && data.length > 0) {
-        setAccountNumber(data[0].account_number || "Nomor rekening tidak tersedia");
+        setAccountNumber(
+          data[0].account_number || "Nomor rekening tidak tersedia"
+        );
       } else {
         setAccountNumber("Nomor rekening tidak tersedia");
       }
@@ -73,13 +80,15 @@ export default function ProfileScreen() {
 
   const fetchTicketStats = async () => {
     try {
-      const response = await axios.get(`http://34.121.13.94:3000/ticket?customer_id=${customerId}`);
+      const response = await axios.get(
+        `http://34.121.13.94:3000/ticket?customer_id=${customerId}`
+      );
       const tickets = response.data;
-  
+
       if (Array.isArray(tickets)) {
         setTotalReports(tickets.length);
         const selesaiCount = tickets.filter(
-          t => t.agent_status && t.agent_status.toLowerCase() === "selesai"
+          (t) => t.agent_status && t.agent_status.toLowerCase() === "selesai"
         ).length;
         setCompletedReports(selesaiCount);
       } else {
@@ -111,8 +120,8 @@ export default function ProfileScreen() {
       {
         text: "Ya",
         onPress: async () => {
-          await AsyncStorage.removeItem('customer');
-          await AsyncStorage.removeItem('isLoggedIn');
+          await AsyncStorage.removeItem("customer");
+          await AsyncStorage.removeItem("isLoggedIn");
           router.replace("/login");
         },
       },
