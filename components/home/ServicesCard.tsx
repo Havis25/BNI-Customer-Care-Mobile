@@ -7,7 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const services = [
   { id: 1, name: "Produk Bank BNI", icon: "credit-card-multiple-outline", bgColor: "#1F72F1" },
-  { id: 2, name: "Promo BNI", icon: "shopping", bgColor: "#71DAD3" },
+  { id: 2, name: "Promo BNI", icon: "shopping-outline", bgColor: "#71DAD3" },
   { id: 3, name: "Cabang & ATM", icon: "home-city-outline", bgColor: "#9C7FDC" },
   { id: 4, name: "Merchant Agen 46", icon: "face-agent", bgColor: "#FFC533" },
   { id: 5, name: "Layanan Digital", icon: "cellphone", bgColor: "#FF8636" },

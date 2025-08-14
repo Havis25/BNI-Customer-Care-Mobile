@@ -19,16 +19,17 @@ interface Account {
   is_primary: boolean;
 }
 
-interface UserWithAccount extends Customer {
-  account_number?: string;
+interface UserWithAccounts extends Customer {
+  accounts: Account[];
+  selectedAccount?: Account;
 }
 
 export const useUser = () => {
-  const [user, setUser] = useState<UserWithAccount | null>(null);
+  const [user, setUser] = useState<UserWithAccounts | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadUserWithAccount = async () => {
+    const loadUserWithAccounts = async () => {
       try {
         const customerData = await AsyncStorage.getItem("customer");
         if (customerData) {
@@ -37,17 +38,25 @@ export const useUser = () => {
           // Fetch account data
           const response = await fetch("http://34.121.13.94:3000/accounts");
           if (response.ok) {
-            const accounts: Account[] = await response.json();
-            const primaryAccount = accounts.find(
-              (acc) => acc.customer_id === customer.customer_id && acc.is_primary
+            const allAccounts: Account[] = await response.json();
+            const userAccounts = allAccounts.filter(
+              (acc) => acc.customer_id === customer.customer_id
             );
+            
+            // Set primary account as selected, or first account if no primary
+            const primaryAccount = userAccounts.find(acc => acc.is_primary) || userAccounts[0];
             
             setUser({
               ...customer,
-              account_number: primaryAccount?.account_number || "N/A"
+              accounts: userAccounts,
+              selectedAccount: primaryAccount
             });
           } else {
-            setUser(customer);
+            setUser({
+              ...customer,
+              accounts: [],
+              selectedAccount: undefined
+            });
           }
         }
       } catch (error) {
@@ -57,8 +66,24 @@ export const useUser = () => {
       }
     };
 
-    loadUserWithAccount();
+    loadUserWithAccounts();
   }, []);
 
-  return { user, loading };
+  const selectAccount = (account: Account) => {
+    if (user) {
+      setUser({
+        ...user,
+        selectedAccount: account
+      });
+    }
+  };
+
+  return { 
+    user, 
+    loading, 
+    selectAccount,
+    // Helper properties for backward compatibility
+    account_number: user?.selectedAccount?.account_number || "N/A",
+    accounts: user?.accounts || []
+  };
 };
