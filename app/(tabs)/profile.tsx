@@ -14,7 +14,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
@@ -71,7 +74,9 @@ export default function ProfileScreen() {
       const data = response.data;
 
       if (Array.isArray(data) && data.length > 0) {
+
         setAccountNumbers(data.map((s) => s?.account_number || "-"));
+
       } else {
         setAccountNumbers([]);
       }
@@ -92,6 +97,7 @@ export default function ProfileScreen() {
         setTotalReports(tickets.length);
         const selesaiCount = tickets.filter(
           (t) => t.agent_status?.toLowerCase() === "selesai"
+
         ).length;
         setCompletedReports(selesaiCount);
       } else {
