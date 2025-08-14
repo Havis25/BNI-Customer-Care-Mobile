@@ -1,21 +1,99 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const [userName, setUserName] = useState("Loading...");
+  const [userEmail, setUserEmail] = useState("Loading...");
+  const [accountNumber, setAccountNumber] = useState("Loading...");
+  const [userPhone, setUserPhone] = useState("Loading...");
+  const [totalReports, setTotalReports] = useState(0);
+  const [completedReports, setCompletedReports] = useState(0);
+
+  useEffect(() => {
+    fetchUserData();
+    fetchAccountData();
+    fetchTicketStats();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch('http://34.121.13.94:8000/customer');
+      const data = await response.json();
+      console.log("Data dari API:", data);
+  
+      if (Array.isArray(data) && data.length > 0) {
+        setUserName(data[0].full_name || "Nama tidak tersedia");
+        setUserEmail(data[0].email || "Email tidak tersedia");
+        setUserPhone(data[0].phone_number || "Nomor HP tidak tersedia");
+      } else {
+        setUserName("Nama tidak tersedia");
+        setUserEmail("Email tidak tersedia");
+        setUserPhone("Nomor HP tidak tersedia");
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setUserName("Error loading name");
+      setUserEmail("Error loading email");
+      setUserPhone("Error loading phone");
+    }
+  };
+
+  const fetchAccountData = async () => {
+    try {
+      const response = await fetch('http://34.121.13.94:8000/account');
+      const data = await response.json();
+      console.log("Data Account:", data);
+
+      if (Array.isArray(data) && data.length > 0) {
+        setAccountNumber(data[0].account_number || "Nomor rekening tidak tersedia");
+      } else {
+        setAccountNumber("Nomor rekening tidak tersedia");
+      }
+    } catch (error) {
+      console.error('Error fetching account data:', error);
+      setAccountNumber("Error loading account number");
+    }
+  };
+
+  const fetchTicketStats = async () => {
+    try {
+      const response = await fetch('http://34.121.13.94:8000/ticket');
+      const tickets = await response.json();
+      console.log("Data Ticket:", tickets);
+  
+      if (Array.isArray(tickets)) {
+        setTotalReports(tickets.length); // total semua laporan
+  
+        // hitung yang selesai
+        const selesaiCount = tickets.filter(
+          t => t.agent_status && t.agent_status.toLowerCase() === "selesai"
+        ).length;
+  
+        setCompletedReports(selesaiCount);
+      } else {
+        setTotalReports(0);
+        setCompletedReports(0);
+      }
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      setTotalReports(0);
+      setCompletedReports(0);
+    }
+  };
 
   const handlePress = async (url: string) => {
     try {
@@ -54,8 +132,8 @@ export default function ProfileScreen() {
         </View>
 
         {/* Nama & Email */}
-        <Text style={styles.userName}>Havis Aprinaldi</Text>
-        <Text style={styles.userEmail}>user@gmail.com</Text>
+        <Text style={styles.userName}>{userName}</Text>
+        <Text style={styles.userEmail}>{userEmail}</Text>
 
         {/* Statistik Akun */}
         <View style={styles.sectionHeader}>
@@ -63,12 +141,12 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>40</Text>
+            <Text style={styles.statNumber}>{totalReports}</Text>
             <Text style={styles.statLabel}>Total Laporan</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>30</Text>
+            <Text style={styles.statNumber}>{completedReports}</Text>
             <Text style={styles.statLabel}>Laporan selesai</Text>
           </View>
         </View>
@@ -79,10 +157,10 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.infoContainer}>
           <Text style={styles.infoLabel}>Nomor Rekening</Text>
-          <Text style={styles.infoValue}>512372891238</Text>
+          <Text style={styles.infoValue}>{accountNumber}</Text>
 
           <Text style={styles.infoLabel}>No Handphone</Text>
-          <Text style={styles.infoValue}>082137987456</Text>
+          <Text style={styles.infoValue}>{userPhone}</Text>
 
           <Text style={styles.infoLabel}>Alamat</Text>
           <Text style={styles.infoValue}>
