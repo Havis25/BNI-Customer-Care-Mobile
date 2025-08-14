@@ -1,4 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -16,47 +18,48 @@ import { Fonts } from "../../constants/Fonts";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const [customerId, setCustomerId] = useState(null);
   const [userName, setUserName] = useState("Loading...");
   const [userEmail, setUserEmail] = useState("Loading...");
   const [accountNumber, setAccountNumber] = useState("Loading...");
   const [userPhone, setUserPhone] = useState("Loading...");
+  const [userAddress, setUserAddress] = useState("Loading...");
   const [totalReports, setTotalReports] = useState(0);
   const [completedReports, setCompletedReports] = useState(0);
 
   useEffect(() => {
-    fetchUserData();
-    fetchAccountData();
-    fetchTicketStats();
+    loadUserData();
   }, []);
 
-  const fetchUserData = async () => {
+  useEffect(() => {
+    if (customerId) {
+      fetchAccountData();
+      fetchTicketStats();
+    }
+  }, [customerId]);
+
+  const loadUserData = async () => {
     try {
-      const response = await fetch('http://34.121.13.94:8000/customer');
-      const data = await response.json();
-      console.log("Data dari API:", data);
-  
-      if (Array.isArray(data) && data.length > 0) {
-        setUserName(data[0].full_name || "Nama tidak tersedia");
-        setUserEmail(data[0].email || "Email tidak tersedia");
-        setUserPhone(data[0].phone_number || "Nomor HP tidak tersedia");
-      } else {
-        setUserName("Nama tidak tersedia");
-        setUserEmail("Email tidak tersedia");
-        setUserPhone("Nomor HP tidak tersedia");
+      const userData = await AsyncStorage.getItem('customer');
+      if (userData) {
+        const user = JSON.parse(userData);
+        setUserName(user.full_name || "Nama tidak tersedia");
+        setUserEmail(user.email || "Email tidak tersedia");
+        setUserPhone(user.phone_number || "Nomor HP tidak tersedia");
+        setUserAddress(user.address || "Alamat tidak tersedia");
+        setCustomerId(user.customer_id);
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('Error loading user data:', error);
       setUserName("Error loading name");
       setUserEmail("Error loading email");
-      setUserPhone("Error loading phone");
     }
   };
 
   const fetchAccountData = async () => {
     try {
-      const response = await fetch('http://34.121.13.94:8000/account');
-      const data = await response.json();
-      console.log("Data Account:", data);
+      const response = await axios.get(`http://34.121.13.94:3000/account?customer_id=${customerId}`);
+      const data = response.data;
 
       if (Array.isArray(data) && data.length > 0) {
         setAccountNumber(data[0].account_number || "Nomor rekening tidak tersedia");
@@ -64,32 +67,26 @@ export default function ProfileScreen() {
         setAccountNumber("Nomor rekening tidak tersedia");
       }
     } catch (error) {
-      console.error('Error fetching account data:', error);
-      setAccountNumber("Error loading account number");
+      setAccountNumber("Nomor rekening tidak tersedia");
     }
   };
 
   const fetchTicketStats = async () => {
     try {
-      const response = await fetch('http://34.121.13.94:8000/ticket');
-      const tickets = await response.json();
-      console.log("Data Ticket:", tickets);
+      const response = await axios.get(`http://34.121.13.94:3000/ticket?customer_id=${customerId}`);
+      const tickets = response.data;
   
       if (Array.isArray(tickets)) {
-        setTotalReports(tickets.length); // total semua laporan
-  
-        // hitung yang selesai
+        setTotalReports(tickets.length);
         const selesaiCount = tickets.filter(
           t => t.agent_status && t.agent_status.toLowerCase() === "selesai"
         ).length;
-  
         setCompletedReports(selesaiCount);
       } else {
         setTotalReports(0);
         setCompletedReports(0);
       }
     } catch (error) {
-      console.error("Error fetching tickets:", error);
       setTotalReports(0);
       setCompletedReports(0);
     }
@@ -113,7 +110,9 @@ export default function ProfileScreen() {
       { text: "Batal", style: "cancel" },
       {
         text: "Ya",
-        onPress: () => {
+        onPress: async () => {
+          await AsyncStorage.removeItem('customer');
+          await AsyncStorage.removeItem('isLoggedIn');
           router.replace("/login");
         },
       },
@@ -163,10 +162,7 @@ export default function ProfileScreen() {
           <Text style={styles.infoValue}>{userPhone}</Text>
 
           <Text style={styles.infoLabel}>Alamat</Text>
-          <Text style={styles.infoValue}>
-            Jalan Melati Raya No. 12, Kel. Sukamaju, Kec. Setiabudi, Jakarta
-            Selatan, DKI Jakarta 12930
-          </Text>
+          <Text style={styles.infoValue}>{userAddress}</Text>
         </View>
 
         {/* Media Sosial */}
@@ -177,7 +173,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.socialRow}
           onPress={() =>
-            handlePress("https://api.whatsapp.com/send?phone=6281237812391")
+            handlePress("https://api.whatsapp.com/send?phone=628118611946")
           }
         >
           <View style={styles.socialLeft}>
@@ -187,7 +183,7 @@ export default function ProfileScreen() {
                 source={require("../../assets/images/icon_whatsapp.png")}
                 style={styles.socialIcon}
               />
-              <Text style={styles.socialSubtitle}>081237812391</Text>
+              <Text style={styles.socialSubtitle}>WhatsApp BNI</Text>
             </View>
           </View>
           <MaterialIcons name="chevron-right" size={24} color="#000" />

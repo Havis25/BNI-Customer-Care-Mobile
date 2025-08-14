@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Alert } from 'react-native';
 
 export const useAuth = () => {
@@ -14,7 +14,7 @@ export const useAuth = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://34.121.13.94:8000/customer', {
+      const response = await fetch('http://34.121.13.94:3000/customer', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
