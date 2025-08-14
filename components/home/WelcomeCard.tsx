@@ -1,14 +1,35 @@
 import { ThemedText } from "@/components/ThemedText";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { Fonts } from "@/constants/Fonts";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function WelcomeCard() {
+  const [userName, setUserName] = useState("User");
+
+  useEffect(() => {
+    const getUserName = async () => {
+      try {
+        const customerData = await AsyncStorage.getItem("customer");
+        if (customerData) {
+          const customer = JSON.parse(customerData);
+          const fullName = customer.full_name || "User";
+          const firstName = fullName.split(" ")[0];
+          setUserName(firstName);
+        }
+      } catch (error) {
+        console.error("Error getting user name:", error);
+      }
+    };
+
+    getUserName();
+  }, []);
+
   return (
     <View style={styles.welcomeContainer}>
       <View style={styles.textContainer}>
-        <ThemedText style={styles.greeting}>Halo User!</ThemedText>
+        <ThemedText style={styles.greeting}>Halo {userName}!</ThemedText>
         <ThemedText style={styles.question}>
           Ada yang bisa kami bantu?
         </ThemedText>
