@@ -3,7 +3,7 @@ import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Modal,
@@ -17,107 +17,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const riwayatData = [
-  {
-    id: "LP-202412151234",
-    status: "Diterima",
-    judul: "ATM tidak mengeluarkan uang tunai",
-    tanggal: "15 Des 2024",
-    jam: "14:30",
-  },
-  {
-    id: "LP-202412141235",
-    status: "Validasi",
-    judul: "Kartu debit terblokir mendadak",
-    tanggal: "14 Des 2024",
-    jam: "09:15",
-  },
-  {
-    id: "LP-202412131236",
-    status: "Diproses",
-    judul: "Transfer online gagal saldo terpotong",
-    tanggal: "13 Des 2024",
-    jam: "16:45",
-  },
-  {
-    id: "LP-202412121237",
-    status: "Selesai",
-    judul: "Mobile banking tidak bisa login",
-    tanggal: "12 Des 2024",
-    jam: "11:20",
-  },
-  {
-    id: "LP-202412111238",
-    status: "Validasi",
-    judul: "Saldo rekening tidak sesuai",
-    tanggal: "11 Des 2024",
-    jam: "13:45",
-  },
-  {
-    id: "LP-202412101239",
-    status: "Selesai",
-    judul: "Biaya admin tidak wajar",
-    tanggal: "10 Des 2024",
-    jam: "08:30",
-  },
-  {
-    id: "LP-202412091240",
-    status: "Diterima",
-    judul: "Kartu kredit limit berkurang",
-    tanggal: "09 Des 2024",
-    jam: "15:20",
-  },
-  {
-    id: "LP-202412081241",
-    status: "Diproses",
-    judul: "Internet banking error 500",
-    tanggal: "08 Des 2024",
-    jam: "10:15",
-  },
-  {
-    id: "LP-202412071242",
-    status: "Selesai",
-    judul: "PIN ATM tidak bisa diganti",
-    tanggal: "07 Des 2024",
-    jam: "12:00",
-  },
-  {
-    id: "LP-202412061243",
-    status: "Validasi",
-    judul: "Transaksi ditolak tanpa alasan",
-    tanggal: "06 Des 2024",
-    jam: "17:30",
-  },
-  {
-    id: "LP-202412051244",
-    status: "Diproses",
-    judul: "Notifikasi SMS tidak masuk",
-    tanggal: "05 Des 2024",
-    jam: "14:45",
-  },
-  {
-    id: "LP-202412041245",
-    status: "Selesai",
-    judul: "Buku tabungan tidak ter-update",
-    tanggal: "04 Des 2024",
-    jam: "09:30",
-  },
-  {
-    id: "LP-202412031246",
-    status: "Diterima",
-    judul: "Layanan customer service lambat",
-    tanggal: "03 Des 2024",
-    jam: "16:15",
-  },
-  {
-    id: "LP-202412021247",
-    status: "Selesai",
-    judul: "Aplikasi sering force close",
-    tanggal: "02 Des 2024",
-    jam: "11:45",
-  },
-];
+import { useAuth } from "@/hooks/useAuth";
 
+// ==================== Helpers Warna Status ====================
 const getStatusColorBackground = (status: string) => {
   switch (status) {
     case "Diterima":
@@ -126,8 +28,12 @@ const getStatusColorBackground = (status: string) => {
       return "#FFF9EB";
     case "Diproses":
       return "#FCFDEE";
-    default:
+    case "Selesai":
       return "#F1FBFB";
+    case "Ditolak":
+      return "#FFF1F1";
+    default:
+      return "#F5F7FA";
   }
 };
 const getStatusColorBadge = (status: string) => {
@@ -138,11 +44,14 @@ const getStatusColorBadge = (status: string) => {
       return "#FFEEC2";
     case "Diproses":
       return "#F3F8BD";
-    default:
+    case "Selesai":
       return "#D4F4F2";
+    case "Ditolak":
+      return "#FFD6D6";
+    default:
+      return "#E9EEF5";
   }
 };
-
 const getStatusColorText = (status: string) => {
   switch (status) {
     case "Diterima":
@@ -151,11 +60,14 @@ const getStatusColorText = (status: string) => {
       return "#FFB600";
     case "Diproses":
       return "#B3BE47";
-    default:
+    case "Selesai":
       return "#66C4BE";
+    case "Ditolak":
+      return "#E24646";
+    default:
+      return "#5A6B8C";
   }
 };
-
 const getShadowColor = (status: string) => {
   switch (status) {
     case "Diterima":
@@ -164,11 +76,16 @@ const getShadowColor = (status: string) => {
       return "#FFC533";
     case "Diproses":
       return "#E0EE59";
-    default:
+    case "Selesai":
       return "#71DAD3";
+    case "Ditolak":
+      return "#F37070";
+    default:
+      return "#9BB0D3";
   }
 };
 
+// (opsional) parser tanggal versi ID
 const parseIndonesianDate = (tanggal: string, jam: string) => {
   const monthMap: { [key: string]: number } = {
     Jan: 0,
@@ -184,19 +101,12 @@ const parseIndonesianDate = (tanggal: string, jam: string) => {
     Nov: 10,
     Des: 11,
   };
-
   const [day, month, year] = tanggal.split(" ");
   const [hour, minute] = jam.split(":");
-
-  return new Date(
-    parseInt(year),
-    monthMap[month],
-    parseInt(day),
-    parseInt(hour),
-    parseInt(minute)
-  );
+  return new Date(parseInt(year), monthMap[month], parseInt(day), parseInt(hour), parseInt(minute));
 };
 
+// ==================== Komponen ====================
 export default function RiwayatScreen() {
   const [showFilter, setShowFilter] = useState(false);
   const [sortBy, setSortBy] = useState("");
@@ -205,34 +115,87 @@ export default function RiwayatScreen() {
   const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const slideAnim = new Animated.Value(300);
 
-  useEffect(() => {
-    fetchTickets();
+  // animasi bottom sheet
+  const slideAnim = useRef(new Animated.Value(300)).current;
+
+  const { tickets } = useAuth();
+  const [loading, setLoading] = useState(true);
+
+  const toIndoStatus = useCallback((en?: string) => {
+    switch ((en || "").toLowerCase()) {
+      case "accepted":
+        return "Diterima";
+      case "verification":
+        return "Validasi";
+      case "processing":
+        return "Diproses";
+      case "closed":
+        return "Selesai";
+      case "declined":
+        return "Ditolak";
+      default:
+        return en || "-";
+    }
   }, []);
 
-  const fetchTickets = async () => {
-    try {
-      const customerData = await AsyncStorage.getItem("customer");
-      if (customerData) {
-        const customer = JSON.parse(customerData);
-        const response = await fetch(`http://34.121.13.94:3000/tickets/`);
+  const ticketData = useMemo(() => {
+    if (!tickets) return [];
+    return tickets.map((t: any) => ({
+      ticket_id: t.ticket_number,
+      ticket_number: t.ticket_number,
+      customer_status: toIndoStatus(t.customer_status),
+      channel: t.issue_channel,
+      created_time: t.created_time,
+    }));
+  }, [tickets, toIndoStatus]);
 
-        if (response.ok) {
-          const data = await response.json();
-          setTickets(data);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching tickets:", error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    setLoading(false);
+  }, [tickets]);
+
+  // animasi open/close filter sheet
+  useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: showFilter ? 0 : 300,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [showFilter, slideAnim]);
+
+  const hasFilters = sortBy !== "" || selectedStatus.length > 0;
+
+  const getFilteredData = useCallback(() => {
+    let filteredData = [...ticketData];
+
+    // search
+    if (searchQuery.trim() !== "") {
+      filteredData = filteredData.filter((item) =>
+        String(item.channel || "").toLowerCase().includes(searchQuery.toLowerCase())
+      );
     }
-  };
+
+    // filter status
+    if (appliedStatus.length > 0) {
+      filteredData = filteredData.filter((item) => appliedStatus.includes(item.customer_status));
+    }
+
+    // sort tanggal
+    if (appliedSortBy === "tanggal-terbaru") {
+      filteredData.sort(
+        (a, b) => new Date(b.created_time).getTime() - new Date(a.created_time).getTime()
+      );
+    } else if (appliedSortBy === "tanggal-terlama") {
+      filteredData.sort(
+        (a, b) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime()
+      );
+    }
+
+    return filteredData;
+  }, [ticketData, searchQuery, appliedStatus, appliedSortBy]);
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
     const date = new Date(dateString);
     return date.toLocaleDateString("id-ID", {
       day: "2-digit",
@@ -240,8 +203,8 @@ export default function RiwayatScreen() {
       year: "numeric",
     });
   };
-
   const formatTime = (dateString: string) => {
+    if (!dateString) return "-";
     const date = new Date(dateString);
     return date.toLocaleTimeString("id-ID", {
       hour: "2-digit",
@@ -249,81 +212,18 @@ export default function RiwayatScreen() {
     });
   };
 
-  useEffect(() => {
-    if (showFilter) {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 300,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [showFilter]);
+  const refetchAll = useCallback(() => {
+    // Refresh user data if needed
+  }, []);
 
-  const hasFilters = sortBy !== "" || selectedStatus.length > 0;
-
-  const getFilteredData = () => {
-    let filteredData = [...tickets];
-
-    // Filter by search query
-    if (searchQuery.trim() !== "") {
-      filteredData = filteredData.filter((item) =>
-        item.channel.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Filter by status if any status is applied
-    if (appliedStatus.length > 0) {
-      filteredData = filteredData.filter((item) =>
-        appliedStatus.includes(item.customer_status)
-      );
-    }
-
-    // Sort by date if applied
-    if (appliedSortBy === "tanggal-terbaru") {
-      filteredData.sort((a, b) => {
-        return (
-          new Date(b.created_time).getTime() -
-          new Date(a.created_time).getTime()
-        );
-      });
-    } else if (appliedSortBy === "tanggal-terlama") {
-      filteredData.sort((a, b) => {
-        return (
-          new Date(a.created_time).getTime() -
-          new Date(b.created_time).getTime()
-        );
-      });
-    }
-
-    return filteredData;
-  };
-
-  const toggleStatus = (status: string) => {
-    setSelectedStatus((prev) =>
-      prev.includes(status)
-        ? prev.filter((s) => s !== status)
-        : [...prev, status]
-    );
-  };
-
+  // =============== UI ===============
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Riwayat Laporan</Text>
 
       <View style={styles.searchFilterContainer}>
         <View style={styles.searchContainer}>
-          <MaterialIcons
-            name="search"
-            size={20}
-            color="#666"
-            style={styles.searchIcon}
-          />
+          <MaterialIcons name="search" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Cari laporan..."
@@ -333,18 +233,12 @@ export default function RiwayatScreen() {
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilter(true)}
-        >
+        <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilter(true)}>
           <MaterialIcons name="tune" size={20} color="white" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
         {loading ? (
           <Text style={styles.loadingText}>Loading...</Text>
         ) : (
@@ -355,18 +249,12 @@ export default function RiwayatScreen() {
                 styles.card,
                 {
                   borderLeftColor: getStatusColorText(item.customer_status),
-                  backgroundColor: getStatusColorBackground(
-                    item.customer_status
-                  ),
+                  backgroundColor: getStatusColorBackground(item.customer_status),
                   shadowColor: getShadowColor(item.customer_status),
                 },
               ]}
               onPress={() => {
-                if (item.customer_status === "Selesai") {
-                  setShowFeedback(true);
-                } else {
-                  router.push(`/riwayat/${item.ticket_id}` as any);
-                }
+                router.push(`/riwayat/${item.ticket_number}` as any);
               }}
             >
               <View style={styles.cardHeader}>
@@ -374,32 +262,29 @@ export default function RiwayatScreen() {
                 <View
                   style={[
                     styles.statusBadge,
-                    {
-                      backgroundColor: getStatusColorBadge(
-                        item.customer_status
-                      ),
-                    },
+                    { backgroundColor: getStatusColorBadge(item.customer_status) },
                   ]}
                 >
                   <Text
-                    style={[
-                      styles.statusText,
-                      { color: getStatusColorText(item.customer_status) },
-                    ]}
+                    style={[styles.statusText, { color: getStatusColorText(item.customer_status) }]}
                   >
                     {item.customer_status}
                   </Text>
                 </View>
               </View>
+
               <Text style={styles.cardTitle}>{item.channel}</Text>
               <Text style={styles.cardDateTime}>
-                {formatDate(item.created_time)}, {formatTime(item.created_time)}
+                {item.created_time
+                  ? `${formatDate(item.created_time)}, ${formatTime(item.created_time)}`
+                  : "-"}
               </Text>
             </TouchableOpacity>
           ))
         )}
       </ScrollView>
 
+      {/* Bottom Sheet Filter */}
       <Modal visible={showFilter} transparent animationType="fade">
         <TouchableOpacity
           style={styles.modalOverlay}
@@ -407,10 +292,7 @@ export default function RiwayatScreen() {
           onPress={() => setShowFilter(false)}
         >
           <Animated.View
-            style={[
-              styles.bottomSheet,
-              { transform: [{ translateY: slideAnim }] },
-            ]}
+            style={[styles.bottomSheet, { transform: [{ translateY: slideAnim }] }]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.sheetHeader}>
@@ -420,28 +302,17 @@ export default function RiwayatScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.section}>
+            <View className="section" style={styles.section}>
               <Text style={styles.sectionTitle}>Sort By</Text>
+
               <TouchableOpacity
                 style={styles.sortOption}
-                onPress={() =>
-                  setSortBy(
-                    sortBy === "tanggal-terbaru" ? "" : "tanggal-terbaru"
-                  )
-                }
+                onPress={() => setSortBy(sortBy === "tanggal-terbaru" ? "" : "tanggal-terbaru")}
               >
-                <MaterialIcons
-                  name="calendar-today"
-                  size={20}
-                  color="#1F72F1"
-                />
+                <MaterialIcons name="calendar-today" size={20} color="#1F72F1" />
                 <Text style={styles.optionText}>Tanggal Terbaru</Text>
                 <MaterialIcons
-                  name={
-                    sortBy === "tanggal-terbaru"
-                      ? "radio-button-checked"
-                      : "radio-button-unchecked"
-                  }
+                  name={sortBy === "tanggal-terbaru" ? "radio-button-checked" : "radio-button-unchecked"}
                   size={20}
                   color={sortBy === "tanggal-terbaru" ? "#1F72F1" : "#8E8E93"}
                 />
@@ -449,24 +320,12 @@ export default function RiwayatScreen() {
 
               <TouchableOpacity
                 style={styles.sortOption}
-                onPress={() =>
-                  setSortBy(
-                    sortBy === "tanggal-terlama" ? "" : "tanggal-terlama"
-                  )
-                }
+                onPress={() => setSortBy(sortBy === "tanggal-terlama" ? "" : "tanggal-terlama")}
               >
-                <MaterialIcons
-                  name="calendar-today"
-                  size={20}
-                  color="#1F72F1"
-                />
+                <MaterialIcons name="calendar-today" size={20} color="#1F72F1" />
                 <Text style={styles.optionText}>Tanggal Terlama</Text>
                 <MaterialIcons
-                  name={
-                    sortBy === "tanggal-terlama"
-                      ? "radio-button-checked"
-                      : "radio-button-unchecked"
-                  }
+                  name={sortBy === "tanggal-terlama" ? "radio-button-checked" : "radio-button-unchecked"}
                   size={20}
                   color={sortBy === "tanggal-terlama" ? "#1F72F1" : "#8E8E93"}
                 />
@@ -478,81 +337,76 @@ export default function RiwayatScreen() {
 
               <TouchableOpacity
                 style={styles.statusOption}
-                onPress={() => toggleStatus("Diterima")}
+                onPress={() => toggleStatus("Diterima", selectedStatus, setSelectedStatus)}
               >
                 <MaterialIcons name="edit-document" size={20} color="#FF8636" />
                 <Text style={styles.optionText}>Diterima</Text>
                 <MaterialIcons
                   name={
-                    selectedStatus.includes("Diterima")
-                      ? "check-box"
-                      : "check-box-outline-blank"
+                    selectedStatus.includes("Diterima") ? "check-box" : "check-box-outline-blank"
                   }
                   size={20}
-                  color={
-                    selectedStatus.includes("Diterima") ? "#1F72F1" : "#8E8E93"
-                  }
+                  color={selectedStatus.includes("Diterima") ? "#1F72F1" : "#8E8E93"}
                 />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.statusOption}
-                onPress={() => toggleStatus("Validasi")}
+                onPress={() => toggleStatus("Validasi", selectedStatus, setSelectedStatus)}
               >
                 <MaterialIcons name="verified" size={20} color="#FFB600" />
                 <Text style={styles.optionText}>Validasi</Text>
                 <MaterialIcons
                   name={
-                    selectedStatus.includes("Validasi")
-                      ? "check-box"
-                      : "check-box-outline-blank"
+                    selectedStatus.includes("Validasi") ? "check-box" : "check-box-outline-blank"
                   }
                   size={20}
-                  color={
-                    selectedStatus.includes("Validasi") ? "#1F72F1" : "#8E8E93"
-                  }
+                  color={selectedStatus.includes("Validasi") ? "#1F72F1" : "#8E8E93"}
                 />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.statusOption}
-                onPress={() => toggleStatus("Diproses")}
+                onPress={() => toggleStatus("Diproses", selectedStatus, setSelectedStatus)}
               >
                 <MaterialIcons name="history" size={20} color="#B3BE47" />
                 <Text style={styles.optionText}>Diproses</Text>
                 <MaterialIcons
                   name={
-                    selectedStatus.includes("Diproses")
-                      ? "check-box"
-                      : "check-box-outline-blank"
+                    selectedStatus.includes("Diproses") ? "check-box" : "check-box-outline-blank"
                   }
                   size={20}
-                  color={
-                    selectedStatus.includes("Diproses") ? "#1F72F1" : "#8E8E93"
-                  }
+                  color={selectedStatus.includes("Diproses") ? "#1F72F1" : "#8E8E93"}
                 />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.statusOption}
-                onPress={() => toggleStatus("Selesai")}
+                onPress={() => toggleStatus("Selesai", selectedStatus, setSelectedStatus)}
               >
-                <MaterialIcons
-                  name="check-circle-outline"
-                  size={20}
-                  color="#66C4BE"
-                />
+                <MaterialIcons name="check-circle-outline" size={20} color="#66C4BE" />
                 <Text style={styles.optionText}>Selesai</Text>
                 <MaterialIcons
                   name={
-                    selectedStatus.includes("Selesai")
-                      ? "check-box"
-                      : "check-box-outline-blank"
+                    selectedStatus.includes("Selesai") ? "check-box" : "check-box-outline-blank"
                   }
                   size={20}
-                  color={
-                    selectedStatus.includes("Selesai") ? "#1F72F1" : "#8E8E93"
+                  color={selectedStatus.includes("Selesai") ? "#1F72F1" : "#8E8E93"}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.statusOption}
+                onPress={() => toggleStatus("Ditolak", selectedStatus, setSelectedStatus)}
+              >
+                <MaterialIcons name="block" size={20} color="#E24646" />
+                <Text style={styles.optionText}>Ditolak</Text>
+                <MaterialIcons
+                  name={
+                    selectedStatus.includes("Ditolak") ? "check-box" : "check-box-outline-blank"
                   }
+                  size={20}
+                  color={selectedStatus.includes("Ditolak") ? "#1F72F1" : "#8E8E93"}
                 />
               </TouchableOpacity>
             </View>
@@ -571,10 +425,7 @@ export default function RiwayatScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.applyButton,
-                  !hasFilters && styles.disabledButton,
-                ]}
+                style={[styles.applyButton, !hasFilters && styles.disabledButton]}
                 onPress={() => {
                   setAppliedSortBy(sortBy);
                   setAppliedStatus(selectedStatus);
@@ -582,23 +433,26 @@ export default function RiwayatScreen() {
                 }}
                 disabled={!hasFilters}
               >
-                <Text
-                  style={[styles.applyText, !hasFilters && styles.disabledText]}
-                >
-                  Terapkan
-                </Text>
+                <Text style={[styles.applyText, !hasFilters && styles.disabledText]}>Terapkan</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
         </TouchableOpacity>
       </Modal>
 
-      <FeedbackModal
-        visible={showFeedback}
-        onClose={() => setShowFeedback(false)}
-      />
+      {/* TODO: FeedbackModal dipindahkan ke halaman detail */}
+      <FeedbackModal visible={showFeedback} onClose={() => setShowFeedback(false)} />
     </SafeAreaView>
   );
+}
+
+// helper kecil untuk toggle checkbox status
+function toggleStatus(
+  status: string,
+  selected: string[],
+  setSelected: React.Dispatch<React.SetStateAction<string[]>>
+) {
+  setSelected((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
 }
 
 const styles = StyleSheet.create({
@@ -647,7 +501,6 @@ const styles = StyleSheet.create({
     marginBottom: Platform.OS === "ios" ? 50 : 0,
   },
   card: {
-    // backgroundColor: '#fff',
     marginTop: 12,
     marginBottom: 18,
     padding: 18,
@@ -745,7 +598,6 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: "row",
     gap: 12,
-    // paddingHorizontal: 24,
     paddingBottom: 42,
   },
   clearButton: {
