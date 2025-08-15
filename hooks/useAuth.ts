@@ -1,12 +1,65 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
+import { api } from "@/lib/api";
 
-export const useAuth = () => {
+type Ticket = {
+  ticket_number: string;
+  description: string;
+  customer_status: string;
+  issue_channel: string;
+  created_time: string;
+};
+
+type Customer = {
+  customer_id: number;
+  full_name: string;
+  email: string;
+  address: string;
+  phone_number: string;
+  tickets: Ticket[];
+};
+
+type LoginResponse = {
+  message?: string;
+  access_token: string;
+  data: Customer;
+};
+
+const LOGIN_PATH = "/v1/auth/login/customer";
+
+export function useAuth() {
   const [isLoading, setIsLoading] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<Customer | null>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const isAuthenticated = !!token;
 
-  const login = async (email: string, password: string) => {
+  // load sesi awal
+  useEffect(() => {
+    (async () => {
+      try {
+        const [t, u] = await Promise.all([
+          AsyncStorage.getItem("access_token"),
+          AsyncStorage.getItem("customer"),
+        ]);
+        if (t) setToken(t);
+        if (u) {
+          try {
+            const userData = JSON.parse(u);
+            setUser(userData);
+            setTickets(userData.tickets || []);
+          } catch {
+            setUser(null);
+            setTickets([]);
+          }
+        }
+      } catch {}
+    })();
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
     if (!email || !password) {
       Alert.alert("Error", "Email dan password harus diisi");
       return;
@@ -14,50 +67,50 @@ export const useAuth = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch("http://34.121.13.94:3000/customer", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const res = await api<LoginResponse>(LOGIN_PATH, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
       });
 
-      if (response.ok) {
-        const customers = await response.json();
-        const user = customers.find(
-          (customer: any) =>
-            customer.email === email && customer.password_hash === password
-        );
-
-        if (user) {
-          await AsyncStorage.setItem("customer", JSON.stringify(user));
-          await AsyncStorage.setItem("isLoggedIn", "true");
-          router.replace("/(tabs)");
-        } else {
-          Alert.alert("Error", "Email atau password salah");
-        }
-      } else {
-        Alert.alert("Error", "Gagal terhubung ke server");
+      if (!res?.access_token || !res?.data) {
+        throw new Error("Respon login tidak lengkap");
       }
-    } catch (error) {
-      Alert.alert("Error", "Terjadi kesalahan jaringan");
+
+      await AsyncStorage.multiSet([
+        ["access_token", res.access_token],
+        ["customer", JSON.stringify(res.data)],
+        ["isLoggedIn", "true"],
+      ]);
+
+      setToken(res.access_token);
+      setUser(res.data);
+      setTickets(res.data.tickets || []);
+
+      router.replace("/(tabs)");
+    } catch (error: any) {
+      const msg =
+        typeof error?.message === "string" &&
+        (error.message.includes("401") ||
+          /unauthorized|invalid/i.test(error.message))
+          ? "Email atau password salah"
+          : "Gagal login. Periksa koneksi atau coba lagi.";
+      Alert.alert("Error", msg);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem("customer");
-      await AsyncStorage.removeItem("isLoggedIn");
+      await AsyncStorage.multiRemove(["access_token", "customer", "isLoggedIn"]);
+      setToken(null);
+      setUser(null);
+      setTickets([]);
       router.replace("/login");
     } catch (error) {
       console.error("Error during logout:", error);
     }
-  };
+  }, []);
 
-  return {
-    login,
-    logout,
-    isLoading,
-  };
-};
+  return { login, logout, isLoading, isAuthenticated, user, token, tickets };
+}
