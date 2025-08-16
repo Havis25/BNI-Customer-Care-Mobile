@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
+import { api } from "@/lib/api";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { useUser } from "@/hooks/useUser";
@@ -37,10 +37,7 @@ export default function ProfileScreen() {
   const fetchTicketStats = async () => {
     setStatsLoading(true);
     try {
-      const response = await axios.get(
-        `http://34.121.13.94:3000/ticket?customer_id=${user?.customer_id}`
-      );
-      const tickets = response.data;
+      const tickets = await api<any[]>(`/v1/ticket?customer_id=${user?.customer_id}`);
 
       if (Array.isArray(tickets)) {
         setTotalReports(tickets.length);
@@ -145,7 +142,7 @@ export default function ProfileScreen() {
               </Text>
             ))
           ) : (
-            <Text style={styles.infoValue}>Nomor rekening tidak tersedia</Text>
+            <Text style={styles.infoValue}>Memuat data rekening...</Text>
           )}
 
           <Text style={styles.infoLabel}>No Handphone</Text>

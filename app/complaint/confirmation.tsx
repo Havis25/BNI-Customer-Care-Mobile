@@ -2,8 +2,8 @@ import BottomSheet from "@/components/modals/BottomSheet";
 import { useUser } from "@/hooks/useUser";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Picker } from "@react-native-picker/picker";
-import axios from "axios";
 import { router } from "expo-router";
+import { api } from "@/lib/api";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActionSheetIOS,
@@ -25,7 +25,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-const API_URL = "http://34.121.13.94:3000/tickets";
+const API_URL = "/v1/tickets";
 const HEADER_HEIGHT = 56;
 
 type TicketPayload = {
@@ -157,7 +157,6 @@ export default function ConfirmationScreen() {
   const { user, selectAccount, account_number, accounts } = useUser();
 
   const full_nameauto = (user?.full_name || "").trim() || "User Complain";
-  const norekAuto = account_number;
 
   // Editable
   const [channel, setChannel] = useState<Channel>("Mobile Banking");
@@ -200,10 +199,9 @@ export default function ConfirmationScreen() {
     if (!isValid || submitting) return;
     try {
       setSubmitting(true);
-      await axios.post(API_URL, payload, {
-        headers: { "Content-Type": "application/json" },
-        timeout: 15000,
-        validateStatus: (s) => (s >= 200 && s < 300) || s === 201,
+      await api(API_URL, {
+        method: "POST",
+        body: JSON.stringify(payload),
       });
       router.push("/complaint/chat?fromConfirmation=true");
     } catch (error: any) {
@@ -269,15 +267,13 @@ export default function ConfirmationScreen() {
               {accounts.length > 1 ? (
                 <SelectField
                   label="No Rekening"
-                  value={`${user?.selectedAccount?.account_number || "N/A"} (${
-                    user?.selectedAccount?.account_type || ""
-                  })`}
+                  value={`${account_number} (${user?.selectedAccount?.account_type || ""})`}
                   options={accounts.map(
                     (acc) => `${acc.account_number} (${acc.account_type})`
                   )}
                   onChange={(selectedValue) => {
                     const selectedAccount = accounts.find((acc) =>
-                      selectedValue.includes(acc.account_number)
+                      selectedValue.includes(acc.account_number.toString())
                     );
                     if (selectedAccount) {
                       selectAccount(selectedAccount);
@@ -288,7 +284,7 @@ export default function ConfirmationScreen() {
                 <View style={styles.fieldContainer}>
                   <Text style={styles.label}>No Rekening</Text>
                   <TextInput
-                    value={norekAuto}
+                    value={account_number}
                     editable={false}
                     style={styles.textInput}
                   />
