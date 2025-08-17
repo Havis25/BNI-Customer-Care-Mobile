@@ -11,11 +11,11 @@ export async function api<T = JSONValue>(
 ): Promise<T> {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
   
-  const headers: Record<string, string> = {
+  const headers = {
     Accept: "application/json",
     "Content-Type": "application/json",
     ...(init.headers || {}),
-  };
+  } as Record<string, string>;
 
   const res = await fetch(url, {
     ...init,

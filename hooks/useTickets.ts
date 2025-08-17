@@ -64,7 +64,7 @@ export type TicketsResponse = {
   };
 };
 
-const TICKETS_PATH = "/v1/ticket";
+const TICKETS_PATH = "/v1/tickets";
 
 export function useTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -74,10 +74,10 @@ export function useTickets() {
   const fetchTickets = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const token = await AsyncStorage.getItem("access_token");
-      
+
       if (!token) {
         throw new Error("No access token found");
       }

@@ -4,6 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { api } from "@/lib/api";
 
+type Ticket = {
+  ticket_number: string;
+  description: string;
+  customer_status: string;
+  issue_channel: string;
+  created_time: string;
+};
+
 type Customer = {
   id: number;
   customer_id?: number;
@@ -19,12 +27,7 @@ type Customer = {
 type LoginResponse = {
   success: boolean;
   message: string;
-  success: boolean;
-  message: string;
   access_token: string;
-  refresh_token: string;
-  token_type: string;
-  expires_in: number;
   refresh_token: string;
   token_type: string;
   expires_in: number;
@@ -37,6 +40,7 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<Customer | null>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const isAuthenticated = !!token;
 
   // load sesi awal
@@ -52,8 +56,10 @@ export function useAuth() {
           try {
             const userData = JSON.parse(u);
             setUser(userData);
+            setTickets(userData.tickets || []);
           } catch {
             setUser(null);
+            setTickets([]);
           }
         }
       } catch {}
@@ -78,7 +84,7 @@ export function useAuth() {
       }
 
       // Fetch user data lengkap dengan /v1/auth/me
-      const userDetail = await api('/v1/auth/me', {
+      const userDetail = await api("/v1/auth/me", {
         headers: {
           Authorization: res.access_token,
         },
@@ -97,8 +103,8 @@ export function useAuth() {
       ]);
 
       setToken(res.access_token);
-      setUser(res.data);
-      setTickets(res.data.tickets || []);
+      setUser(fullUserData);
+      setTickets(fullUserData.tickets || []);
 
       router.replace("/(tabs)");
     } catch (error: any) {
@@ -116,16 +122,20 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.multiRemove(["access_token", "refresh_token", "customer", "isLoggedIn"]);
-      await AsyncStorage.multiRemove(["access_token", "refresh_token", "customer", "isLoggedIn"]);
+      await AsyncStorage.multiRemove([
+        "access_token",
+        "refresh_token",
+        "customer",
+        "isLoggedIn",
+      ]);
       setToken(null);
       setUser(null);
+      setTickets([]);
       router.replace("/login");
     } catch (error) {
       console.error("Error during logout:", error);
     }
   }, []);
 
-  return { login, logout, isLoading, isAuthenticated, user, token };
-  return { login, logout, isLoading, isAuthenticated, user, token };
+  return { login, logout, isLoading, isAuthenticated, user, token, tickets };
 }
