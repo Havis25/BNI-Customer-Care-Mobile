@@ -11,18 +11,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useAuth } from "@/hooks/useAuth";
+import { useTickets } from "@/hooks/useTickets";
 
 export default function RiwayatDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { tickets } = useAuth();
+  const { tickets } = useTickets();
   const [ticket, setTicket] = useState<any>(null);
   const [feedback, setFeedback] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (tickets && id) {
-      const foundTicket = tickets.find((t: any) => t.ticket_number === id);
+      const foundTicket = tickets.find((t) => t.ticket_number === id);
       if (foundTicket) {
         setTicket(foundTicket);
       }
@@ -47,20 +47,20 @@ export default function RiwayatDetailScreen() {
     });
   };
 
-  const toIndoStatus = (en?: string) => {
-    switch ((en || "").toLowerCase()) {
-      case "accepted":
+  const toIndoStatus = (statusCode?: string) => {
+    switch ((statusCode || "").toUpperCase()) {
+      case "ACC":
         return "Diterima";
-      case "verification":
+      case "VERIF":
         return "Validasi";
-      case "processing":
+      case "PROCESS":
         return "Diproses";
-      case "closed":
+      case "CLOSED":
         return "Selesai";
-      case "declined":
+      case "DECLINED":
         return "Ditolak";
       default:
-        return en || "-";
+        return statusCode || "-";
     }
   };
 
@@ -122,7 +122,7 @@ export default function RiwayatDetailScreen() {
             </Text>
           </View>
 
-          <Text style={styles.detailTitle}>{ticket.issue_channel}</Text>
+          <Text style={styles.detailTitle}>{ticket.issue_channel.channel_name}</Text>
 
           <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>Deskripsi</Text>
@@ -135,7 +135,7 @@ export default function RiwayatDetailScreen() {
           <View style={styles.progressCard}>
             {progressData?.map((step: any, index: number) => {
               const stepStatus = getProgressStepStatus(
-                toIndoStatus(ticket.customer_status),
+                toIndoStatus(ticket.customer_status.customer_status_code),
                 step.status
               );
               const isLast = index === progressData.length - 1;
@@ -188,7 +188,7 @@ export default function RiwayatDetailScreen() {
           </View>
         </View>
 
-        {feedback && toIndoStatus(ticket.customer_status) === "Selesai" && (
+        {feedback && toIndoStatus(ticket.customer_status.customer_status_code) === "Selesai" && (
           <View style={styles.feedbackSection}>
             <Text style={styles.feedbackTitle}>Feedback Anda</Text>
             <View style={styles.feedbackCard}>

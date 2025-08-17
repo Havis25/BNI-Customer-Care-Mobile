@@ -84,7 +84,7 @@ export function useAuth() {
       }
 
       // Fetch user data lengkap dengan /v1/auth/me
-      const userDetail = await api('/v1/auth/me', {
+      const userDetail = await api("/v1/auth/me", {
         headers: {
           Authorization: res.access_token,
         },
@@ -122,7 +122,12 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.multiRemove(["access_token", "refresh_token", "customer", "isLoggedIn"]);
+      await AsyncStorage.multiRemove([
+        "access_token",
+        "refresh_token",
+        "customer",
+        "isLoggedIn",
+      ]);
       setToken(null);
       setUser(null);
       setTickets([]);
