@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { api } from "@/lib/api";
+import { useTokenManager } from "./useTokenManager";
 
 type Ticket = {
   ticket_number: string;
@@ -38,20 +39,16 @@ const LOGIN_PATH = "/v1/auth/login/customer";
 
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<Customer | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const { token, saveTokens, clearTokens, getValidToken } = useTokenManager();
   const isAuthenticated = !!token;
 
   // load sesi awal
   useEffect(() => {
     (async () => {
       try {
-        const [t, u] = await Promise.all([
-          AsyncStorage.getItem("access_token"),
-          AsyncStorage.getItem("customer"),
-        ]);
-        if (t) setToken(t);
+        const u = await AsyncStorage.getItem("customer");
         if (u) {
           try {
             const userData = JSON.parse(u);
@@ -83,6 +80,9 @@ export function useAuth() {
         throw new Error(res?.message || "Login gagal");
       }
 
+      // Simpan tokens ke secure storage
+      await saveTokens(res.access_token, res.refresh_token);
+      
       // Fetch user data lengkap dengan /v1/auth/me
       const userDetail = await api("/v1/auth/me", {
         headers: {
@@ -96,13 +96,10 @@ export function useAuth() {
       };
 
       await AsyncStorage.multiSet([
-        ["access_token", res.access_token],
-        ["refresh_token", res.refresh_token],
         ["customer", JSON.stringify(fullUserData)],
         ["isLoggedIn", "true"],
       ]);
 
-      setToken(res.access_token);
       setUser(fullUserData);
       setTickets(fullUserData.tickets || []);
 
@@ -122,20 +119,15 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.multiRemove([
-        "access_token",
-        "refresh_token",
-        "customer",
-        "isLoggedIn",
-      ]);
-      setToken(null);
+      await clearTokens();
+      await AsyncStorage.multiRemove(["customer", "isLoggedIn"]);
       setUser(null);
       setTickets([]);
       router.replace("/login");
     } catch (error) {
       console.error("Error during logout:", error);
     }
-  }, []);
+  }, [clearTokens]);
 
-  return { login, logout, isLoading, isAuthenticated, user, token, tickets };
+  return { login, logout, isLoading, isAuthenticated, user, token, tickets, getValidToken };
 }
