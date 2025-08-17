@@ -1,5 +1,6 @@
 import BottomSheet from "@/components/modals/BottomSheet";
 import { useUser } from "@/hooks/useUser";
+import { useAuth } from "@/hooks/useAuth";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
@@ -29,67 +30,65 @@ const API_URL = "/v1/tickets";
 const HEADER_HEIGHT = 56;
 
 type TicketPayload = {
-  full_name: string;
-  account_number: string;
-  channel: string;
-  category: string;
   description: string;
+  issue_channel_id: number;
+  complaint_id: number;
 };
 
 const CHANNELS = [
-  "Mobile Banking",
-  "Internet Banking",
-  "ATM",
-  "Kantor Cabang",
-  "Call Center",
-  "SMS Banking",
+  { id: 1, name: "Mobile Banking" },
+  { id: 2, name: "Internet Banking" },
+  { id: 3, name: "ATM" },
+  { id: 4, name: "Kantor Cabang" },
+  { id: 5, name: "Call Center" },
+  { id: 6, name: "SMS Banking" },
 ] as const;
 
-type Channel = (typeof CHANNELS)[number];
+type Channel = typeof CHANNELS[number];
 
-const CATEGORY_MAP: Record<Channel, string[]> = {
+const CATEGORY_MAP: Record<string, Array<{id: number, name: string}>> = {
   "Mobile Banking": [
-    "Top Up Gopay",
-    "Transfer Antar Bank",
-    "Pembayaran Tagihan",
-    "Biometric/Login Error",
-    "Saldo/Mutasi",
-    "Lainnya",
+    { id: 1, name: "Top Up Gopay" },
+    { id: 2, name: "Transfer Antar Bank" },
+    { id: 3, name: "Pembayaran Tagihan" },
+    { id: 4, name: "Biometric/Login Error" },
+    { id: 5, name: "Saldo/Mutasi" },
+    { id: 6, name: "Lainnya" },
   ],
   "Internet Banking": [
-    "Transfer",
-    "Pembayaran",
-    "Aktivasi/Token",
-    "Reset Password",
-    "Lainnya",
+    { id: 7, name: "Transfer" },
+    { id: 8, name: "Pembayaran" },
+    { id: 9, name: "Aktivasi/Token" },
+    { id: 10, name: "Reset Password" },
+    { id: 11, name: "Lainnya" },
   ],
   ATM: [
-    "Kartu Tertelan",
-    "Tarik Tunai Gagal",
-    "Setor Tunai Gagal",
-    "Saldo Tidak Sesuai",
-    "Lainnya",
+    { id: 12, name: "Kartu Tertelan" },
+    { id: 13, name: "Tarik Tunai Gagal" },
+    { id: 14, name: "Setor Tunai Gagal" },
+    { id: 15, name: "Saldo Tidak Sesuai" },
+    { id: 16, name: "Lainnya" },
   ],
   "Kantor Cabang": [
-    "Layanan Teller",
-    "Layanan Customer Service",
-    "Antrian",
-    "Fasilitas Cabang",
-    "Lainnya",
+    { id: 17, name: "Layanan Teller" },
+    { id: 18, name: "Layanan Customer Service" },
+    { id: 19, name: "Antrian" },
+    { id: 20, name: "Fasilitas Cabang" },
+    { id: 21, name: "Lainnya" },
   ],
   "Call Center": [
-    "Informasi Produk",
-    "Blokir Kartu",
-    "Pengaduan Transaksi",
-    "Follow-up Laporan",
-    "Lainnya",
+    { id: 22, name: "Informasi Produk" },
+    { id: 23, name: "Blokir Kartu" },
+    { id: 24, name: "Pengaduan Transaksi" },
+    { id: 25, name: "Follow-up Laporan" },
+    { id: 26, name: "Lainnya" },
   ],
   "SMS Banking": [
-    "Registrasi",
-    "Transaksi Gagal",
-    "Format Perintah",
-    "Pulsa/Top Up",
-    "Lainnya",
+    { id: 27, name: "Registrasi" },
+    { id: 28, name: "Transaksi Gagal" },
+    { id: 29, name: "Format Perintah" },
+    { id: 30, name: "Pulsa/Top Up" },
+    { id: 31, name: "Lainnya" },
   ],
 };
 
@@ -155,12 +154,13 @@ function SelectField({
 export default function ConfirmationScreen() {
   const insets = useSafeAreaInsets();
   const { user, selectAccount, account_number, accounts } = useUser();
+  const { token, isAuthenticated } = useAuth();
 
   const full_nameauto = (user?.full_name || "").trim() || "User Complain";
 
   // Editable
-  const [channel, setChannel] = useState<Channel>("Mobile Banking");
-  const [category, setCategory] = useState<string>(
+  const [channel, setChannel] = useState<Channel>(CHANNELS[0]);
+  const [category, setCategory] = useState<{id: number, name: string}>(
     CATEGORY_MAP["Mobile Banking"][0]
   );
   const [description, setdescription] = useState<string>("");
@@ -174,35 +174,44 @@ export default function ConfirmationScreen() {
   const [footerHeight, setFooterHeight] = useState(120); // perkiraan awal; nanti diganti oleh onLayout
 
   const categoriesForChannel = useMemo(
-    () => CATEGORY_MAP[channel] || [],
+    () => CATEGORY_MAP[channel.name] || [],
     [channel]
   );
+  
   useEffect(() => {
-    if (!categoriesForChannel.includes(category)) {
-      setCategory(categoriesForChannel[0] ?? "");
+    const categories = CATEGORY_MAP[channel.name] || [];
+    if (categories.length > 0 && !categories.find(c => c.id === category.id)) {
+      setCategory(categories[0]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel]);
+  }, [channel, category.id]);
 
   const isValid =
     isChecked && !!channel && !!category && description.trim().length >= 8;
 
   const payload: TicketPayload = {
-    full_name: full_nameauto,
-    account_number: account_number,
-    channel,
-    category,
     description: description.trim(),
+    issue_channel_id: channel.id,
+    complaint_id: category.id,
   };
 
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
     try {
       setSubmitting(true);
+      
+      // Cek autentikasi
+      if (!isAuthenticated || !token) {
+        Alert.alert("Error", "Sesi telah berakhir. Silakan login kembali.");
+        router.replace("/login");
+        return;
+      }
+
+      // API call akan otomatis menambahkan Authorization header
       await api(API_URL, {
         method: "POST",
         body: JSON.stringify(payload),
       });
+      
       router.push("/complaint/chat?fromConfirmation=true");
     } catch (error: any) {
       console.error("Gagal kirim data:", error?.message || error);
@@ -294,17 +303,23 @@ export default function ConfirmationScreen() {
               {/* Channel */}
               <SelectField
                 label="Channel"
-                value={channel}
-                options={CHANNELS as unknown as string[]}
-                onChange={(v) => setChannel(v as Channel)}
+                value={channel.name}
+                options={CHANNELS.map(c => c.name)}
+                onChange={(v) => {
+                  const selectedChannel = CHANNELS.find(c => c.name === v);
+                  if (selectedChannel) setChannel(selectedChannel);
+                }}
               />
 
               {/* Category (dinamis) */}
               <SelectField
                 label="Category"
-                value={category}
-                options={categoriesForChannel}
-                onChange={setCategory}
+                value={category.name}
+                options={categoriesForChannel.map(c => c.name)}
+                onChange={(v) => {
+                  const selectedCategory = categoriesForChannel.find(c => c.name === v);
+                  if (selectedCategory) setCategory(selectedCategory);
+                }}
               />
 
               {/* Deskripsi */}

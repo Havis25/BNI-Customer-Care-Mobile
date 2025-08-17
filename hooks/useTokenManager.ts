@@ -83,9 +83,9 @@ export const useTokenManager = () => {
   const getValidToken = useCallback(async (): Promise<string | null> => {
     if (!token) return null;
     
-    // Auto refresh token setiap kali dipanggil
-    return await refreshToken();
-  }, [token, refreshToken]);
+    // Return token langsung tanpa auto-refresh
+    return token;
+  }, [token]);
 
   return {
     token,

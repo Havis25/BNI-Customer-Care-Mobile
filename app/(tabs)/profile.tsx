@@ -1,9 +1,10 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/lib/api";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import { useUser } from "@/hooks/useUser";
+import { useTickets } from "@/hooks/useTickets";
 import {
   ActivityIndicator,
   Alert,
@@ -25,25 +26,33 @@ import TabTransition from "@/components/TabTransition";
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, loading: userLoading, accounts } = useUser();
+  const { tickets, refetch } = useTickets();
   const [totalReports, setTotalReports] = useState(0);
   const [completedReports, setCompletedReports] = useState(0);
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (tickets) {
       fetchTicketStats();
     }
-  }, [user]);
+  }, [tickets]);
+
+  // Auto-refresh saat halaman di-focus
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   const fetchTicketStats = async () => {
     setStatsLoading(true);
     try {
-      // Gunakan data tickets dari user yang sudah ada (dari /v1/auth/me)
-      const tickets = user?.tickets || [];
+      // Gunakan data fresh dari useTickets
+      const ticketList = tickets || [];
 
-      setTotalReports(tickets.length);
-      const selesaiCount = tickets.filter(
-        (t: any) => t.customer_status?.toLowerCase() === "closed"
+      setTotalReports(ticketList.length);
+      const selesaiCount = ticketList.filter(
+        (t: any) => t.customer_status?.customer_status_code?.toUpperCase() === "CLOSED"
       ).length;
       setCompletedReports(selesaiCount);
     } catch (error) {

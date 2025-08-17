@@ -5,14 +5,6 @@ import { Alert } from "react-native";
 import { api } from "@/lib/api";
 import { useTokenManager } from "./useTokenManager";
 
-type Ticket = {
-  ticket_number: string;
-  description: string;
-  customer_status: string;
-  issue_channel: string;
-  created_time: string;
-};
-
 type Customer = {
   id: number;
   customer_id?: number;
@@ -22,7 +14,6 @@ type Customer = {
   address?: string;
   phone_number?: string;
   accounts?: any[];
-  tickets?: Ticket[];
 };
 
 type LoginResponse = {
@@ -40,7 +31,6 @@ const LOGIN_PATH = "/v1/auth/login/customer";
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<Customer | null>(null);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
   const { token, saveTokens, clearTokens, getValidToken } = useTokenManager();
   const isAuthenticated = !!token;
 
@@ -53,10 +43,8 @@ export function useAuth() {
           try {
             const userData = JSON.parse(u);
             setUser(userData);
-            setTickets(userData.tickets || []);
           } catch {
             setUser(null);
-            setTickets([]);
           }
         }
       } catch {}
@@ -101,7 +89,6 @@ export function useAuth() {
       ]);
 
       setUser(fullUserData);
-      setTickets(fullUserData.tickets || []);
 
       router.replace("/(tabs)");
     } catch (error: any) {
@@ -122,12 +109,11 @@ export function useAuth() {
       await clearTokens();
       await AsyncStorage.multiRemove(["customer", "isLoggedIn"]);
       setUser(null);
-      setTickets([]);
       router.replace("/login");
     } catch (error) {
       console.error("Error during logout:", error);
     }
   }, [clearTokens]);
 
-  return { login, logout, isLoading, isAuthenticated, user, token, tickets, getValidToken };
+  return { login, logout, isLoading, isAuthenticated, user, token, getValidToken };
 }

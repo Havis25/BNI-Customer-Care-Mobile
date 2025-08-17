@@ -2,7 +2,7 @@ import FeedbackModal from "@/components/FeedbackModal";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, {
   useCallback,
   useEffect,
@@ -235,6 +235,13 @@ export default function RiwayatScreen() {
   const refetchAll = useCallback(() => {
     refetch();
   }, [refetch]);
+
+  // Auto-refresh saat halaman di-focus (kembali dari complaint)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   // =============== UI ===============
   return (

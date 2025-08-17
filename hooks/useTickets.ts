@@ -73,7 +73,7 @@ export function useTickets() {
   const { user, isAuthenticated } = useAuth();
 
   const fetchTickets = useCallback(async () => {
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated) {
       setError("User not authenticated");
       return;
     }
@@ -82,66 +82,23 @@ export function useTickets() {
     setError(null);
 
     try {
-      // Gunakan data tickets dari user (sudah ada dari /v1/auth/me)
-      if (user.tickets && user.tickets.length > 0) {
-        // Transform data dari useAuth ke format yang diharapkan useTickets
-        const transformedTickets = user.tickets.map((ticket: any) => {
-          // Mapping status dari API ke status Indonesia
-          const getStatusCode = (status: string) => {
-            switch (status?.toLowerCase()) {
-              case "accepted": return "ACC";
-              case "verification": return "VERIF";
-              case "processing": return "PROCESS";
-              case "closed": return "CLOSED";
-              case "declined": return "DECLINED";
-              default: return "UNKNOWN";
-            }
-          };
-
-          return {
-            ticket_number: ticket.ticket_number,
-            description: ticket.complaint || "No description",
-            transaction_date: ticket.created_time,
-            amount: 0,
-            created_time: ticket.created_time,
-            closed_time: null,
-            customer_status: {
-              customer_status_code: getStatusCode(ticket.customer_status),
-              customer_status_name: ticket.customer_status || "Unknown",
-              customer_status_id: 1
-            },
-            issue_channel: {
-              channel_name: ticket.issue_channel || "Unknown Channel",
-              channel_code: ticket.issue_channel?.toUpperCase() || "UNKNOWN",
-              channel_id: 1
-            },
-            customer: {
-              customer_id: user.id || 0,
-              full_name: user.full_name || "",
-              email: user.email || ""
-            },
-            related_account: ticket.related_account || { account_id: 0, account_number: 0 },
-            related_card: ticket.related_card || { card_id: 0, card_number: 0, card_type: "" },
-            complaint: {
-              complaint_id: 1,
-              complaint_name: ticket.complaint || "Unknown",
-              complaint_code: "UNKNOWN"
-            }
-          };
-        });
-        
-        setTickets(transformedTickets);
+      // Fetch fresh data dari API
+      const response = await api<TicketsResponse>(TICKETS_PATH);
+      
+      if (response.success && response.data) {
+        setTickets(response.data);
       } else {
         setTickets([]);
       }
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to process tickets";
+      const errorMessage = error?.message || "Failed to fetch tickets";
       setError(errorMessage);
-      console.error("Error processing tickets:", error);
+      console.error("Error fetching tickets:", error);
+      setTickets([]);
     } finally {
       setIsLoading(false);
     }
-  }, [user, isAuthenticated]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchTickets();
