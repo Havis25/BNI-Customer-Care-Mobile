@@ -29,28 +29,24 @@ export default function ProfileScreen() {
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.customer_id) {
+    if (user) {
       fetchTicketStats();
     }
-  }, [user?.customer_id]);
+  }, [user]);
 
   const fetchTicketStats = async () => {
     setStatsLoading(true);
     try {
-      const tickets = await api<any[]>(`/v1/ticket?customer_id=${user?.customer_id}`);
-
-      if (Array.isArray(tickets)) {
-        setTotalReports(tickets.length);
-        const selesaiCount = tickets.filter(
-          (t) => t.agent_status?.toLowerCase() === "selesai"
-        ).length;
-        setCompletedReports(selesaiCount);
-      } else {
-        setTotalReports(0);
-        setCompletedReports(0);
-      }
+      // Gunakan data tickets dari user yang sudah ada (dari /v1/auth/me)
+      const tickets = user?.tickets || [];
+      
+      setTotalReports(tickets.length);
+      const selesaiCount = tickets.filter(
+        (t: any) => t.customer_status?.toLowerCase() === "closed"
+      ).length;
+      setCompletedReports(selesaiCount);
     } catch (error) {
-      console.error("Error fetching ticket stats:", error);
+      console.error("Error processing ticket stats:", error);
       setTotalReports(0);
       setCompletedReports(0);
     } finally {
