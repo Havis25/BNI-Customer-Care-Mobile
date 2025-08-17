@@ -19,7 +19,12 @@ type Customer = {
 type LoginResponse = {
   success: boolean;
   message: string;
+  success: boolean;
+  message: string;
   access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
   refresh_token: string;
   token_type: string;
   expires_in: number;
@@ -92,8 +97,8 @@ export function useAuth() {
       ]);
 
       setToken(res.access_token);
-      setUser(fullUserData);
-      setTickets(fullUserData.tickets || []);
+      setUser(res.data);
+      setTickets(res.data.tickets || []);
 
       router.replace("/(tabs)");
     } catch (error: any) {
@@ -112,6 +117,7 @@ export function useAuth() {
   const logout = useCallback(async () => {
     try {
       await AsyncStorage.multiRemove(["access_token", "refresh_token", "customer", "isLoggedIn"]);
+      await AsyncStorage.multiRemove(["access_token", "refresh_token", "customer", "isLoggedIn"]);
       setToken(null);
       setUser(null);
       router.replace("/login");
@@ -120,5 +126,6 @@ export function useAuth() {
     }
   }, []);
 
+  return { login, logout, isLoading, isAuthenticated, user, token };
   return { login, logout, isLoading, isAuthenticated, user, token };
 }

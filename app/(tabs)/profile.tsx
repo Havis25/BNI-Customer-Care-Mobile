@@ -40,7 +40,7 @@ export default function ProfileScreen() {
     try {
       // Gunakan data tickets dari user yang sudah ada (dari /v1/auth/me)
       const tickets = user?.tickets || [];
-      
+
       setTotalReports(tickets.length);
       const selesaiCount = tickets.filter(
         (t: any) => t.customer_status?.toLowerCase() === "closed"
@@ -99,125 +99,128 @@ export default function ProfileScreen() {
 
   return (
     <TabTransition>
-
-    <SafeAreaView style={styles.safeArea}>
-      <Text style={styles.headerTitle}>Profile</Text>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
-        {/* Judul */}
-
-        {/* Foto Profil Bulat */}
-        <View style={styles.avatarContainer}>
-          <MaterialIcons name="person" size={40} color="#FF6600" />
-        </View>
-
-        {/* Nama & Email */}
-        <Text style={styles.userName}>{user?.full_name || "User"}</Text>
-        <Text style={styles.userEmail}>{user?.email || "user@gmail.com"}</Text>
-
-        {/* Statistik Akun */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderText}>STATISTIK AKUN</Text>
-        </View>
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{totalReports}</Text>
-            <Text style={styles.statLabel}>Total Laporan</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{completedReports}</Text>
-            <Text style={styles.statLabel}>Laporan Selesai</Text>
-          </View>
-        </View>
-
-        {/* Informasi Pengguna */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderText}>INFORMASI PENGGUNA</Text>
-        </View>
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Nomor Rekening</Text>
-          {accounts.length > 0 ? (
-            accounts.map((account, index) => (
-              <Text key={index} style={styles.infoValue}>
-                {account.account_number} ({account.account_type})
-              </Text>
-            ))
-          ) : (
-            <Text style={styles.infoValue}>Memuat data rekening...</Text>
-          )}
-
-          <Text style={styles.infoLabel}>No Handphone</Text>
-          <Text style={styles.infoValue}>{user?.phone_number || "N/A"}</Text>
-
-          <Text style={styles.infoLabel}>Alamat</Text>
-          <Text style={styles.infoValue}>{user?.address || "N/A"}</Text>
-        </View>
-
-        {/* Media Sosial */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderText}>MEDIA SOSIAL</Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.socialRow}
-          onPress={() =>
-            handlePress("https://api.whatsapp.com/send?phone=628118611946")
-          }
+      <SafeAreaView style={styles.safeArea}>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         >
-          <View style={styles.socialLeft}>
-            <Text style={styles.socialTitle}>Whatsapp</Text>
-            <View style={styles.socialIconSubtitleRow}>
-              <Image
-                source={require("../../assets/images/icon_whatsapp.png")}
-                style={styles.socialIcon}
-              />
-              <Text style={styles.socialSubtitle}>WhatsApp BNI</Text>
+          {/* Judul */}
+
+          {/* Foto Profil Bulat */}
+          <View style={styles.avatarContainer}>
+            <MaterialIcons name="person" size={40} color="#FF6600" />
+          </View>
+
+          {/* Nama & Email */}
+          <Text style={styles.userName}>{user?.full_name || "User"}</Text>
+          <Text style={styles.userEmail}>
+            {user?.email || "user@gmail.com"}
+          </Text>
+
+          {/* Statistik Akun */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>STATISTIK AKUN</Text>
+          </View>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statNumber}>{totalReports}</Text>
+              <Text style={styles.statLabel}>Total Laporan</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statNumber}>{completedReports}</Text>
+              <Text style={styles.statLabel}>Laporan Selesai</Text>
             </View>
           </View>
-          <MaterialIcons name="chevron-right" size={24} color="#000" />
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.socialRow}
-          onPress={() => handlePress("mailto:bnicall@bni.co.id")}
-        >
-          <View style={styles.socialLeft}>
-            <Text style={styles.socialTitle}>Email</Text>
-            <View style={styles.socialIconSubtitleRow}>
-              <Image
-                source={require("../../assets/images/icon_email.png")}
-                style={styles.socialIcon}
-              />
-              <Text style={styles.socialSubtitle}>bnicall@bni.co.id</Text>
-            </View>
+          {/* Informasi Pengguna */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>INFORMASI PENGGUNA</Text>
           </View>
-          <MaterialIcons name="chevron-right" size={24} color="#000" />
-        </TouchableOpacity>
+          <View style={styles.infoContainer}>
+            <Text style={styles.infoLabel}>Nomor Rekening</Text>
+            {accounts.length > 0 ? (
+              accounts.map((account, index) => (
+                <Text key={index} style={styles.infoValue}>
+                  {account.account_number} ({account.account_type})
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.infoValue}>Memuat data rekening...</Text>
+            )}
 
-        <TouchableOpacity
-          style={styles.socialRow}
-          onPress={() => handlePress("https://www.instagram.com/bni46")}
-        >
-          <View style={styles.socialLeft}>
-            <Text style={styles.socialTitle}>Instagram</Text>
-            <View style={styles.socialIconSubtitleRow}>
-              <Image
-                source={require("../../assets/images/icon_instagram.png")}
-                style={styles.socialIcon}
-              />
-              <Text style={styles.socialSubtitle}>bni46</Text>
-            </View>
+            <Text style={styles.infoLabel}>No Handphone</Text>
+            <Text style={styles.infoValue}>{user?.phone_number || "N/A"}</Text>
+
+            <Text style={styles.infoLabel}>Alamat</Text>
+            <Text style={styles.infoValue}>{user?.address || "N/A"}</Text>
           </View>
-          <MaterialIcons name="chevron-right" size={24} color="#000" />
-        </TouchableOpacity>
 
-        {/* Tombol Keluar */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={24} color="red" />
-          <Text style={styles.logoutText}>Keluar</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+          {/* Media Sosial */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderText}>MEDIA SOSIAL</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.socialRow}
+            onPress={() =>
+              handlePress("https://api.whatsapp.com/send?phone=628118611946")
+            }
+          >
+            <View style={styles.socialLeft}>
+              <Text style={styles.socialTitle}>Whatsapp</Text>
+              <View style={styles.socialIconSubtitleRow}>
+                <Image
+                  source={require("../../assets/images/icon_whatsapp.png")}
+                  style={styles.socialIcon}
+                />
+                <Text style={styles.socialSubtitle}>WhatsApp BNI</Text>
+              </View>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#000" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.socialRow}
+            onPress={() => handlePress("mailto:bnicall@bni.co.id")}
+          >
+            <View style={styles.socialLeft}>
+              <Text style={styles.socialTitle}>Email</Text>
+              <View style={styles.socialIconSubtitleRow}>
+                <Image
+                  source={require("../../assets/images/icon_email.png")}
+                  style={styles.socialIcon}
+                />
+                <Text style={styles.socialSubtitle}>bnicall@bni.co.id</Text>
+              </View>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#000" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.socialRow}
+            onPress={() => handlePress("https://www.instagram.com/bni46")}
+          >
+            <View style={styles.socialLeft}>
+              <Text style={styles.socialTitle}>Instagram</Text>
+              <View style={styles.socialIconSubtitleRow}>
+                <Image
+                  source={require("../../assets/images/icon_instagram.png")}
+                  style={styles.socialIcon}
+                />
+                <Text style={styles.socialSubtitle}>bni46</Text>
+              </View>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#000" />
+          </TouchableOpacity>
+
+          {/* Tombol Keluar */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <MaterialIcons name="logout" size={24} color="red" />
+            <Text style={styles.logoutText}>Keluar</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
     </TabTransition>
   );
 }
