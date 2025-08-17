@@ -13,17 +13,24 @@ type Ticket = {
 };
 
 type Customer = {
-  customer_id: number;
+  id: number;
+  customer_id?: number;
   full_name: string;
   email: string;
-  address: string;
-  phone_number: string;
-  tickets: Ticket[];
+  role: string;
+  address?: string;
+  phone_number?: string;
+  accounts?: any[];
+  tickets?: Ticket[];
 };
 
 type LoginResponse = {
-  message?: string;
+  success: boolean;
+  message: string;
   access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
   data: Customer;
 };
 
@@ -72,19 +79,32 @@ export function useAuth() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (!res?.access_token || !res?.data) {
-        throw new Error("Respon login tidak lengkap");
+      if (!res?.success || !res?.access_token || !res?.data) {
+        throw new Error(res?.message || "Login gagal");
       }
+
+      // Fetch user data lengkap dengan /v1/auth/me
+      const userDetail = await api('/v1/auth/me', {
+        headers: {
+          Authorization: res.access_token,
+        },
+      });
+
+      const fullUserData = {
+        ...userDetail.data,
+        customer_id: userDetail.data.id,
+      };
 
       await AsyncStorage.multiSet([
         ["access_token", res.access_token],
-        ["customer", JSON.stringify(res.data)],
+        ["refresh_token", res.refresh_token],
+        ["customer", JSON.stringify(fullUserData)],
         ["isLoggedIn", "true"],
       ]);
 
       setToken(res.access_token);
-      setUser(res.data);
-      setTickets(res.data.tickets || []);
+      setUser(fullUserData);
+      setTickets(fullUserData.tickets || []);
 
       router.replace("/(tabs)");
     } catch (error: any) {
@@ -102,7 +122,7 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.multiRemove(["access_token", "customer", "isLoggedIn"]);
+      await AsyncStorage.multiRemove(["access_token", "refresh_token", "customer", "isLoggedIn"]);
       setToken(null);
       setUser(null);
       setTickets([]);

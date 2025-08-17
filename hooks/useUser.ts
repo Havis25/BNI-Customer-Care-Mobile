@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
 interface Customer {
+  id?: number;
   customer_id?: number;
   full_name: string;
   email: string;
+  role?: string;
   password_hash?: string;
-  address: string;
-  phone_number: string;
+  address?: string;
+  phone_number?: string;
   created_at?: string;
   accounts?: Account[];
 }
@@ -20,9 +22,18 @@ interface Account {
   account_type_id: number;
   is_primary: boolean;
   id: number;
+  account_type?: {
+    account_type_name: string;
+  };
 }
 
-interface AccountWithType extends Account {
+interface AccountWithType {
+  account_id: number;
+  customer_id: number;
+  account_number: number;
+  account_type_id: number;
+  is_primary: boolean;
+  id: number;
   account_type?: string;
 }
 
@@ -35,9 +46,19 @@ const ACCOUNT_TYPE_MAP: Record<number, string> = {
   5: "Pinjaman"
 };
 
-interface UserWithAccounts extends Customer {
+interface UserWithAccounts {
+  id?: number;
+  customer_id?: number;
+  full_name: string;
+  email: string;
+  role?: string;
+  password_hash?: string;
+  address?: string;
+  phone_number?: string;
+  created_at?: string;
   accounts: AccountWithType[];
   selectedAccount?: AccountWithType;
+  tickets?: any[];
 }
 
 export const useUser = () => {
@@ -56,11 +77,11 @@ export const useUser = () => {
 
         const customer: Customer = JSON.parse(customerData);
 
-        // Use accounts from customer data if available
+        // Use accounts from customer data (sudah lengkap dari /v1/auth/me)
         if (customer.accounts && customer.accounts.length > 0) {
           const userAccounts = customer.accounts.map((acc) => ({
             ...acc,
-            account_type: ACCOUNT_TYPE_MAP[acc.account_type_id] || "Unknown"
+            account_type: acc.account_type?.account_type_name || ACCOUNT_TYPE_MAP[acc.account_type_id] || "Unknown"
           }));
           setAccounts(userAccounts);
 
@@ -72,32 +93,12 @@ export const useUser = () => {
             selectedAccount: primaryAccount,
           });
         } else {
-          // Fallback to API if no accounts in customer data
-          try {
-            const allAccounts: Account[] = await api<Account[]>("/v1/account");
-            const userAccounts = allAccounts
-              .filter((acc) => acc.customer_id === customer.customer_id)
-              .map((acc) => ({
-                ...acc,
-                account_type: ACCOUNT_TYPE_MAP[acc.account_type_id] || "Unknown"
-              }));
-
-            setAccounts(userAccounts);
-            const primaryAccount = userAccounts.find((acc) => acc.is_primary) || userAccounts[0];
-            
-            setUser({
-              ...customer,
-              accounts: userAccounts,
-              selectedAccount: primaryAccount,
-            });
-          } catch (accountError) {
-            setAccounts([]);
-            setUser({
-              ...customer,
-              accounts: [],
-              selectedAccount: undefined,
-            });
-          }
+          setAccounts([]);
+          setUser({
+            ...customer,
+            accounts: [],
+            selectedAccount: undefined,
+          });
         }
       } catch (error) {
       } finally {
