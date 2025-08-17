@@ -10,18 +10,23 @@ export async function api<T = JSONValue>(
   signal?: AbortSignal
 ): Promise<T> {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+  
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...(init.headers || {}),
+  };
+
   const res = await fetch(url, {
     ...init,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
+    headers,
     signal,
   });
+  
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`API ${res.status} — ${text || res.statusText}`);
   }
+  
   return (await res.json()) as T;
 }

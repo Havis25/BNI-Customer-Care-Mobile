@@ -20,6 +20,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
+import TabTransition from "@/components/TabTransition";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -84,7 +85,9 @@ export default function ProfileScreen() {
   if (userLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <ActivityIndicator size="large" color="#FF6600" />
           <Text style={{ marginTop: 12, fontFamily: Fonts.regular }}>
             Memuat data...
@@ -95,10 +98,12 @@ export default function ProfileScreen() {
   }
 
   return (
+    <TabTransition>
+
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+      <Text style={styles.headerTitle}>Profile</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         {/* Judul */}
-        <Text style={styles.headerTitle}>Profile</Text>
 
         {/* Foto Profil Bulat */}
         <View style={styles.avatarContainer}>
@@ -213,6 +218,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
+    </TabTransition>
   );
 }
 
@@ -220,12 +226,14 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+    paddingBottom: -35,
   },
   headerTitle: {
     fontSize: 18,
     textAlign: "center",
-    marginTop: 12,
-    fontFamily: Fonts.regular,
+    paddingTop: 10,
+    paddingBottom: 16,
+    fontFamily: Fonts.bold,
   },
   avatarContainer: {
     alignSelf: "center",
@@ -241,11 +249,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginTop: 10,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   userEmail: {
-    fontSize: 12,
-    color: "#555",
+    fontSize: 14,
+    color: "black",
     textAlign: "center",
     marginBottom: 20,
     fontFamily: Fonts.regular,
@@ -280,7 +288,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.medium,
   },
   divider: {
     width: 1,
@@ -288,7 +296,8 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   infoContainer: {
-    padding: 16,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
   },
   infoLabel: {
     marginTop: 12,
@@ -298,7 +307,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     marginTop: 2,
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.medium,
   },
   socialRow: {
     flexDirection: "row",

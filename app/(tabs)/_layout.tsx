@@ -1,55 +1,64 @@
 // app/(tabs)/_layout.tsx
+import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
-import React from "react";
+import React, { useRef } from "react";
 import {
+  Animated,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ACTIVE_COLOR = "#FF6600";
 const INACTIVE_COLOR = "#999999";
-const ACTIVE_BG = "#FFF1E8"; // pill aktif
-const APP_BG = "#FFFFFF"; // latar app
+const ACTIVE_BG = "#FFF1E8";
+
+// Tinggi bar kustom (sinkron dengan style di CustomTabBar)
+const BAR_HEIGHT = Platform.OS === "ios" ? 95 : 70;
+
+// Warna “backdrop” yang mengisi sudut membulat tabbar agar tidak hitam di dark-mode OS
+const TABBAR_BACKDROP = "#FFFFFF";
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    // SafeArea bottom + background putih agar sudut bawah tidak gelap
-    <SafeAreaView edges={["bottom"]} style={{ backgroundColor: APP_BG }}>
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: APP_BG }]} />
+    <View style={styles.tabBarWrapper} pointerEvents="box-none">
+      {/* Backdrop penuh di bawah tabbar: menghilangkan warna hitam di belakang sudut membulat */}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.backdropFill,
+          {
+            // height: BAR_HEIGHT + insets.bottom,
+            backgroundColor: TABBAR_BACKDROP,
+          },
+        ]}
+      />
 
+      {/* Kartu tabbar */}
       <View
         style={[
           styles.tabBar,
           {
             paddingBottom: Math.max(
-              insets.bottom * 0.5,
-              Platform.OS === "ios" ? 10 : 8
+              insets.bottom * 0.6,
+              Platform.OS === "ios" ? 16 : 12
             ),
-            height: Platform.OS === "ios" ? 80 : 64, // sedikit lebih ramping
-            backgroundColor: APP_BG,
+            height: BAR_HEIGHT,
           },
         ]}
       >
         <View style={styles.itemsRow}>
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
-
-            const label =
-              (options.tabBarLabel as string) ??
-              (options.title as string) ??
-              route.name;
-
+            const rawLabel = options.tabBarLabel ?? options.title ?? route.name;
+            const label = typeof rawLabel === "string" ? rawLabel : route.name;
             const isFocused = state.index === index;
 
             const onPress = () => {
@@ -59,54 +68,79 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 canPreventDefault: true,
               });
               if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params);
+                navigation.navigate(route.name as never);
               }
             };
 
+            const onLongPress = () => {
+              navigation.emit({ type: "tabLongPress", target: route.key });
+            };
+
             const color = isFocused ? ACTIVE_COLOR : INACTIVE_COLOR;
-            const size = isFocused ? 28 : 24;
+            const size = isFocused ? 30 : 26;
 
             const icon =
               typeof options.tabBarIcon === "function"
                 ? options.tabBarIcon({ focused: isFocused, color, size })
                 : null;
 
+            // Animasi kecil saat tap icon
+            const scaleAnim = useRef(new Animated.Value(1)).current;
+            const handlePressIn = () => {
+              Animated.spring(scaleAnim, {
+                toValue: 0.95,
+                useNativeDriver: true,
+              }).start();
+            };
+            const handlePressOut = () => {
+              Animated.spring(scaleAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+              }).start();
+            };
+
             return (
-              <TouchableOpacity
+              <Animated.View
                 key={route.key}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={
-                  (options.tabBarAccessibilityLabel as string) ?? label
-                }
-                testID={`tab-${route.name}`}
-                onPress={onPress}
-                style={styles.itemTouchable}
-                activeOpacity={0.8}
+                style={[styles.itemTouchable, { transform: [{ scale: scaleAnim }] }]}
               >
-                <View
-                  style={[
-                    styles.itemInner,
-                    isFocused && {
-                      backgroundColor: ACTIVE_BG,
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                    },
-                  ]}
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={isFocused ? { selected: true } : {}}
+                  accessibilityLabel={(options.tabBarAccessibilityLabel as string) ?? label}
+                  testID={`tab-${route.name}`}
+                  onPress={onPress}
+                  onLongPress={onLongPress}
+                  onPressIn={handlePressIn}
+                  onPressOut={handlePressOut}
+                  style={styles.itemInnerTouchable}
+                  activeOpacity={0.8}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <View style={styles.iconOnly}>{icon}</View>
-                  {isFocused && (
-                    <Text style={[styles.activeLabel, { color: ACTIVE_COLOR }]}>
-                      {label}
-                    </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+                  <View
+                    style={[
+                      styles.itemInner,
+                      isFocused && {
+                        backgroundColor: ACTIVE_BG,
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                      },
+                    ]}
+                  >
+                    <View style={styles.iconOnly}>{icon}</View>
+                    {isFocused && (
+                      <Text style={[styles.activeLabel, { color: ACTIVE_COLOR }]}>
+                        {label}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
             );
           })}
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -115,7 +149,11 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { display: "none" }, // pakai custom tab bar
+        tabBarStyle: { display: "none" },
+        tabBarHideOnKeyboard: true,
+        // bikin konten scene transparan supaya nggak “ngecat” hitam saat OS dark-mode
+        // @ts-expect-error expo-router belum expose typing ini
+        sceneContainerStyle: { paddingBottom: BAR_HEIGHT, backgroundColor: "transparent" },
       }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
@@ -124,7 +162,7 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="home" size={size ?? 24} color={color} />
+            <MaterialIcons name="home" size={24} color={color} />
           ),
         }}
       />
@@ -135,7 +173,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialIcons
               name="history"
-              size={size ?? (focused ? 28 : 24)}
+              size={24}
               color={color}
             />
           ),
@@ -144,11 +182,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="notification"
         options={{
-          title: "Notification",
+          title: "Notifikasi",
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialIcons
               name={focused ? "notifications" : "notifications-none"}
-              size={size ?? (focused ? 28 : 24)}
+              size={24}
               color={color}
             />
           ),
@@ -157,11 +195,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: "Profil",
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialIcons
               name={focused ? "person" : "person-outline"}
-              size={size ?? (focused ? 28 : 24)}
+              size={24}
               color={color}
             />
           ),
@@ -172,25 +210,43 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  // bikin tabbar absolut di bawah layar
+  tabBarWrapper: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  // pengisi area di belakang sudut tabbar (menghapus hitam)
+  backdropFill: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   tabBar: {
-    // FLAT: tanpa bayangan supaya tidak “ngambang”
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 0,
-    // rapat ke konten, beri garis pemisah tipis di atas
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#E6E6E6",
-    paddingTop: 6,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 0,
+    paddingTop: 14,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   itemsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
   },
   itemTouchable: {
     flex: 1,
+    alignItems: "center",
+  },
+  itemInnerTouchable: {
     alignItems: "center",
   },
   itemInner: {
@@ -199,11 +255,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   iconOnly: {
-    marginHorizontal: 4,
+    marginHorizontal: 0,
   },
   activeLabel: {
     fontSize: 12,
-    fontWeight: "600",
+    // fontWeight: "600",
     marginLeft: 6,
+    fontFamily: Fonts.semiBold,
   },
 });
