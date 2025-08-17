@@ -1,6 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useAuth } from "./useAuth";
 
 export type CustomerStatus = {
   customer_status_id: number;
@@ -70,38 +70,78 @@ export function useTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
   const fetchTickets = useCallback(async () => {
+    if (!isAuthenticated || !user) {
+      setError("User not authenticated");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const token = await AsyncStorage.getItem("access_token");
+      // Gunakan data tickets dari user (sudah ada dari /v1/auth/me)
+      if (user.tickets && user.tickets.length > 0) {
+        // Transform data dari useAuth ke format yang diharapkan useTickets
+        const transformedTickets = user.tickets.map((ticket: any) => {
+          // Mapping status dari API ke status Indonesia
+          const getStatusCode = (status: string) => {
+            switch (status?.toLowerCase()) {
+              case "accepted": return "ACC";
+              case "verification": return "VERIF";
+              case "processing": return "PROCESS";
+              case "closed": return "CLOSED";
+              case "declined": return "DECLINED";
+              default: return "UNKNOWN";
+            }
+          };
 
-      if (!token) {
-        throw new Error("No access token found");
+          return {
+            ticket_number: ticket.ticket_number,
+            description: ticket.complaint || "No description",
+            transaction_date: ticket.created_time,
+            amount: 0,
+            created_time: ticket.created_time,
+            closed_time: null,
+            customer_status: {
+              customer_status_code: getStatusCode(ticket.customer_status),
+              customer_status_name: ticket.customer_status || "Unknown",
+              customer_status_id: 1
+            },
+            issue_channel: {
+              channel_name: ticket.issue_channel || "Unknown Channel",
+              channel_code: ticket.issue_channel?.toUpperCase() || "UNKNOWN",
+              channel_id: 1
+            },
+            customer: {
+              customer_id: user.id || 0,
+              full_name: user.full_name || "",
+              email: user.email || ""
+            },
+            related_account: ticket.related_account || { account_id: 0, account_number: 0 },
+            related_card: ticket.related_card || { card_id: 0, card_number: 0, card_type: "" },
+            complaint: {
+              complaint_id: 1,
+              complaint_name: ticket.complaint || "Unknown",
+              complaint_code: "UNKNOWN"
+            }
+          };
+        });
+        
+        setTickets(transformedTickets);
+      } else {
+        setTickets([]);
       }
-
-      const response = await api<TicketsResponse>(TICKETS_PATH, {
-        method: "GET",
-        headers: {
-          Authorization: token,
-        },
-      });
-
-      if (!response?.success || !response?.data) {
-        throw new Error(response?.message || "Failed to fetch tickets");
-      }
-
-      setTickets(response.data);
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to fetch tickets";
+      const errorMessage = error?.message || "Failed to process tickets";
       setError(errorMessage);
-      console.error("Error fetching tickets:", error);
+      console.error("Error processing tickets:", error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user, isAuthenticated]);
 
   useEffect(() => {
     fetchTickets();
