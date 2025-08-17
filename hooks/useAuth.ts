@@ -4,26 +4,20 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { api } from "@/lib/api";
 
-type Ticket = {
-  ticket_number: string;
-  description: string;
-  customer_status: string;
-  issue_channel: string;
-  created_time: string;
-};
-
 type Customer = {
-  customer_id: number;
+  id: number;
   full_name: string;
   email: string;
-  address: string;
-  phone_number: string;
-  tickets: Ticket[];
+  role: string;
 };
 
 type LoginResponse = {
-  message?: string;
+  success: boolean;
+  message: string;
   access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
   data: Customer;
 };
 
@@ -33,7 +27,6 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<Customer | null>(null);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
   const isAuthenticated = !!token;
 
   // load sesi awal
@@ -49,10 +42,8 @@ export function useAuth() {
           try {
             const userData = JSON.parse(u);
             setUser(userData);
-            setTickets(userData.tickets || []);
           } catch {
             setUser(null);
-            setTickets([]);
           }
         }
       } catch {}
@@ -72,19 +63,19 @@ export function useAuth() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (!res?.access_token || !res?.data) {
-        throw new Error("Respon login tidak lengkap");
+      if (!res?.success || !res?.access_token || !res?.data) {
+        throw new Error(res?.message || "Respon login tidak lengkap");
       }
 
       await AsyncStorage.multiSet([
         ["access_token", res.access_token],
+        ["refresh_token", res.refresh_token],
         ["customer", JSON.stringify(res.data)],
         ["isLoggedIn", "true"],
       ]);
 
       setToken(res.access_token);
       setUser(res.data);
-      setTickets(res.data.tickets || []);
 
       router.replace("/(tabs)");
     } catch (error: any) {
@@ -102,15 +93,14 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.multiRemove(["access_token", "customer", "isLoggedIn"]);
+      await AsyncStorage.multiRemove(["access_token", "refresh_token", "customer", "isLoggedIn"]);
       setToken(null);
       setUser(null);
-      setTickets([]);
       router.replace("/login");
     } catch (error) {
       console.error("Error during logout:", error);
     }
   }, []);
 
-  return { login, logout, isLoading, isAuthenticated, user, token, tickets };
+  return { login, logout, isLoading, isAuthenticated, user, token };
 }

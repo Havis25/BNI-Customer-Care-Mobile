@@ -3,12 +3,18 @@ import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Animated,
+  FlatList,
   Modal,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +24,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useTickets } from "@/hooks/useTickets";
+import TabTransition from "@/components/TabTransition";
 
 // ==================== Helpers Warna Status ====================
 const getStatusColorBackground = (status: string) => {
@@ -103,7 +111,13 @@ const parseIndonesianDate = (tanggal: string, jam: string) => {
   };
   const [day, month, year] = tanggal.split(" ");
   const [hour, minute] = jam.split(":");
-  return new Date(parseInt(year), monthMap[month], parseInt(day), parseInt(hour), parseInt(minute));
+  return new Date(
+    parseInt(year),
+    monthMap[month],
+    parseInt(day),
+    parseInt(hour),
+    parseInt(minute)
+  );
 };
 
 // ==================== Komponen ====================
@@ -119,40 +133,38 @@ export default function RiwayatScreen() {
   // animasi bottom sheet
   const slideAnim = useRef(new Animated.Value(300)).current;
 
-  const { tickets } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { tickets, isLoading: loading, error, refetch } = useTickets();
 
-  const toIndoStatus = useCallback((en?: string) => {
-    switch ((en || "").toLowerCase()) {
-      case "accepted":
+  const toIndoStatus = useCallback((statusCode?: string) => {
+    switch ((statusCode || "").toUpperCase()) {
+      case "ACC":
         return "Diterima";
-      case "verification":
+      case "VERIF":
         return "Validasi";
-      case "processing":
+      case "PROCESS":
         return "Diproses";
-      case "closed":
+      case "CLOSED":
         return "Selesai";
-      case "declined":
+      case "DECLINED":
         return "Ditolak";
       default:
-        return en || "-";
+        return statusCode || "-";
     }
   }, []);
 
   const ticketData = useMemo(() => {
     if (!tickets) return [];
-    return tickets.map((t: any) => ({
+    return tickets.map((t) => ({
       ticket_id: t.ticket_number,
       ticket_number: t.ticket_number,
-      customer_status: toIndoStatus(t.customer_status),
-      channel: t.issue_channel,
+      customer_status: toIndoStatus(t.customer_status.customer_status_code),
+      channel: t.issue_channel.channel_name,
       created_time: t.created_time,
+      description: t.description,
     }));
   }, [tickets, toIndoStatus]);
 
-  useEffect(() => {
-    setLoading(false);
-  }, [tickets]);
+
 
   // animasi open/close filter sheet
   useEffect(() => {
@@ -171,23 +183,31 @@ export default function RiwayatScreen() {
     // search
     if (searchQuery.trim() !== "") {
       filteredData = filteredData.filter((item) =>
-        String(item.channel || "").toLowerCase().includes(searchQuery.toLowerCase())
+        String(item.channel || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
       );
     }
 
     // filter status
     if (appliedStatus.length > 0) {
-      filteredData = filteredData.filter((item) => appliedStatus.includes(item.customer_status));
+      filteredData = filteredData.filter((item) =>
+        appliedStatus.includes(item.customer_status)
+      );
     }
 
     // sort tanggal
     if (appliedSortBy === "tanggal-terbaru") {
       filteredData.sort(
-        (a, b) => new Date(b.created_time).getTime() - new Date(a.created_time).getTime()
+        (a, b) =>
+          new Date(b.created_time).getTime() -
+          new Date(a.created_time).getTime()
       );
     } else if (appliedSortBy === "tanggal-terlama") {
       filteredData.sort(
-        (a, b) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime()
+        (a, b) =>
+          new Date(a.created_time).getTime() -
+          new Date(b.created_time).getTime()
       );
     }
 
@@ -213,236 +233,351 @@ export default function RiwayatScreen() {
   };
 
   const refetchAll = useCallback(() => {
-    // Refresh user data if needed
-  }, []);
+    refetch();
+  }, [refetch]);
 
   // =============== UI ===============
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Riwayat Laporan</Text>
+    <TabTransition>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>Riwayat Laporan</Text>
 
-      <View style={styles.searchFilterContainer}>
-        <View style={styles.searchContainer}>
-          <MaterialIcons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Cari laporan..."
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+        <View style={styles.searchFilterContainer}>
+          <View style={styles.searchContainer}>
+            <MaterialIcons
+              name="search"
+              size={20}
+              color="#666"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Cari laporan..."
+              placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setShowFilter(true)}
+          >
+            <MaterialIcons name="tune" size={20} color="white" />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilter(true)}>
-          <MaterialIcons name="tune" size={20} color="white" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
         {loading ? (
           <Text style={styles.loadingText}>Loading...</Text>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={refetchAll}>
+              <Text style={styles.retryText}>Coba Lagi</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
-          getFilteredData().map((item) => (
-            <TouchableOpacity
-              key={item.ticket_number}
-              style={[
-                styles.card,
-                {
-                  borderLeftColor: getStatusColorText(item.customer_status),
-                  backgroundColor: getStatusColorBackground(item.customer_status),
-                  shadowColor: getShadowColor(item.customer_status),
-                },
-              ]}
-              onPress={() => {
-                router.push(`/riwayat/${item.ticket_number}` as any);
-              }}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardId}>{item.ticket_number}</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColorBadge(item.customer_status) },
-                  ]}
-                >
-                  <Text
-                    style={[styles.statusText, { color: getStatusColorText(item.customer_status) }]}
+          <FlatList
+            data={getFilteredData()}
+            keyExtractor={(item) => item.ticket_number}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.card,
+                  {
+                    borderLeftColor: getStatusColorText(item.customer_status),
+                    backgroundColor: getStatusColorBackground(
+                      item.customer_status
+                    ),
+                    shadowColor: getShadowColor(item.customer_status),
+                  },
+                ]}
+                onPress={() => {
+                  router.push(`/riwayat/${item.ticket_number}` as any);
+                }}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardId}>{item.ticket_number}</Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor: getStatusColorBadge(
+                          item.customer_status
+                        ),
+                      },
+                    ]}
                   >
-                    {item.customer_status}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColorText(item.customer_status) },
+                      ]}
+                    >
+                      {item.customer_status}
+                    </Text>
+                  </View>
                 </View>
+
+                <Text style={styles.cardTitle}>{item.channel}</Text>
+                <Text style={styles.cardDateTime}>
+                  {item.created_time
+                    ? `${formatDate(item.created_time)}, ${formatTime(
+                        item.created_time
+                      )}`
+                    : "-"}
+                </Text>
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+        {/* Bottom Sheet Filter */}
+        <Modal visible={showFilter} transparent animationType="fade">
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowFilter(false)}
+          >
+            <Animated.View
+              style={[
+                styles.bottomSheet,
+                { transform: [{ translateY: slideAnim }] },
+              ]}
+              onStartShouldSetResponder={() => true}
+            >
+              <View style={styles.sheetHeader}>
+                <Text style={styles.sheetTitle}>Filter & Sort</Text>
+                <TouchableOpacity onPress={() => setShowFilter(false)}>
+                  <MaterialIcons name="close" size={24} color="#333" />
+                </TouchableOpacity>
               </View>
 
-              <Text style={styles.cardTitle}>{item.channel}</Text>
-              <Text style={styles.cardDateTime}>
-                {item.created_time
-                  ? `${formatDate(item.created_time)}, ${formatTime(item.created_time)}`
-                  : "-"}
-              </Text>
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
+              <View className="section" style={styles.section}>
+                <Text style={styles.sectionTitle}>Sort By</Text>
 
-      {/* Bottom Sheet Filter */}
-      <Modal visible={showFilter} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowFilter(false)}
-        >
-          <Animated.View
-            style={[styles.bottomSheet, { transform: [{ translateY: slideAnim }] }]}
-            onStartShouldSetResponder={() => true}
-          >
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Filter & Sort</Text>
-              <TouchableOpacity onPress={() => setShowFilter(false)}>
-                <MaterialIcons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-
-            <View className="section" style={styles.section}>
-              <Text style={styles.sectionTitle}>Sort By</Text>
-
-              <TouchableOpacity
-                style={styles.sortOption}
-                onPress={() => setSortBy(sortBy === "tanggal-terbaru" ? "" : "tanggal-terbaru")}
-              >
-                <MaterialIcons name="calendar-today" size={20} color="#1F72F1" />
-                <Text style={styles.optionText}>Tanggal Terbaru</Text>
-                <MaterialIcons
-                  name={sortBy === "tanggal-terbaru" ? "radio-button-checked" : "radio-button-unchecked"}
-                  size={20}
-                  color={sortBy === "tanggal-terbaru" ? "#1F72F1" : "#8E8E93"}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.sortOption}
-                onPress={() => setSortBy(sortBy === "tanggal-terlama" ? "" : "tanggal-terlama")}
-              >
-                <MaterialIcons name="calendar-today" size={20} color="#1F72F1" />
-                <Text style={styles.optionText}>Tanggal Terlama</Text>
-                <MaterialIcons
-                  name={sortBy === "tanggal-terlama" ? "radio-button-checked" : "radio-button-unchecked"}
-                  size={20}
-                  color={sortBy === "tanggal-terlama" ? "#1F72F1" : "#8E8E93"}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Status Ticket</Text>
-
-              <TouchableOpacity
-                style={styles.statusOption}
-                onPress={() => toggleStatus("Diterima", selectedStatus, setSelectedStatus)}
-              >
-                <MaterialIcons name="edit-document" size={20} color="#FF8636" />
-                <Text style={styles.optionText}>Diterima</Text>
-                <MaterialIcons
-                  name={
-                    selectedStatus.includes("Diterima") ? "check-box" : "check-box-outline-blank"
+                <TouchableOpacity
+                  style={styles.sortOption}
+                  onPress={() =>
+                    setSortBy(
+                      sortBy === "tanggal-terbaru" ? "" : "tanggal-terbaru"
+                    )
                   }
-                  size={20}
-                  color={selectedStatus.includes("Diterima") ? "#1F72F1" : "#8E8E93"}
-                />
-              </TouchableOpacity>
+                >
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={20}
+                    color="#1F72F1"
+                  />
+                  <Text style={styles.optionText}>Tanggal Terbaru</Text>
+                  <MaterialIcons
+                    name={
+                      sortBy === "tanggal-terbaru"
+                        ? "radio-button-checked"
+                        : "radio-button-unchecked"
+                    }
+                    size={20}
+                    color={sortBy === "tanggal-terbaru" ? "#1F72F1" : "#8E8E93"}
+                  />
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.statusOption}
-                onPress={() => toggleStatus("Validasi", selectedStatus, setSelectedStatus)}
-              >
-                <MaterialIcons name="verified" size={20} color="#FFB600" />
-                <Text style={styles.optionText}>Validasi</Text>
-                <MaterialIcons
-                  name={
-                    selectedStatus.includes("Validasi") ? "check-box" : "check-box-outline-blank"
+                <TouchableOpacity
+                  style={styles.sortOption}
+                  onPress={() =>
+                    setSortBy(
+                      sortBy === "tanggal-terlama" ? "" : "tanggal-terlama"
+                    )
                   }
-                  size={20}
-                  color={selectedStatus.includes("Validasi") ? "#1F72F1" : "#8E8E93"}
-                />
-              </TouchableOpacity>
+                >
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={20}
+                    color="#1F72F1"
+                  />
+                  <Text style={styles.optionText}>Tanggal Terlama</Text>
+                  <MaterialIcons
+                    name={
+                      sortBy === "tanggal-terlama"
+                        ? "radio-button-checked"
+                        : "radio-button-unchecked"
+                    }
+                    size={20}
+                    color={sortBy === "tanggal-terlama" ? "#1F72F1" : "#8E8E93"}
+                  />
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                style={styles.statusOption}
-                onPress={() => toggleStatus("Diproses", selectedStatus, setSelectedStatus)}
-              >
-                <MaterialIcons name="history" size={20} color="#B3BE47" />
-                <Text style={styles.optionText}>Diproses</Text>
-                <MaterialIcons
-                  name={
-                    selectedStatus.includes("Diproses") ? "check-box" : "check-box-outline-blank"
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Status Ticket</Text>
+
+                <TouchableOpacity
+                  style={styles.statusOption}
+                  onPress={() =>
+                    toggleStatus("Diterima", selectedStatus, setSelectedStatus)
                   }
-                  size={20}
-                  color={selectedStatus.includes("Diproses") ? "#1F72F1" : "#8E8E93"}
-                />
-              </TouchableOpacity>
+                >
+                  <MaterialIcons
+                    name="edit-document"
+                    size={20}
+                    color="#FF8636"
+                  />
+                  <Text style={styles.optionText}>Diterima</Text>
+                  <MaterialIcons
+                    name={
+                      selectedStatus.includes("Diterima")
+                        ? "check-box"
+                        : "check-box-outline-blank"
+                    }
+                    size={20}
+                    color={
+                      selectedStatus.includes("Diterima")
+                        ? "#1F72F1"
+                        : "#8E8E93"
+                    }
+                  />
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.statusOption}
-                onPress={() => toggleStatus("Selesai", selectedStatus, setSelectedStatus)}
-              >
-                <MaterialIcons name="check-circle-outline" size={20} color="#66C4BE" />
-                <Text style={styles.optionText}>Selesai</Text>
-                <MaterialIcons
-                  name={
-                    selectedStatus.includes("Selesai") ? "check-box" : "check-box-outline-blank"
+                <TouchableOpacity
+                  style={styles.statusOption}
+                  onPress={() =>
+                    toggleStatus("Validasi", selectedStatus, setSelectedStatus)
                   }
-                  size={20}
-                  color={selectedStatus.includes("Selesai") ? "#1F72F1" : "#8E8E93"}
-                />
-              </TouchableOpacity>
+                >
+                  <MaterialIcons name="verified" size={20} color="#FFB600" />
+                  <Text style={styles.optionText}>Validasi</Text>
+                  <MaterialIcons
+                    name={
+                      selectedStatus.includes("Validasi")
+                        ? "check-box"
+                        : "check-box-outline-blank"
+                    }
+                    size={20}
+                    color={
+                      selectedStatus.includes("Validasi")
+                        ? "#1F72F1"
+                        : "#8E8E93"
+                    }
+                  />
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.statusOption}
-                onPress={() => toggleStatus("Ditolak", selectedStatus, setSelectedStatus)}
-              >
-                <MaterialIcons name="block" size={20} color="#E24646" />
-                <Text style={styles.optionText}>Ditolak</Text>
-                <MaterialIcons
-                  name={
-                    selectedStatus.includes("Ditolak") ? "check-box" : "check-box-outline-blank"
+                <TouchableOpacity
+                  style={styles.statusOption}
+                  onPress={() =>
+                    toggleStatus("Diproses", selectedStatus, setSelectedStatus)
                   }
-                  size={20}
-                  color={selectedStatus.includes("Ditolak") ? "#1F72F1" : "#8E8E93"}
-                />
-              </TouchableOpacity>
-            </View>
+                >
+                  <MaterialIcons name="history" size={20} color="#B3BE47" />
+                  <Text style={styles.optionText}>Diproses</Text>
+                  <MaterialIcons
+                    name={
+                      selectedStatus.includes("Diproses")
+                        ? "check-box"
+                        : "check-box-outline-blank"
+                    }
+                    size={20}
+                    color={
+                      selectedStatus.includes("Diproses")
+                        ? "#1F72F1"
+                        : "#8E8E93"
+                    }
+                  />
+                </TouchableOpacity>
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={() => {
-                  setSelectedStatus([]);
-                  setSortBy("");
-                  setAppliedStatus([]);
-                  setAppliedSortBy("");
-                }}
-              >
-                <Text style={styles.clearText}>Hapus</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.statusOption}
+                  onPress={() =>
+                    toggleStatus("Selesai", selectedStatus, setSelectedStatus)
+                  }
+                >
+                  <MaterialIcons
+                    name="check-circle-outline"
+                    size={20}
+                    color="#66C4BE"
+                  />
+                  <Text style={styles.optionText}>Selesai</Text>
+                  <MaterialIcons
+                    name={
+                      selectedStatus.includes("Selesai")
+                        ? "check-box"
+                        : "check-box-outline-blank"
+                    }
+                    size={20}
+                    color={
+                      selectedStatus.includes("Selesai") ? "#1F72F1" : "#8E8E93"
+                    }
+                  />
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.applyButton, !hasFilters && styles.disabledButton]}
-                onPress={() => {
-                  setAppliedSortBy(sortBy);
-                  setAppliedStatus(selectedStatus);
-                  setShowFilter(false);
-                }}
-                disabled={!hasFilters}
-              >
-                <Text style={[styles.applyText, !hasFilters && styles.disabledText]}>Terapkan</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </TouchableOpacity>
-      </Modal>
+                <TouchableOpacity
+                  style={styles.statusOption}
+                  onPress={() =>
+                    toggleStatus("Ditolak", selectedStatus, setSelectedStatus)
+                  }
+                >
+                  <MaterialIcons name="block" size={20} color="#E24646" />
+                  <Text style={styles.optionText}>Ditolak</Text>
+                  <MaterialIcons
+                    name={
+                      selectedStatus.includes("Ditolak")
+                        ? "check-box"
+                        : "check-box-outline-blank"
+                    }
+                    size={20}
+                    color={
+                      selectedStatus.includes("Ditolak") ? "#1F72F1" : "#8E8E93"
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
 
-      {/* TODO: FeedbackModal dipindahkan ke halaman detail */}
-      <FeedbackModal visible={showFeedback} onClose={() => setShowFeedback(false)} />
-    </SafeAreaView>
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={() => {
+                    setSelectedStatus([]);
+                    setSortBy("");
+                    setAppliedStatus([]);
+                    setAppliedSortBy("");
+                  }}
+                >
+                  <Text style={styles.clearText}>Hapus</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.applyButton,
+                    !hasFilters && styles.disabledButton,
+                  ]}
+                  onPress={() => {
+                    setAppliedSortBy(sortBy);
+                    setAppliedStatus(selectedStatus);
+                    setShowFilter(false);
+                  }}
+                  disabled={!hasFilters}
+                >
+                  <Text
+                    style={[
+                      styles.applyText,
+                      !hasFilters && styles.disabledText,
+                    ]}
+                  >
+                    Terapkan
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* TODO: FeedbackModal dipindahkan ke halaman detail */}
+        <FeedbackModal
+          visible={showFeedback}
+          onClose={() => setShowFeedback(false)}
+        />
+      </SafeAreaView>
+    </TabTransition>
   );
 }
 
@@ -452,7 +587,9 @@ function toggleStatus(
   selected: string[],
   setSelected: React.Dispatch<React.SetStateAction<string[]>>
 ) {
-  setSelected((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
+  setSelected((prev) =>
+    prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
+  );
 }
 
 const styles = StyleSheet.create({
@@ -460,10 +597,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fffefeff",
     paddingHorizontal: 16,
+    paddingBottom: -35,
   },
   title: {
     fontSize: 18,
-    fontFamily: Fonts.medium,
+    fontFamily: Fonts.semiBold,
     color: "black",
     marginBottom: 16,
     textAlign: "center",
@@ -472,6 +610,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     alignItems: "center",
+    paddingBottom: 20,
   },
   searchContainer: {
     flex: 1,
@@ -496,9 +635,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   listContainer: {
-    flex: 1,
-    marginTop: 16,
-    marginBottom: Platform.OS === "ios" ? 50 : 0,
+    paddingBottom: Platform.OS === "ios" ? 20 : 0,
   },
   card: {
     marginTop: 12,
@@ -636,5 +773,28 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     color: "#666",
     marginTop: 50,
+  },
+  errorContainer: {
+    alignItems: "center",
+    marginTop: 50,
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    textAlign: "center",
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: "#E24646",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#52B5AB",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 6,
+  },
+  retryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: Fonts.medium,
   },
 });
