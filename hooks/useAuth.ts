@@ -1,12 +1,57 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
+import { api } from "@/lib/api";
+import { useTokenManager } from "./useTokenManager";
 
-export const useAuth = () => {
+type Customer = {
+  id: number;
+  customer_id?: number;
+  full_name: string;
+  email: string;
+  role: string;
+  address?: string;
+  phone_number?: string;
+  accounts?: any[];
+};
+
+type LoginResponse = {
+  success: boolean;
+  message: string;
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+  data: Customer;
+};
+
+const LOGIN_PATH = "/v1/auth/login/customer";
+
+export function useAuth() {
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<Customer | null>(null);
+  const { token, saveTokens, clearTokens, getValidToken } = useTokenManager();
+  const isAuthenticated = !!token;
 
-  const login = async (email: string, password: string) => {
+  // load sesi awal
+  useEffect(() => {
+    (async () => {
+      try {
+        const u = await AsyncStorage.getItem("customer");
+        if (u) {
+          try {
+            const userData = JSON.parse(u);
+            setUser(userData);
+          } catch {
+            setUser(null);
+          }
+        }
+      } catch {}
+    })();
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
     if (!email || !password) {
       Alert.alert("Error", "Email dan password harus diisi");
       return;
@@ -14,50 +59,61 @@ export const useAuth = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch("http://34.121.13.94:3000/customer", {
-        method: "GET",
+      const res = await api<LoginResponse>(LOGIN_PATH, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res?.success || !res?.access_token || !res?.data) {
+        throw new Error(res?.message || "Login gagal");
+      }
+
+      // Simpan tokens ke secure storage
+      await saveTokens(res.access_token, res.refresh_token);
+      
+      // Fetch user data lengkap dengan /v1/auth/me
+      const userDetail = await api("/v1/auth/me", {
         headers: {
-          "Content-Type": "application/json",
+          Authorization: res.access_token,
         },
       });
 
-      if (response.ok) {
-        const customers = await response.json();
-        const user = customers.find(
-          (customer: any) =>
-            customer.email === email && customer.password_hash === password
-        );
+      const fullUserData = {
+        ...userDetail.data,
+        customer_id: userDetail.data.id,
+      };
 
-        if (user) {
-          await AsyncStorage.setItem("customer", JSON.stringify(user));
-          await AsyncStorage.setItem("isLoggedIn", "true");
-          router.replace("/(tabs)");
-        } else {
-          Alert.alert("Error", "Email atau password salah");
-        }
-      } else {
-        Alert.alert("Error", "Gagal terhubung ke server");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Terjadi kesalahan jaringan");
+      await AsyncStorage.multiSet([
+        ["customer", JSON.stringify(fullUserData)],
+        ["isLoggedIn", "true"],
+      ]);
+
+      setUser(fullUserData);
+
+      router.replace("/(tabs)");
+    } catch (error: any) {
+      const msg =
+        typeof error?.message === "string" &&
+        (error.message.includes("401") ||
+          /unauthorized|invalid/i.test(error.message))
+          ? "Email atau password salah"
+          : "Gagal login. Periksa koneksi atau coba lagi.";
+      Alert.alert("Error", msg);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem("customer");
-      await AsyncStorage.removeItem("isLoggedIn");
+      await clearTokens();
+      await AsyncStorage.multiRemove(["customer", "isLoggedIn"]);
+      setUser(null);
       router.replace("/login");
     } catch (error) {
       console.error("Error during logout:", error);
     }
-  };
+  }, [clearTokens]);
 
-  return {
-    login,
-    logout,
-    isLoading,
-  };
-};
+  return { login, logout, isLoading, isAuthenticated, user, token, getValidToken };
+}

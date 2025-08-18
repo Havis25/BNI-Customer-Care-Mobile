@@ -84,7 +84,9 @@ const styles = StyleSheet.create({
   servicesCard: {
     backgroundColor: "white",
     borderRadius: 16,
-    padding: 16,
+    paddingTop: 18,
+    paddingHorizontal: 16,
+    // padding: 16,
     marginBottom: 80,
   },
   cardHeader: {
