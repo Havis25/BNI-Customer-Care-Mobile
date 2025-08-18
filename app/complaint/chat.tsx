@@ -20,6 +20,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import CallModal from "@/components/modals/CallModal";
 import BottomSheet from "@/components/modals/BottomSheet";
 import UploadModal from "@/components/modals/UploadModal";
+import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
 import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
 import { getSocket } from "@/src/realtime/socket";
@@ -34,6 +35,7 @@ type MessageType = {
   hasVerificationButtons?: boolean;
   hasLiveChatButtons?: boolean;
   hasCallConfirmButtons?: boolean;
+  hasTicketButton?: boolean;
   isCallLog?: boolean;
   isFile?: boolean;
   isImage?: boolean;
@@ -128,7 +130,9 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const messageIdRef = useRef(1000);
 
@@ -184,17 +188,32 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (fromConfirmation === "true") {
-      const verificationMessage = {
-        id: messages.length + 1,
-        text: "Terima kasih, tiket Anda telah terbuat. Selanjutnya mari lakukan validasi dengan agent. Pilih metode validasi:",
+      const ticketCreatedMessage = {
+        id: getUniqueId(),
+        text: "Terima kasih, tiket Anda telah berhasil dibuat!",
         isBot: true,
         timestamp: new Date().toLocaleTimeString("id-ID", {
           hour: "2-digit",
           minute: "2-digit",
         }),
-        hasValidationButtons: true,
+        hasTicketButton: true,
       };
-      setMessages((prev) => [...prev, verificationMessage]);
+      setMessages((prev) => [...prev, ticketCreatedMessage]);
+      
+      // Show validation message after 3 seconds
+      setTimeout(() => {
+        const validationMessage = {
+          id: getUniqueId(),
+          text: "Selanjutnya mari lakukan validasi dengan agent. Pilih metode validasi:",
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          hasValidationButtons: true,
+        };
+        setMessages((prev) => [...prev, validationMessage]);
+      }, 3000);
     }
   }, [fromConfirmation]);
 
@@ -317,6 +336,7 @@ export default function ChatScreen() {
     const onAccepted = () => {
       setCallStatus("in-call");
       setShowCallModal(true);
+      setCallStartTime(Date.now());
       startStreaming();
     };
     const onDeclined = () => {
@@ -325,6 +345,25 @@ export default function ChatScreen() {
       setRemoteFrame(null);
     };
     const onEnded = () => {
+      if (callStartTime) {
+        const duration = Math.floor((Date.now() - callStartTime) / 1000);
+        const minutes = Math.floor(duration / 60);
+        const seconds = duration % 60;
+        const durationText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        const callEndMessage = {
+          id: getUniqueId(),
+          text: `📞 Panggilan selesai • Durasi: ${durationText}`,
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          isCallLog: true,
+        };
+        setMessages((prev) => [...prev, callEndMessage]);
+        setCallStartTime(null);
+      }
       stopStreaming();
       setCallStatus("idle");
       setRemoteFrame(null);
@@ -364,17 +403,45 @@ export default function ChatScreen() {
   }, [socket, uid, ACTIVE_ROOM, storageKey]);
 
   const clearChatHistory = useCallback(async () => {
-    // Clear live chat messages from AsyncStorage
-    await AsyncStorage.removeItem(storageKey);
-    // Reset to initial chat messages only
-    setMessages(chatMessages);
-    // Reset live chat state
-    setIsLiveChat(false);
-    setDmRoom(null);
-    // Disconnect from socket
-    socket.emit("leave", { room: ACTIVE_ROOM, userId: uid });
-    socket.disconnect();
-  }, [storageKey, ACTIVE_ROOM, uid, socket]);
+    try {
+      // Clear ALL storage keys that might contain chat messages
+      const allKeys = await AsyncStorage.getAllKeys();
+      const chatKeys = allKeys.filter(key => key.startsWith('msgs:'));
+      if (chatKeys.length > 0) {
+        await AsyncStorage.multiRemove(chatKeys);
+      }
+      
+      // Reset to initial chat messages only (hard reset)
+      setMessages([...chatMessages]);
+      
+      // Reset ALL live chat related state
+      setIsLiveChat(false);
+      setDmRoom(null);
+      setActivePeers([]);
+      setPeerCount(1);
+      setCallStatus("idle");
+      setRemoteFrame(null);
+      setShowCallModal(false);
+      setCallStartTime(null);
+      
+      // Disconnect from socket properly
+      if (socket.connected) {
+        socket.emit("leave", { room: ACTIVE_ROOM, userId: uid });
+        socket.disconnect();
+      }
+      
+      // Force reconnect with fresh state
+      setTimeout(() => {
+        const newSocket = getSocket();
+        if (newSocket && !newSocket.connected) {
+          newSocket.connect();
+        }
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
+    }
+  }, [ACTIVE_ROOM, uid, socket]);
 
   const handleSendMessage = useCallback(() => {
     if (inputText.trim() && isLiveChat) {
@@ -450,6 +517,7 @@ export default function ChatScreen() {
     socket.emit("call:accept", { room: ACTIVE_ROOM });
     setCallStatus("in-call");
     setShowCallModal(true);
+    setCallStartTime(Date.now());
     startStreaming();
   };
   
@@ -460,6 +528,25 @@ export default function ChatScreen() {
   };
   
   const hangupCall = () => {
+    if (callStartTime) {
+      const duration = Math.floor((Date.now() - callStartTime) / 1000);
+      const minutes = Math.floor(duration / 60);
+      const seconds = duration % 60;
+      const durationText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      
+      const callEndMessage = {
+        id: getUniqueId(),
+        text: `📞 Panggilan selesai • Durasi: ${durationText}`,
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        isCallLog: true,
+      };
+      setMessages((prev) => [...prev, callEndMessage]);
+      setCallStartTime(null);
+    }
     socket.emit("call:hangup", { room: ACTIVE_ROOM });
     stopStreaming();
     setCallStatus("idle");
@@ -514,7 +601,32 @@ export default function ChatScreen() {
           )}
         </View>
 
-        <View style={{ width: 24 }} />
+        {isLiveChat && (
+          <TouchableOpacity
+            style={styles.endChatButton}
+            onPress={() => {
+              Alert.alert(
+                "Akhiri Chat",
+                "Apakah Anda yakin ingin mengakhiri chat? Semua riwayat chat akan hilang.",
+                [
+                  {
+                    text: "Batal",
+                    style: "cancel"
+                  },
+                  {
+                    text: "Akhiri",
+                    style: "destructive",
+                    onPress: clearChatHistory
+                  }
+                ]
+              );
+            }}
+          >
+            <MaterialIcons name="close" size={24} color="#FF4444" />
+          </TouchableOpacity>
+        )}
+        
+        {!isLiveChat && <View style={{ width: 24 }} />}
       </View>
 
       {/* Chat Messages */}
@@ -549,8 +661,8 @@ export default function ChatScreen() {
                 </Text>
                 <Text style={styles.timestamp}>{message.timestamp}</Text>
               </View>
-              {/* Call icon for messages when live chat is active */}
-              {isLiveChat && !message.hasButtons && !message.hasValidationButtons && !message.hasLiveChatButtons && !message.isCallLog && (
+              {/* Call icon only for bot messages when live chat is active */}
+              {isLiveChat && message.isBot && !message.hasButtons && !message.hasValidationButtons && !message.hasLiveChatButtons && !message.isCallLog && (
                 <TouchableOpacity 
                   style={styles.callIcon}
                   onPress={() => {
@@ -575,6 +687,17 @@ export default function ChatScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.noButton}>
                   <Text style={styles.buttonText}>Tidak</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {(message as any).hasTicketButton && (
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.ticketButton}
+                  onPress={() => setShowTicketModal(true)}
+                >
+                  <MaterialIcons name="receipt" size={16} color="#FFF" />
+                  <Text style={styles.buttonText}>Lihat Tiket Anda</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -700,6 +823,11 @@ export default function ChatScreen() {
         onHangup={hangupCall}
         camRef={camRef as any}
         permission={permission}
+      />
+      
+      <TicketSummaryModal
+        visible={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
       />
       
       <BottomSheet
@@ -978,5 +1106,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#FFF",
     fontFamily: "Poppins",
+  },
+  endChatButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#FFE5E5",
+  },
+  ticketButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF8636",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 4,
   },
 });
