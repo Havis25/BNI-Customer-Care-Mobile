@@ -1,6 +1,21 @@
+import BottomSheet from "@/components/modals/BottomSheet";
+import CallModal from "@/components/modals/CallModal";
+import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
+import UploadModal from "@/components/modals/UploadModal";
+import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
+import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Alert,
   Image,
@@ -15,15 +30,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CameraView, useCameraPermissions } from "expo-camera";
-import CallModal from "@/components/modals/CallModal";
-import BottomSheet from "@/components/modals/BottomSheet";
-import UploadModal from "@/components/modals/UploadModal";
-import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
-import { useUser } from "@/hooks/useUser";
-import { useAuth } from "@/hooks/useAuth";
-import { getSocket } from "@/src/realtime/socket";
 
 type MessageType = {
   id: string | number;
@@ -86,35 +92,46 @@ const chatMessages: MessageType[] = [
 ];
 
 export default function ChatScreen() {
-  const { callDeclined, fromConfirmation, callEnded, room } = useLocalSearchParams();
+  const { callDeclined, fromConfirmation, callEnded, room } =
+    useLocalSearchParams();
   const { user } = useUser();
   const { user: authUser } = useAuth();
   const urlRoom = typeof room === "string" && room.trim() ? room : "general";
   const fallbackCallRoom = `call:${urlRoom}`;
-  
+
   const socket = getSocket();
-  const uid = String(authUser?.customer_id || authUser?.id || user?.customer_id || user?.id || "guest");
-  const chatUser = useMemo(() => ({ id: String(uid), firstName: "You" }), [uid]);
-  
+  const temp_uid = String(
+    authUser?.customer_id ||
+      authUser?.id ||
+      user?.customer_id ||
+      user?.id ||
+      "guest"
+  );
+  const uid = `CUS-${temp_uid}`;
+  const chatUser = useMemo(
+    () => ({ id: String(uid), firstName: "You" }),
+    [uid]
+  );
+
   const [messages, setMessages] = useState<MessageType[]>(chatMessages);
   const [connected, setConnected] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [socketId, setSocketId] = useState<string>("");
-  
+
   // DM / pairing
   const [dmRoom, setDmRoom] = useState<string | null>(null);
   const dmRoomRef = useRef<string | null>(null);
   useEffect(() => {
     dmRoomRef.current = dmRoom;
   }, [dmRoom]);
-  
+
   // Room aktif untuk call & fallback chat
   const ACTIVE_ROOM = useMemo(
     () => dmRoom ?? fallbackCallRoom,
     [dmRoom, fallbackCallRoom]
   );
   const storageKey = `msgs:${ACTIVE_ROOM}`;
-  
+
   // Presence & call
   const [activePeers, setActivePeers] = useState<Peer[]>([]);
   const [peerCount, setPeerCount] = useState(1);
@@ -170,17 +187,23 @@ export default function ChatScreen() {
     }
   };
 
-  const handleUploadSuccess = (fileName: string, type: 'image' | 'document') => {
+  const handleUploadSuccess = (
+    fileName: string,
+    type: "image" | "document"
+  ) => {
     const message = {
       id: getUniqueId(),
-      text: type === 'image' ? `🖼️ ${fileName} berhasil dikirim` : `📎 ${fileName} berhasil dikirim`,
+      text:
+        type === "image"
+          ? `🖼️ ${fileName} berhasil dikirim`
+          : `📎 ${fileName} berhasil dikirim`,
       isBot: false,
       timestamp: new Date().toLocaleTimeString("id-ID", {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      isFile: type === 'document',
-      isImage: type === 'image',
+      isFile: type === "document",
+      isImage: type === "image",
       fileName,
     };
     setMessages((prev) => [...prev, message]);
@@ -199,7 +222,7 @@ export default function ChatScreen() {
         hasTicketButton: true,
       };
       setMessages((prev) => [...prev, ticketCreatedMessage]);
-      
+
       // Show validation message after 3 seconds
       setTimeout(() => {
         const validationMessage = {
@@ -256,7 +279,10 @@ export default function ChatScreen() {
         const parsed = JSON.parse(raw) as MessageType[];
         const uniq = Array.from(new Map(parsed.map((m) => [m.id, m])).values());
         // Merge with initial chatMessages
-        const merged = [...chatMessages, ...uniq.filter(m => !chatMessages.find(cm => cm.id === m.id))];
+        const merged = [
+          ...chatMessages,
+          ...uniq.filter((m) => !chatMessages.find((cm) => cm.id === m.id)),
+        ];
         setMessages(merged);
       } catch {
         setMessages(chatMessages);
@@ -307,7 +333,9 @@ export default function ChatScreen() {
         id: String(msg._id ?? msg.id ?? Date.now()),
         text: msg.text,
         isBot: msg.author?.id !== uid,
-        timestamp: new Date(Number(msg.createdAt) || Date.now()).toLocaleTimeString("id-ID", {
+        timestamp: new Date(
+          Number(msg.createdAt) || Date.now()
+        ).toLocaleTimeString("id-ID", {
           hour: "2-digit",
           minute: "2-digit",
         }),
@@ -323,7 +351,12 @@ export default function ChatScreen() {
                 return cp;
               })()
             : [...prev, incoming].slice(-MAX_MSG);
-        AsyncStorage.setItem(storageKey, JSON.stringify(next.filter(m => !chatMessages.find(cm => cm.id === m.id))));
+        AsyncStorage.setItem(
+          storageKey,
+          JSON.stringify(
+            next.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
+          )
+        );
         return next;
       });
     };
@@ -349,8 +382,10 @@ export default function ChatScreen() {
         const duration = Math.floor((Date.now() - callStartTime) / 1000);
         const minutes = Math.floor(duration / 60);
         const seconds = duration % 60;
-        const durationText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        
+        const durationText = `${minutes.toString().padStart(2, "0")}:${seconds
+          .toString()
+          .padStart(2, "0")}`;
+
         const callEndMessage = {
           id: getUniqueId(),
           text: `📞 Panggilan selesai • Durasi: ${durationText}`,
@@ -406,14 +441,14 @@ export default function ChatScreen() {
     try {
       // Clear ALL storage keys that might contain chat messages
       const allKeys = await AsyncStorage.getAllKeys();
-      const chatKeys = allKeys.filter(key => key.startsWith('msgs:'));
+      const chatKeys = allKeys.filter((key) => key.startsWith("msgs:"));
       if (chatKeys.length > 0) {
         await AsyncStorage.multiRemove(chatKeys);
       }
-      
+
       // Reset to initial chat messages only (hard reset)
       setMessages([...chatMessages]);
-      
+
       // Reset ALL live chat related state
       setIsLiveChat(false);
       setDmRoom(null);
@@ -423,13 +458,13 @@ export default function ChatScreen() {
       setRemoteFrame(null);
       setShowCallModal(false);
       setCallStartTime(null);
-      
+
       // Disconnect from socket properly
       if (socket.connected) {
         socket.emit("leave", { room: ACTIVE_ROOM, userId: uid });
         socket.disconnect();
       }
-      
+
       // Force reconnect with fresh state
       setTimeout(() => {
         const newSocket = getSocket();
@@ -437,9 +472,8 @@ export default function ChatScreen() {
           newSocket.connect();
         }
       }, 500);
-      
     } catch (error) {
-      console.error('Error clearing chat history:', error);
+      console.error("Error clearing chat history:", error);
     }
   }, [ACTIVE_ROOM, uid, socket]);
 
@@ -461,7 +495,12 @@ export default function ChatScreen() {
       };
       setMessages((prev) => {
         const next = [...prev, outgoing].slice(-MAX_MSG);
-        AsyncStorage.setItem(storageKey, JSON.stringify(next.filter(m => !chatMessages.find(cm => cm.id === m.id))));
+        AsyncStorage.setItem(
+          storageKey,
+          JSON.stringify(
+            next.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
+          )
+        );
         return next;
       });
       socket.emit("chat:send", outgoing);
@@ -470,13 +509,18 @@ export default function ChatScreen() {
   }, [inputText, isLiveChat, chatUser, ACTIVE_ROOM, storageKey, socket]);
 
   const quickDM = useCallback(() => {
-    const target = activePeers.find((p) => p.userId && p.userId !== uid);
+    const target = activePeers.find(
+      (p) => p.userId && p.userId.startsWith("EMP-")
+    );
     if (!target) {
-      Alert.alert("Tidak ada peer", "Pastikan ada 2 user yang login untuk testing.");
+      Alert.alert(
+        "Agent tidak tersedia",
+        "Tidak ada agent yang online saat ini."
+      );
       return;
     }
     socket.emit("dm:open", { toUserId: target.userId });
-  }, [activePeers, uid, socket]);
+  }, [activePeers, socket]);
 
   const startStreaming = useCallback(async () => {
     if (frameTimer.current) return;
@@ -506,13 +550,16 @@ export default function ChatScreen() {
 
   const placeCall = () => {
     if (peerCount < 2) {
-      Alert.alert("Peer tidak tersedia", "Pastikan ada 2 user yang login untuk call.");
+      Alert.alert(
+        "Peer tidak tersedia",
+        "Pastikan ada 2 user yang login untuk call."
+      );
       return;
     }
     socket.emit("call:invite", { room: ACTIVE_ROOM });
     setCallStatus("ringing");
   };
-  
+
   const acceptCall = () => {
     socket.emit("call:accept", { room: ACTIVE_ROOM });
     setCallStatus("in-call");
@@ -520,20 +567,22 @@ export default function ChatScreen() {
     setCallStartTime(Date.now());
     startStreaming();
   };
-  
+
   const declineCall = () => {
     socket.emit("call:decline", { room: ACTIVE_ROOM });
     setCallStatus("idle");
     setShowCallModal(false);
   };
-  
+
   const hangupCall = () => {
     if (callStartTime) {
       const duration = Math.floor((Date.now() - callStartTime) / 1000);
       const minutes = Math.floor(duration / 60);
       const seconds = duration % 60;
-      const durationText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      
+      const durationText = `${minutes.toString().padStart(2, "0")}:${seconds
+        .toString()
+        .padStart(2, "0")}`;
+
       const callEndMessage = {
         id: getUniqueId(),
         text: `📞 Panggilan selesai • Durasi: ${durationText}`,
@@ -569,275 +618,289 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setShowBottomSheet(true)}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-
-        <View style={styles.avatarContainer}>
-          <Image
-            source={require("@/assets/images/log-bcare.png")}
-            style={styles.avatarImage}
-            resizeMode="contain"
-          />
-        </View>
-
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>Chat Agent</Text>
-          {isLiveChat && (
-            <View style={styles.statusContainer}>
-              <MaterialIcons name="circle" size={8} color="#4CAF50" />
-              <Text style={styles.liveChatStatusText}>Online</Text>
-            </View>
-          )}
-        </View>
-
-        {isLiveChat && (
+        {/* Header */}
+        <View style={styles.header}>
           <TouchableOpacity
-            style={styles.endChatButton}
-            onPress={() => {
-              Alert.alert(
-                "Akhiri Chat",
-                "Apakah Anda yakin ingin mengakhiri chat? Semua riwayat chat akan hilang.",
-                [
-                  {
-                    text: "Batal",
-                    style: "cancel"
-                  },
-                  {
-                    text: "Akhiri",
-                    style: "destructive",
-                    onPress: clearChatHistory
-                  }
-                ]
-              );
-            }}
+            style={styles.backButton}
+            onPress={() => setShowBottomSheet(true)}
           >
-            <MaterialIcons name="close" size={24} color="#FF4444" />
+            <MaterialIcons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-        )}
-        
-        {!isLiveChat && <View style={{ width: 24 }} />}
-      </View>
 
-      {/* Chat Messages */}
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.chatContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {messages.map((message) => (
-          <View
-            key={message.id}
-            style={[
-              styles.messageContainer,
-              message.isBot ? styles.botMessage : styles.userMessage,
-            ]}
-          >
-            <View style={styles.messageRow}>
-              <View
-                style={[
-                  styles.messageBubble,
-                  message.isBot ? styles.botBubble : styles.userBubble,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.messageText,
-                    message.isBot ? styles.botText : styles.userText,
-                  ]}
-                >
-                  {message.text}
-                </Text>
-                <Text style={styles.timestamp}>{message.timestamp}</Text>
-              </View>
-              {/* Call icon only for bot messages when live chat is active */}
-              {isLiveChat && message.isBot && !message.hasButtons && !message.hasValidationButtons && !message.hasLiveChatButtons && !message.isCallLog && (
-                <TouchableOpacity 
-                  style={styles.callIcon}
-                  onPress={() => {
-                    if (peerCount >= 2) {
-                      placeCall();
-                    } else {
-                      Alert.alert("Agent tidak tersedia", "Sedang mencari agent untuk panggilan...");
-                    }
-                  }}
-                >
-                  <MaterialIcons name="call" size={20} color="#4CAF50" />
-                </TouchableOpacity>
-              )}
-            </View>
-            {message.hasButtons && (
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={styles.yesButton}
-                  onPress={() => router.push("/complaint/confirmation")}
-                >
-                  <Text style={styles.buttonText}>Iya</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.noButton}>
-                  <Text style={styles.buttonText}>Tidak</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            {(message as any).hasTicketButton && (
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={styles.ticketButton}
-                  onPress={() => setShowTicketModal(true)}
-                >
-                  <MaterialIcons name="receipt" size={16} color="#FFF" />
-                  <Text style={styles.buttonText}>Lihat Tiket Anda</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            {(message as any).hasValidationButtons && (
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={styles.callButton}
-                  onPress={() => {
-                    placeCall();
-                  }}
-                >
-                  <MaterialIcons name="call" size={16} color="#FFF" />
-                  <Text style={styles.buttonText}>Call</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.chatButton}
-                  onPress={() => {
-                    setIsLiveChat(true);
-                    quickDM();
-                  }}
-                >
-                  <MaterialIcons name="chat" size={16} color="#FFF" />
-                  <Text style={styles.buttonText}>Chat</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Live Chat Status */}
-      {isLiveChat && (
-        <View style={styles.liveChatStatus}>
-          <View style={styles.statusIndicator}>
-            <MaterialIcons name="circle" size={8} color="#4CAF50" />
-            <Text style={styles.liveChatStatusText}>Live Chat Aktif • Peers: {peerCount} • Tap icon call untuk panggilan</Text>
+          <View style={styles.avatarContainer}>
+            <Image
+              source={require("@/assets/images/log-bcare.png")}
+              style={styles.avatarImage}
+              resizeMode="contain"
+            />
           </View>
 
-        </View>
-      )}
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>Chat Agent</Text>
+            {isLiveChat && (
+              <View style={styles.statusContainer}>
+                <MaterialIcons name="circle" size={8} color="#4CAF50" />
+                <Text style={styles.liveChatStatusText}>Online</Text>
+              </View>
+            )}
+          </View>
 
-      {/* Input Area */}
-      <View style={styles.inputContainer}>
-        <TouchableOpacity 
-          style={styles.addFileButton}
-          onPress={() => setShowUploadModal(true)}
-        >
-          <MaterialIcons name="add" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <TextInput
-          style={styles.textInput}
-          placeholder={
-            isLiveChat ? "Ketik pesan Anda..." : "Live chat tidak aktif"
-          }
-          value={inputText}
-          onChangeText={setInputText}
-          editable={isLiveChat}
-          multiline
-        />
-        <TouchableOpacity onPress={handleSendMessage} disabled={!isLiveChat}>
-          <MaterialIcons name="send" size={20} color={isLiveChat ? "#FF8636" : "#CCC"} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Live Chat Modal */}
-      <Modal
-        visible={showLiveChatModal}
-        transparent={true}
-        animationType="fade"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.liveChatModal}>
-            <MaterialIcons name="support-agent" size={60} color="#52B5AB" />
-            <Text style={styles.modalTitle}>Menghubungkan ke Live Chat</Text>
-            <Text style={styles.modalSubtitle}>
-              Sedang mencari agent yang tersedia...
-            </Text>
-
+          {isLiveChat && (
             <TouchableOpacity
-              style={styles.connectButton}
+              style={styles.endChatButton}
               onPress={() => {
-                setShowLiveChatModal(false);
-                setIsLiveChat(true);
-                const connectMessage = {
-                  id: messages.length + 1,
-                  text: "Anda telah terhubung dengan live chat. Silakan mulai percakapan.",
-                  isBot: true,
-                  timestamp: new Date().toLocaleTimeString("id-ID", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }),
-                };
-                setMessages((prev) => [...prev, connectMessage]);
+                Alert.alert(
+                  "Akhiri Chat",
+                  "Apakah Anda yakin ingin mengakhiri chat? Semua riwayat chat akan hilang.",
+                  [
+                    {
+                      text: "Batal",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Akhiri",
+                      style: "destructive",
+                      onPress: clearChatHistory,
+                    },
+                  ]
+                );
               }}
             >
-              <Text style={styles.connectButtonText}>Terhubung</Text>
+              <MaterialIcons name="close" size={24} color="#FF4444" />
             </TouchableOpacity>
-          </View>
+          )}
+
+          {!isLiveChat && <View style={{ width: 24 }} />}
         </View>
-      </Modal>
-      
-      <UploadModal
-        visible={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        onUploadSuccess={handleUploadSuccess}
-        activityId="1"
-      />
-      
-      {/* Call Modal */}
-      <CallModal
-        visible={showCallModal}
-        callStatus={callStatus}
-        onStatusChange={(status: string) => setCallStatus(status as CallStatus)}
-        onClose={() => {
-          setShowCallModal(false);
-          hangupCall();
-        }}
-        onAccept={acceptCall}
-        onDecline={declineCall}
-        remoteFrame={remoteFrame}
-        onHangup={hangupCall}
-        camRef={camRef as any}
-        permission={permission}
-      />
-      
-      <TicketSummaryModal
-        visible={showTicketModal}
-        onClose={() => setShowTicketModal(false)}
-      />
-      
-      <BottomSheet
-        visible={showBottomSheet}
-        onClose={() => setShowBottomSheet(false)}
-        onConfirm={() => {
-          setShowBottomSheet(false);
-          router.replace("/(tabs)");
-        }}
-      />
+
+        {/* Chat Messages */}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.chatContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {messages.map((message) => (
+            <View
+              key={message.id}
+              style={[
+                styles.messageContainer,
+                message.isBot ? styles.botMessage : styles.userMessage,
+              ]}
+            >
+              <View style={styles.messageRow}>
+                <View
+                  style={[
+                    styles.messageBubble,
+                    message.isBot ? styles.botBubble : styles.userBubble,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.messageText,
+                      message.isBot ? styles.botText : styles.userText,
+                    ]}
+                  >
+                    {message.text}
+                  </Text>
+                  <Text style={styles.timestamp}>{message.timestamp}</Text>
+                </View>
+                {/* Call icon only for bot messages when live chat is active */}
+                {isLiveChat &&
+                  message.isBot &&
+                  !message.hasButtons &&
+                  !message.hasValidationButtons &&
+                  !message.hasLiveChatButtons &&
+                  !message.isCallLog && (
+                    <TouchableOpacity
+                      style={styles.callIcon}
+                      onPress={() => {
+                        if (peerCount >= 2) {
+                          placeCall();
+                        } else {
+                          Alert.alert(
+                            "Agent tidak tersedia",
+                            "Sedang mencari agent untuk panggilan..."
+                          );
+                        }
+                      }}
+                    >
+                      <MaterialIcons name="call" size={20} color="#4CAF50" />
+                    </TouchableOpacity>
+                  )}
+              </View>
+              {message.hasButtons && (
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={styles.yesButton}
+                    onPress={() => router.push("/complaint/confirmation")}
+                  >
+                    <Text style={styles.buttonText}>Iya</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.noButton}>
+                    <Text style={styles.buttonText}>Tidak</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {(message as any).hasTicketButton && (
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={styles.ticketButton}
+                    onPress={() => setShowTicketModal(true)}
+                  >
+                    <MaterialIcons name="receipt" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>Lihat Tiket Anda</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {(message as any).hasValidationButtons && (
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={styles.callButton}
+                    onPress={() => {
+                      placeCall();
+                    }}
+                  >
+                    <MaterialIcons name="call" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>Call</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.chatButton}
+                    onPress={() => {
+                      setIsLiveChat(true);
+                      quickDM();
+                    }}
+                  >
+                    <MaterialIcons name="chat" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>Chat</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* Live Chat Status */}
+        {isLiveChat && (
+          <View style={styles.liveChatStatus}>
+            <View style={styles.statusIndicator}>
+              <MaterialIcons name="circle" size={8} color="#4CAF50" />
+              <Text style={styles.liveChatStatusText}>
+                Live Chat Aktif • Peers: {peerCount} • Tap icon call untuk
+                panggilan
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Input Area */}
+        <View style={styles.inputContainer}>
+          <TouchableOpacity
+            style={styles.addFileButton}
+            onPress={() => setShowUploadModal(true)}
+          >
+            <MaterialIcons name="add" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <TextInput
+            style={styles.textInput}
+            placeholder={
+              isLiveChat ? "Ketik pesan Anda..." : "Live chat tidak aktif"
+            }
+            value={inputText}
+            onChangeText={setInputText}
+            editable={isLiveChat}
+            multiline
+          />
+          <TouchableOpacity onPress={handleSendMessage} disabled={!isLiveChat}>
+            <MaterialIcons
+              name="send"
+              size={20}
+              color={isLiveChat ? "#FF8636" : "#CCC"}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Live Chat Modal */}
+        <Modal
+          visible={showLiveChatModal}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.liveChatModal}>
+              <MaterialIcons name="support-agent" size={60} color="#52B5AB" />
+              <Text style={styles.modalTitle}>Menghubungkan ke Live Chat</Text>
+              <Text style={styles.modalSubtitle}>
+                Sedang mencari agent yang tersedia...
+              </Text>
+
+              <TouchableOpacity
+                style={styles.connectButton}
+                onPress={() => {
+                  setShowLiveChatModal(false);
+                  setIsLiveChat(true);
+                  const connectMessage = {
+                    id: messages.length + 1,
+                    text: "Anda telah terhubung dengan live chat. Silakan mulai percakapan.",
+                    isBot: true,
+                    timestamp: new Date().toLocaleTimeString("id-ID", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                  };
+                  setMessages((prev) => [...prev, connectMessage]);
+                }}
+              >
+                <Text style={styles.connectButtonText}>Terhubung</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <UploadModal
+          visible={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          onUploadSuccess={handleUploadSuccess}
+          activityId="1"
+        />
+
+        {/* Call Modal */}
+        <CallModal
+          visible={showCallModal}
+          callStatus={callStatus}
+          onStatusChange={(status: string) =>
+            setCallStatus(status as CallStatus)
+          }
+          onClose={() => {
+            setShowCallModal(false);
+            hangupCall();
+          }}
+          onAccept={acceptCall}
+          onDecline={declineCall}
+          remoteFrame={remoteFrame}
+          onHangup={hangupCall}
+          camRef={camRef as any}
+          permission={permission}
+        />
+
+        <TicketSummaryModal
+          visible={showTicketModal}
+          onClose={() => setShowTicketModal(false)}
+        />
+
+        <BottomSheet
+          visible={showBottomSheet}
+          onClose={() => setShowBottomSheet(false)}
+          onConfirm={() => {
+            setShowBottomSheet(false);
+            router.replace("/(tabs)");
+          }}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
