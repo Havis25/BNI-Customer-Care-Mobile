@@ -127,7 +127,6 @@ export default function RiwayatScreen() {
   const [appliedSortBy, setAppliedSortBy] = useState("");
   const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showFeedback, setShowFeedback] = useState(false);
 
   // animasi bottom sheet
   const slideAnim = useRef(new Animated.Value(300)).current;
@@ -299,8 +298,7 @@ export default function RiwayatScreen() {
                   },
                 ]}
                 onPress={() => {
-                  const id = item.ticket_id || item.ticket_number;
-                  router.push(`/riwayat/${id}` as any);
+                  router.push(`/riwayat/${item.ticket_id}` as any);
                 }}
               >
                 <View style={styles.cardHeader}>
@@ -578,11 +576,7 @@ export default function RiwayatScreen() {
           </TouchableOpacity>
         </Modal>
 
-        {/* TODO: FeedbackModal dipindahkan ke halaman detail */}
-        <FeedbackModal
-          visible={showFeedback}
-          onClose={() => setShowFeedback(false)}
-        />
+
       </SafeAreaView>
     </TabTransition>
   );

@@ -9,40 +9,50 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useFeedback } from "@/hooks/useFeedback";
 
 interface FeedbackModalProps {
   visible: boolean;
   onClose: () => void;
+  ticketId: string;
+  onSuccess?: () => void;
 }
 
-export default function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
-  const [rating, setRating] = useState(0);
+export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }: FeedbackModalProps) {
+  const [score, setScore] = useState(0);
   const [comment, setComment] = useState("");
+  const { submitFeedback, isLoading } = useFeedback();
 
   const handleClose = () => {
-    if (rating === 0) {
-      Alert.alert("Peringatan", "Mohon berikan rating terlebih dahulu sebelum menutup");
-      return;
-    }
-    onClose();
+    Alert.alert("Peringatan", "Anda harus memberikan feedback terlebih dahulu untuk melanjutkan");
   };
 
-  const handleSubmitFeedback = () => {
-    if (rating === 0) {
+  const handleSubmitFeedback = async () => {
+    if (score === 0) {
       Alert.alert("Error", "Mohon berikan rating terlebih dahulu");
       return;
     }
     
-    Alert.alert("Terima Kasih", "Feedback Anda telah terkirim", [
-      { text: "OK", onPress: () => {
-        setRating(0);
-        setComment("");
-        onClose();
-      }}
-    ]);
+    const success = await submitFeedback(ticketId, { score, comment });
+    
+    if (success) {
+      Alert.alert("Terima Kasih", "Feedback Anda telah terkirim", [
+        { text: "OK", onPress: () => {
+          setScore(0);
+          setComment("");
+          onSuccess?.();
+          onClose();
+        }}
+      ]);
+    } else {
+      Alert.alert("Error", "Gagal mengirim feedback. Silakan coba lagi.");
+    }
   };
 
   const renderStars = () => {
@@ -51,13 +61,13 @@ export default function FeedbackModal({ visible, onClose }: FeedbackModalProps) 
         {[1, 2, 3, 4, 5].map((star) => (
           <TouchableOpacity
             key={star}
-            onPress={() => setRating(star)}
+            onPress={() => setScore(star)}
             style={styles.starButton}
           >
             <MaterialIcons
-              name={star <= rating ? "star" : "star-border"}
+              name={star <= score ? "star" : "star-border"}
               size={28}
-              color={star <= rating ? "#FFD700" : "#E0E0E0"}
+              color={star <= score ? "#FFD700" : "#E0E0E0"}
             />
           </TouchableOpacity>
         ))}
@@ -75,13 +85,15 @@ export default function FeedbackModal({ visible, onClose }: FeedbackModalProps) 
       <KeyboardAvoidingView 
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity 
             style={styles.modalBackdrop}
             onPress={handleClose}
           />
-          <View style={styles.feedbackSheet}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.feedbackSheet}>
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Berikan Feedback</Text>
             {/* <TouchableOpacity onPress={handleClose}>
@@ -109,15 +121,20 @@ export default function FeedbackModal({ visible, onClose }: FeedbackModalProps) 
           />
 
           <TouchableOpacity
-            style={[styles.submitButton, rating === 0 && styles.disabledButton]}
+            style={[styles.submitButton, (score === 0 || isLoading) && styles.disabledButton]}
             onPress={handleSubmitFeedback}
-            disabled={rating === 0}
+            disabled={score === 0 || isLoading}
           >
-            <Text style={[styles.submitText, rating === 0 && styles.disabledText]}>
-              Kirim
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={[styles.submitText, (score === 0 || isLoading) && styles.disabledText]}>
+                Kirim
+              </Text>
+            )}
           </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableWithoutFeedback>
         </View>
       </KeyboardAvoidingView>
     </Modal>
