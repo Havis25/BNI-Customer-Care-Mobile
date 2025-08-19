@@ -4,11 +4,14 @@ import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
 import UploadModal from "@/components/modals/UploadModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
+import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as SecureStore from 'expo-secure-store';
 import { router, useLocalSearchParams } from "expo-router";
+import * as WebBrowser from 'expo-web-browser';
 import React, {
   useCallback,
   useEffect,
@@ -20,6 +23,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -46,6 +50,7 @@ type MessageType = {
   isFile?: boolean;
   isImage?: boolean;
   fileName?: string;
+  downloadUrl?: string;
   author?: { id: string; firstName?: string };
   createdAt?: number;
   type?: string;
@@ -153,6 +158,14 @@ export default function ChatScreen() {
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const messageIdRef = useRef(1000);
+  
+  // Attachment management
+  const { 
+    attachments, 
+    isLoading: attachmentsLoading, 
+    fetchAttachments, 
+    deleteAttachment 
+  } = useTicketAttachments();
 
   const getUniqueId = () => {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -189,14 +202,12 @@ export default function ChatScreen() {
 
   const handleUploadSuccess = (
     fileName: string,
-    type: "image" | "document"
+    type: "image" | "document",
+    downloadUrl?: string
   ) => {
     const message = {
       id: getUniqueId(),
-      text:
-        type === "image"
-          ? `🖼️ ${fileName} berhasil dikirim ke tiket #${currentTicketId?.slice(-6) || 'unknown'}`
-          : `📎 ${fileName} berhasil dikirim ke tiket #${currentTicketId?.slice(-6) || 'unknown'}`,
+      text: `File berhasil dikirim ke tiket #${currentTicketId?.slice(-6) || 'unknown'}`,
       isBot: false,
       timestamp: new Date().toLocaleTimeString("id-ID", {
         hour: "2-digit",
@@ -205,8 +216,37 @@ export default function ChatScreen() {
       isFile: type === "document",
       isImage: type === "image",
       fileName,
+      downloadUrl,
     };
     setMessages((prev) => [...prev, message]);
+    
+
+    
+    // Refresh attachments after successful upload
+    if (currentTicketId) {
+      setTimeout(() => {
+        fetchAttachments(currentTicketId);
+      }, 1500); // Give server time to process
+    }
+  };
+
+  const handleDeleteFile = async (attachmentId: number) => {
+    if (!currentTicketId) return;
+    
+    const success = await deleteAttachment(currentTicketId, attachmentId);
+    if (success) {
+      // Add message to chat about file deletion
+      const deleteMessage = {
+        id: getUniqueId(),
+        text: `File berhasil dihapus dari tiket #${currentTicketId.slice(-6)}`,
+        isBot: false,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages((prev) => [...prev, deleteMessage]);
+    }
   };
 
   useEffect(() => {
@@ -214,7 +254,6 @@ export default function ChatScreen() {
       if (fromConfirmation === "true") {
         // Try to get ticket ID from URL params first
         if (ticketId && typeof ticketId === 'string') {
-          console.log('Setting ticket ID from URL:', ticketId);
           setCurrentTicketId(ticketId);
           await AsyncStorage.setItem('currentTicketId', ticketId);
         } else {
@@ -222,13 +261,10 @@ export default function ChatScreen() {
           try {
             const storedTicketId = await AsyncStorage.getItem('currentTicketId');
             if (storedTicketId) {
-              console.log('Setting ticket ID from storage:', storedTicketId);
               setCurrentTicketId(storedTicketId);
-            } else {
-              console.log('No ticket ID found in URL or storage');
             }
           } catch (error) {
-            console.error('Error reading ticket ID from storage:', error);
+            // Error reading from storage
           }
         }
         
@@ -275,6 +311,13 @@ export default function ChatScreen() {
     
     initializeTicket();
   }, [fromConfirmation, ticketId]);
+
+  // Fetch attachments when ticket ID is available
+  useEffect(() => {
+    if (currentTicketId) {
+      fetchAttachments(currentTicketId);
+    }
+  }, [currentTicketId, fetchAttachments]);
 
   // Socket connection and auth
   useEffect(() => {
@@ -509,7 +552,7 @@ export default function ChatScreen() {
         }
       }, 500);
     } catch (error) {
-      console.error("Error clearing chat history:", error);
+      // Error clearing chat history
     }
   }, [ACTIVE_ROOM, uid, socket]);
 
@@ -744,6 +787,37 @@ export default function ChatScreen() {
                   >
                     {message.text}
                   </Text>
+                  
+                  {/* Show download button if it's a file message */}
+                  {(message.isFile || message.isImage) && message.fileName && (
+                    <TouchableOpacity 
+                      style={styles.downloadButton}
+                      onPress={async () => {
+                        if (message.downloadUrl) {
+                          try {
+                            await Linking.openURL(message.downloadUrl);
+                          } catch (error) {
+                            Alert.alert('Error', 'Gagal membuka download link');
+                          }
+                        } else {
+                          Alert.alert('Info', 'Download link tidak tersedia');
+                        }
+                      }}
+                    >
+                      <MaterialIcons 
+                        name="download" 
+                        size={16} 
+                        color={message.isBot ? "#52B5AB" : "#FFF"} 
+                      />
+                      <Text style={[
+                        styles.downloadButtonText,
+                        message.isBot ? styles.botText : styles.userText,
+                      ]}>
+                        Download {message.fileName}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  
                   <Text style={styles.timestamp}>{message.timestamp}</Text>
                 </View>
                 {/* Call icon only for bot messages when live chat is active */}
@@ -839,7 +913,6 @@ export default function ChatScreen() {
           <TouchableOpacity
             style={styles.addFileButton}
             onPress={() => {
-              console.log('Upload button pressed, currentTicketId:', currentTicketId);
               if (!currentTicketId) {
                 Alert.alert(
                   "Tidak ada tiket aktif", 
@@ -913,6 +986,8 @@ export default function ChatScreen() {
           onClose={() => setShowUploadModal(false)}
           onUploadSuccess={handleUploadSuccess}
           ticketId={currentTicketId || undefined}
+          existingFiles={attachments || []}
+          onDeleteFile={handleDeleteFile}
         />
 
         {/* Call Modal */}
@@ -1229,5 +1304,63 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 16,
     gap: 4,
+  },
+  filePreviewContainer: {
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  imagePreviewContainer: {
+    position: "relative",
+    width: 200,
+    height: 150,
+  },
+  chatImagePreview: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
+  imageOverlay: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 16,
+    padding: 6,
+  },
+  documentPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    minWidth: 180,
+    gap: 10,
+  },
+  documentFileName: {
+    fontSize: 12,
+    fontFamily: "Poppins",
+    flex: 1,
+    fontWeight: "500",
+  },
+  documentFileSize: {
+    fontSize: 10,
+    fontFamily: "Poppins",
+    opacity: 0.8,
+  },
+  downloadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    gap: 6,
+  },
+  downloadButtonText: {
+    fontSize: 12,
+    fontFamily: "Poppins",
   },
 });
