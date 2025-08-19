@@ -62,35 +62,6 @@ const digitalServices = {
       features: ['E-commerce', 'Subscription', 'Bill Payment'],
       status: 'Available',
     },
-    {
-      id: '6',
-      name: 'BNI PayLater',
-      description: 'Layanan pinjaman digital untuk pembayaran',
-      icon: 'calendar-clock',
-      color: '#607D8B',
-      features: ['Cicilan 0%', 'Instant Approval', 'Flexible Payment'],
-      status: 'Coming Soon',
-    },
-  ],
-  investment: [
-    {
-      id: '7',
-      name: 'BNI Sekuritas Online',
-      description: 'Platform trading saham dan investasi online',
-      icon: 'chart-line',
-      color: '#2196F3',
-      features: ['Trading Saham', 'Mutual Fund', 'Bond Investment'],
-      status: 'Available',
-    },
-    {
-      id: '8',
-      name: 'BNI Reksadana Online',
-      description: 'Investasi reksadana digital',
-      icon: 'trending-up',
-      color: '#4CAF50',
-      features: ['Auto Invest', 'Portfolio Tracker', 'Low Minimum'],
-      status: 'Available',
-    },
   ],
 };
 
@@ -151,8 +122,6 @@ export default function DigitalScreen() {
         return digitalServices.banking;
       case 'payment':
         return digitalServices.payment;
-      case 'investment':
-        return digitalServices.investment;
       default:
         return digitalServices.banking;
     }
@@ -164,8 +133,6 @@ export default function DigitalScreen() {
         return 'Layanan Perbankan Digital';
       case 'payment':
         return 'Pembayaran Digital';
-      case 'investment':
-        return 'Investasi Digital';
       default:
         return 'Layanan Perbankan Digital';
     }
@@ -188,62 +155,50 @@ export default function DigitalScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.container}>
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'banking' && styles.activeTab]}
-            onPress={() => setActiveTab('banking')}
-          >
-            <MaterialCommunityIcons 
-              name="bank" 
-              size={20} 
-              color={activeTab === 'banking' ? 'white' : '#666'} 
-            />
-            <Text style={[styles.tabText, activeTab === 'banking' && styles.activeTabText]}>
-              Banking
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'payment' && styles.activeTab]}
-            onPress={() => setActiveTab('payment')}
-          >
-            <MaterialCommunityIcons 
-              name="credit-card" 
-              size={20} 
-              color={activeTab === 'payment' ? 'white' : '#666'} 
-            />
-            <Text style={[styles.tabText, activeTab === 'payment' && styles.activeTabText]}>
-              Payment
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'investment' && styles.activeTab]}
-            onPress={() => setActiveTab('investment')}
-          >
-            <MaterialCommunityIcons 
-              name="chart-line" 
-              size={20} 
-              color={activeTab === 'investment' ? 'white' : '#666'} 
-            />
-            <Text style={[styles.tabText, activeTab === 'investment' && styles.activeTabText]}>
-              Investment
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{getTabTitle()}</Text>
-          <FlatList
-            data={getTabData()}
-            renderItem={renderService}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={false}
-          />
-        </View>
-      </ScrollView>
+      <FlatList
+        style={styles.container}
+        data={getTabData()}
+        renderItem={renderService}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'banking' && styles.activeTab]}
+                onPress={() => setActiveTab('banking')}
+              >
+                <MaterialCommunityIcons 
+                  name="bank" 
+                  size={20} 
+                  color={activeTab === 'banking' ? 'white' : '#666'} 
+                />
+                <Text style={[styles.tabText, activeTab === 'banking' && styles.activeTabText]}>
+                  Banking
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'payment' && styles.activeTab]}
+                onPress={() => setActiveTab('payment')}
+              >
+                <MaterialCommunityIcons 
+                  name="credit-card" 
+                  size={20} 
+                  color={activeTab === 'payment' ? 'white' : '#666'} 
+                />
+                <Text style={[styles.tabText, activeTab === 'payment' && styles.activeTabText]}>
+                  Payment
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{getTabTitle()}</Text>
+            </View>
+          </>
+        }
+        contentContainerStyle={styles.listContent}
+      />
     </SafeAreaView>
   );
 }
@@ -317,10 +272,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   serviceCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    marginHorizontal: 16,
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
@@ -400,5 +356,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.semiBold,
     color: 'white',
+  },
+  sectionHeader: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  listContent: {
+    paddingBottom: 16,
   },
 });
