@@ -13,10 +13,12 @@ import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useTickets } from "@/hooks/useTickets";
+import FeedbackModal from "@/components/FeedbackModal";
 
 export default function RiwayatDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { tickets } = useTickets();
+  const { tickets, refetch } = useTickets();
+  const [showFeedback, setShowFeedback] = useState(false);
   const { ticketDetail, isLoading, error, fetchTicketDetail, progressData } =
     useTicketDetail();
 
@@ -25,6 +27,16 @@ export default function RiwayatDetailScreen() {
       fetchTicketDetail(id as string);
     }
   }, [id, fetchTicketDetail]);
+
+  useEffect(() => {
+    if (ticketDetail) {
+      const isCompleted = ticketDetail.customer_status.customer_status_code === "CLOSED";
+      const hasFeedback = !!ticketDetail.feedback;
+      if (isCompleted && !hasFeedback) {
+        setShowFeedback(true);
+      }
+    }
+  }, [ticketDetail]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -250,6 +262,18 @@ export default function RiwayatDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <FeedbackModal
+        visible={showFeedback}
+        onClose={() => {
+          // Tidak bisa ditutup sampai feedback dikirim
+        }}
+        ticketId={id as string}
+        onSuccess={() => {
+          fetchTicketDetail(id as string);
+          setShowFeedback(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
