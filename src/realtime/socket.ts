@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
 export const SOCKET_URL =
-  process.env.EXPO_PUBLIC_SOCKET_URL || "http://localhost:4000";
+  process.env.EXPO_PUBLIC_SOCKET_URL || "http://192.168.226.76:4000";
 
 let socket: Socket | null = null;
 
