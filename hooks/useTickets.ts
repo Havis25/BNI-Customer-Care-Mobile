@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "./useAuth";
+import { useFocusEffect } from "@react-navigation/native";
 
 export type CustomerStatus = {
   customer_status_id: number;
@@ -83,8 +84,9 @@ export function useTickets() {
     setError(null);
 
     try {
-      // Fetch fresh data dari API
-      const response = await api<TicketsResponse>(TICKETS_PATH);
+      // Fetch fresh data dari API with cache busting
+      const cacheBuster = `?_t=${Date.now()}`;
+      const response = await api<TicketsResponse>(`${TICKETS_PATH}${cacheBuster}`);
       
       if (response.success && response.data) {
         setTickets(response.data);
@@ -94,7 +96,6 @@ export function useTickets() {
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to fetch tickets";
       setError(errorMessage);
-      console.error("Error fetching tickets:", error);
       setTickets([]);
     } finally {
       setIsLoading(false);
@@ -104,6 +105,24 @@ export function useTickets() {
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchTickets();
+    }, [fetchTickets])
+  );
+
+  // Auto-refresh every 30 seconds when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const interval = setInterval(() => {
+      fetchTickets();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated, fetchTickets]);
 
 
 

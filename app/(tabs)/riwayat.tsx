@@ -15,6 +15,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -127,6 +128,8 @@ export default function RiwayatScreen() {
   const [appliedSortBy, setAppliedSortBy] = useState("");
   const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [showNewTicketNotification, setShowNewTicketNotification] = useState(false);
 
   // animasi bottom sheet
   const slideAnim = useRef(new Animated.Value(300)).current;
@@ -151,8 +154,11 @@ export default function RiwayatScreen() {
   }, []);
 
   const ticketData = useMemo(() => {
-    if (!tickets) return [];
-    return tickets.map((t) => ({
+    if (!tickets) {
+      return [];
+    }
+    
+    const mappedData = tickets.map((t) => ({
       ticket_id: t.ticket_id || t.ticket_number, // Use ticket_id if available, fallback to ticket_number
       ticket_number: t.ticket_number,
       customer_status: toIndoStatus(t.customer_status.customer_status_code),
@@ -160,6 +166,8 @@ export default function RiwayatScreen() {
       created_time: t.created_time,
       description: t.description,
     }));
+    
+    return mappedData;
   }, [tickets, toIndoStatus]);
 
 
@@ -234,10 +242,33 @@ export default function RiwayatScreen() {
     refetch();
   }, [refetch]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
+
   // Auto-refresh saat halaman di-focus (kembali dari complaint)
   useFocusEffect(
     useCallback(() => {
-      refetch();
+      const checkRefreshFlag = async () => {
+        try {
+          const shouldRefresh = await AsyncStorage.getItem('shouldRefreshRiwayat');
+          if (shouldRefresh === 'true') {
+            await AsyncStorage.removeItem('shouldRefreshRiwayat');
+            setShowNewTicketNotification(true);
+            setTimeout(() => setShowNewTicketNotification(false), 3000);
+          }
+          await refetch();
+        } catch (error) {
+          await refetch();
+        }
+      };
+      
+      checkRefreshFlag();
     }, [refetch])
   );
 
@@ -246,6 +277,14 @@ export default function RiwayatScreen() {
     <TabTransition>
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Riwayat Laporan</Text>
+        
+        {/* New Ticket Notification */}
+        {showNewTicketNotification && (
+          <View style={styles.notificationContainer}>
+            <MaterialIcons name="check-circle" size={20} color="#4CAF50" />
+            <Text style={styles.notificationText}>Tiket baru berhasil dibuat!</Text>
+          </View>
+        )}
 
         <View style={styles.searchFilterContainer}>
           <View style={styles.searchContainer}>
@@ -282,10 +321,12 @@ export default function RiwayatScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <FlatList
-            data={getFilteredData()}
-            keyExtractor={(item) => item.ticket_number}
-            renderItem={({ item }) => (
+          <>
+            <FlatList
+              data={getFilteredData()}
+              keyExtractor={(item) => item.ticket_number}
+              extraData={tickets}
+              renderItem={({ item }) => (
               <TouchableOpacity
                 style={[
                   styles.card,
@@ -336,7 +377,16 @@ export default function RiwayatScreen() {
             )}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#52B5AB']}
+                tintColor="#52B5AB"
+              />
+            }
           />
+          </>
         )}
 
         {/* Bottom Sheet Filter */}
@@ -797,5 +847,22 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontFamily: Fonts.medium,
+  },
+  notificationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F5E8",
+    borderColor: "#4CAF50",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  notificationText: {
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    color: "#2E7D32",
+    flex: 1,
   },
 });

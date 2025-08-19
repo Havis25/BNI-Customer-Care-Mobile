@@ -213,8 +213,6 @@ export default function ConfirmationScreen() {
         body: JSON.stringify(payload),
       });
       
-      console.log('Full ticket creation response:', JSON.stringify(response, null, 2));
-      
       // Extract ticket ID from response - check all possible paths
       let ticketId = null;
       if (response?.success && response?.data) {
@@ -225,18 +223,18 @@ export default function ConfirmationScreen() {
         ticketId = response.ticket_id;
       }
       
-      console.log('Extracted ticket ID:', ticketId);
-      
       if (ticketId) {
         // Store ticket ID in AsyncStorage for persistence
         await AsyncStorage.setItem('currentTicketId', String(ticketId));
+        
+        // Trigger refresh for riwayat screen
+        await AsyncStorage.setItem('shouldRefreshRiwayat', 'true');
+        
         router.push(`/complaint/chat?fromConfirmation=true&ticketId=${ticketId}`);
       } else {
-        console.warn('No ticket ID found in response:', response);
         router.push("/complaint/chat?fromConfirmation=true");
       }
     } catch (error: any) {
-      console.error("Gagal kirim data:", error?.message || error);
       Alert.alert(
         "Gagal",
         "Terjadi kesalahan saat mengirim data. Coba lagi ya."

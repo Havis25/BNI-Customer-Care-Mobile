@@ -2,7 +2,7 @@
 import * as SecureStore from "expo-secure-store";
 
 export const API_BASE = (
-  process.env.EXPO_PUBLIC_API_URL || "https://bcare.my.id"
+  process.env.EXPO_PUBLIC_API_URL || "https://275232686ea9.ngrok-free.app"
 ).replace(/\/+$/, "");
 
 type JSONValue = any;
@@ -34,7 +34,7 @@ export async function api<T = JSONValue>(
         headers.Authorization = `Bearer ${cleanToken}`;
       }
     } catch (error) {
-      console.error("Error getting token:", error);
+      // Error getting token
     }
   }
 
