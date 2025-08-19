@@ -5,6 +5,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
 import { api } from "@/lib/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActionSheetIOS,
@@ -207,12 +208,33 @@ export default function ConfirmationScreen() {
       }
 
       // API call akan otomatis menambahkan Authorization header
-      await api(API_URL, {
+      const response = await api(API_URL, {
         method: "POST",
         body: JSON.stringify(payload),
       });
       
-      router.push("/complaint/chat?fromConfirmation=true");
+      console.log('Full ticket creation response:', JSON.stringify(response, null, 2));
+      
+      // Extract ticket ID from response - check all possible paths
+      let ticketId = null;
+      if (response?.success && response?.data) {
+        ticketId = response.data.id || response.data.ticket_id;
+      } else if (response?.id) {
+        ticketId = response.id;
+      } else if (response?.ticket_id) {
+        ticketId = response.ticket_id;
+      }
+      
+      console.log('Extracted ticket ID:', ticketId);
+      
+      if (ticketId) {
+        // Store ticket ID in AsyncStorage for persistence
+        await AsyncStorage.setItem('currentTicketId', String(ticketId));
+        router.push(`/complaint/chat?fromConfirmation=true&ticketId=${ticketId}`);
+      } else {
+        console.warn('No ticket ID found in response:', response);
+        router.push("/complaint/chat?fromConfirmation=true");
+      }
     } catch (error: any) {
       console.error("Gagal kirim data:", error?.message || error);
       Alert.alert(

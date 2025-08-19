@@ -92,7 +92,7 @@ const chatMessages: MessageType[] = [
 ];
 
 export default function ChatScreen() {
-  const { callDeclined, fromConfirmation, callEnded, room } =
+  const { callDeclined, fromConfirmation, callEnded, room, ticketId } =
     useLocalSearchParams();
   const { user } = useUser();
   const { user: authUser } = useAuth();
@@ -148,14 +148,14 @@ export default function ChatScreen() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [currentTicketId, setCurrentTicketId] = useState<string | null>(null);
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const messageIdRef = useRef(1000);
 
   const getUniqueId = () => {
-    messageIdRef.current += 1;
-    return messageIdRef.current;
+    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
   const showAgentChatQuestion = () => {
@@ -195,8 +195,8 @@ export default function ChatScreen() {
       id: getUniqueId(),
       text:
         type === "image"
-          ? `🖼️ ${fileName} berhasil dikirim`
-          : `📎 ${fileName} berhasil dikirim`,
+          ? `🖼️ ${fileName} berhasil dikirim ke tiket #${currentTicketId?.slice(-6) || 'unknown'}`
+          : `📎 ${fileName} berhasil dikirim ke tiket #${currentTicketId?.slice(-6) || 'unknown'}`,
       isBot: false,
       timestamp: new Date().toLocaleTimeString("id-ID", {
         hour: "2-digit",
@@ -210,35 +210,71 @@ export default function ChatScreen() {
   };
 
   useEffect(() => {
-    if (fromConfirmation === "true") {
-      const ticketCreatedMessage = {
-        id: getUniqueId(),
-        text: "Terima kasih, tiket Anda telah berhasil dibuat!",
-        isBot: true,
-        timestamp: new Date().toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        hasTicketButton: true,
-      };
-      setMessages((prev) => [...prev, ticketCreatedMessage]);
-
-      // Show validation message after 3 seconds
-      setTimeout(() => {
-        const validationMessage = {
+    const initializeTicket = async () => {
+      if (fromConfirmation === "true") {
+        // Try to get ticket ID from URL params first
+        if (ticketId && typeof ticketId === 'string') {
+          console.log('Setting ticket ID from URL:', ticketId);
+          setCurrentTicketId(ticketId);
+          await AsyncStorage.setItem('currentTicketId', ticketId);
+        } else {
+          // Fallback to AsyncStorage
+          try {
+            const storedTicketId = await AsyncStorage.getItem('currentTicketId');
+            if (storedTicketId) {
+              console.log('Setting ticket ID from storage:', storedTicketId);
+              setCurrentTicketId(storedTicketId);
+            } else {
+              console.log('No ticket ID found in URL or storage');
+            }
+          } catch (error) {
+            console.error('Error reading ticket ID from storage:', error);
+          }
+        }
+        
+        const ticketCreatedMessage = {
           id: getUniqueId(),
-          text: "Selanjutnya mari lakukan validasi dengan agent. Pilih metode validasi:",
+          text: "Terima kasih, tiket Anda telah berhasil dibuat!",
           isBot: true,
           timestamp: new Date().toLocaleTimeString("id-ID", {
             hour: "2-digit",
             minute: "2-digit",
           }),
-          hasValidationButtons: true,
+          hasTicketButton: true,
         };
-        setMessages((prev) => [...prev, validationMessage]);
-      }, 3000);
-    }
-  }, [fromConfirmation]);
+        setMessages((prev) => {
+          // Avoid duplicate messages
+          const exists = prev.find(m => m.hasTicketButton && m.text.includes('berhasil dibuat'));
+          if (exists) return prev;
+          return [...prev, ticketCreatedMessage];
+        });
+
+        // Show validation message after 3 seconds
+        const timeoutId = setTimeout(() => {
+          const validationMessage = {
+            id: getUniqueId(),
+            text: "Selanjutnya mari lakukan validasi dengan agent. Pilih metode validasi:",
+            isBot: true,
+            timestamp: new Date().toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            hasValidationButtons: true,
+          };
+          setMessages((prev) => {
+            // Avoid duplicate validation messages
+            const exists = prev.find(m => m.hasValidationButtons);
+            if (exists) return prev;
+            return [...prev, validationMessage];
+          });
+        }, 3000);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    };
+    
+    initializeTicket();
+  }, [fromConfirmation, ticketId]);
 
   // Socket connection and auth
   useEffect(() => {
@@ -802,7 +838,17 @@ export default function ChatScreen() {
         <View style={styles.inputContainer}>
           <TouchableOpacity
             style={styles.addFileButton}
-            onPress={() => setShowUploadModal(true)}
+            onPress={() => {
+              console.log('Upload button pressed, currentTicketId:', currentTicketId);
+              if (!currentTicketId) {
+                Alert.alert(
+                  "Tidak ada tiket aktif", 
+                  "Silakan buat tiket terlebih dahulu untuk mengirim attachment."
+                );
+                return;
+              }
+              setShowUploadModal(true);
+            }}
           >
             <MaterialIcons name="add" size={24} color="#FFF" />
           </TouchableOpacity>
@@ -866,7 +912,7 @@ export default function ChatScreen() {
           visible={showUploadModal}
           onClose={() => setShowUploadModal(false)}
           onUploadSuccess={handleUploadSuccess}
-          activityId="1"
+          ticketId={currentTicketId || undefined}
         />
 
         {/* Call Modal */}
