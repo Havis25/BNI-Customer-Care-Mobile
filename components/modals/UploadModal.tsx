@@ -1,6 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import React, { useState } from "react";
 import {
   Alert,
@@ -11,19 +12,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { api } from "@/lib/api";
 
 interface UploadModalProps {
   visible: boolean;
   onClose: () => void;
   onUploadSuccess: (fileName: string, type: 'image' | 'document') => void;
-  activityId?: string;
+  ticketId?: string;
 }
 
 export default function UploadModal({ 
   visible, 
   onClose, 
   onUploadSuccess,
-  activityId = '1'
+  ticketId
 }: UploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [fileType, setFileType] = useState<'image' | 'document' | null>(null);
@@ -66,56 +68,76 @@ export default function UploadModal({
   const handleUpload = async () => {
     if (!selectedFile || !fileType) return;
     
+    // Validate ticketId exists
+    if (!ticketId) {
+      Alert.alert('Error', 'Tidak ada tiket aktif untuk mengirim attachment.');
+      return;
+    }
+    
     setUploading(true);
     
-    return new Promise((resolve, reject) => {
+    try {
       const formData = new FormData();
       
+      // Append file with proper format
       formData.append('file', {
         uri: selectedFile.uri,
         type: fileType === 'image' ? 'image/jpeg' : (selectedFile.mimeType || 'application/octet-stream'),
         name: selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf'),
       } as any);
       
-      formData.append('activity_id', activityId);
+      console.log('Uploading to ticket:', ticketId);
+      console.log('File info:', {
+        name: selectedFile.name,
+        type: fileType,
+        uri: selectedFile.uri
+      });
       
-      const xhr = new XMLHttpRequest();
+      // Use ticket attachment endpoint
+      const endpoint = `/v1/tickets/${ticketId}/attachments`;
       
-      xhr.onload = () => {
-        setUploading(false);
-        if (xhr.status === 200 || xhr.status === 201) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            if (response.attachment_id) {
-              console.log('Upload success, attachment_id:', response.attachment_id);
-              onUploadSuccess(selectedFile.name || 'file', fileType);
-              handleClose();
-              resolve(xhr.responseText);
-            } else {
-              Alert.alert('Error', 'Upload gagal: Response tidak valid');
-              reject(new Error('Invalid response'));
-            }
-          } catch (error) {
-            Alert.alert('Error', 'Upload gagal: Response tidak dapat diparse');
-            reject(error);
-          }
-        } else {
-          console.log('Upload failed:', xhr.status, xhr.responseText);
-          Alert.alert('Error', `Upload gagal: ${xhr.responseText}`);
-          reject(new Error(xhr.responseText));
-        }
-      };
+      // Get authorization token from SecureStore
+      const token = await SecureStore.getItemAsync('access_token');
       
-      xhr.onerror = () => {
-        setUploading(false);
-        console.log('Upload error');
-        Alert.alert('Error', 'Terjadi kesalahan saat upload');
-        reject(new Error('Network error'));
-      };
+      if (!token) {
+        throw new Error('No authorization token found. Please login again.');
+      }
       
-      xhr.open('POST', 'http://34.121.13.94:3000/attachments');
-      xhr.send(formData);
-    });
+      console.log('Using token for upload:', token.substring(0, 20) + '...');
+      console.log('Full API URL:', `${process.env.EXPO_PUBLIC_API_URL}${endpoint}`);
+      
+      const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      console.log('Authorization header:', authHeader.substring(0, 30) + '...');
+      
+      // Use fetch directly for FormData with authorization
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}${endpoint}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': authHeader,
+          'ngrok-skip-browser-warning': 'true',
+          // Don't set Content-Type for FormData
+        },
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('Upload failed:', response.status, errorText);
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Upload success for ticket:', ticketId, result);
+      
+      onUploadSuccess(selectedFile.name || 'file', fileType);
+      handleClose();
+      
+    } catch (error: any) {
+      console.log('Upload error for ticket:', ticketId, error);
+      Alert.alert('Error', error.message || 'Terjadi kesalahan saat upload');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleClose = () => {
