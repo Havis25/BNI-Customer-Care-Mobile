@@ -23,7 +23,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useAuth } from "@/hooks/useAuth";
 import { useTickets } from "@/hooks/useTickets";
 import TabTransition from "@/components/TabTransition";
 
@@ -32,7 +31,7 @@ const getStatusColorBackground = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FFF3EB";
-    case "Validasi":
+    case "Verfikasi":
       return "#FFF9EB";
     case "Diproses":
       return "#FCFDEE";
@@ -48,7 +47,7 @@ const getStatusColorBadge = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FFDBC3";
-    case "Validasi":
+    case "Verfikasi":
       return "#FFEEC2";
     case "Diproses":
       return "#F3F8BD";
@@ -64,7 +63,7 @@ const getStatusColorText = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FF8636";
-    case "Validasi":
+    case "Verfikasi":
       return "#FFB600";
     case "Diproses":
       return "#B3BE47";
@@ -80,7 +79,7 @@ const getShadowColor = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FF8636";
-    case "Validasi":
+    case "Verfikasi":
       return "#FFC533";
     case "Diproses":
       return "#E0EE59";
@@ -140,7 +139,7 @@ export default function RiwayatScreen() {
       case "ACC":
         return "Diterima";
       case "VERIF":
-        return "Validasi";
+        return "Verfikasi";
       case "PROCESS":
         return "Diproses";
       case "CLOSED":
@@ -155,7 +154,7 @@ export default function RiwayatScreen() {
   const ticketData = useMemo(() => {
     if (!tickets) return [];
     return tickets.map((t) => ({
-      ticket_id: t.ticket_number,
+      ticket_id: t.ticket_id || t.ticket_number, // Use ticket_id if available, fallback to ticket_number
       ticket_number: t.ticket_number,
       customer_status: toIndoStatus(t.customer_status.customer_status_code),
       channel: t.issue_channel.channel_name,
@@ -300,7 +299,8 @@ export default function RiwayatScreen() {
                   },
                 ]}
                 onPress={() => {
-                  router.push(`/riwayat/${item.ticket_number}` as any);
+                  const id = item.ticket_id || item.ticket_number;
+                  router.push(`/riwayat/${id}` as any);
                 }}
               >
                 <View style={styles.cardHeader}>
@@ -449,20 +449,20 @@ export default function RiwayatScreen() {
                 <TouchableOpacity
                   style={styles.statusOption}
                   onPress={() =>
-                    toggleStatus("Validasi", selectedStatus, setSelectedStatus)
+                    toggleStatus("Verfikasi", selectedStatus, setSelectedStatus)
                   }
                 >
                   <MaterialIcons name="verified" size={20} color="#FFB600" />
-                  <Text style={styles.optionText}>Validasi</Text>
+                  <Text style={styles.optionText}>Verfikasi</Text>
                   <MaterialIcons
                     name={
-                      selectedStatus.includes("Validasi")
+                      selectedStatus.includes("Verfikasi")
                         ? "check-box"
                         : "check-box-outline-blank"
                     }
                     size={20}
                     color={
-                      selectedStatus.includes("Validasi")
+                      selectedStatus.includes("Verfikasi")
                         ? "#1F72F1"
                         : "#8E8E93"
                     }
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fffefeff",
     paddingHorizontal: 16,
-    paddingBottom: -35,
+    marginBottom: Platform.OS === "ios" ? 50 : 0,
   },
   title: {
     fontSize: 18,
