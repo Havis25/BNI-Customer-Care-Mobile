@@ -2,8 +2,7 @@
 import * as SecureStore from "expo-secure-store";
 
 export const API_BASE = (
-  process.env.EXPO_PUBLIC_API_URL ||
-  "https://91c4cbfcce69.ngrok-free.app"
+  process.env.EXPO_PUBLIC_API_URL || "https://275232686ea9.ngrok-free.app"
 ).replace(/\/+$/, "");
 
 type JSONValue = any;
