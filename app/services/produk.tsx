@@ -21,19 +21,19 @@ const produkData = {
       id: '1',
       nama: 'BNI Taplus',
       deskripsi: 'Tabungan untuk kebutuhan sehari-hari.',
-      gambar: 'https://picsum.photos/id/237/200/140',
+      gambar: require ('../../assets/images/bni-taplus.jpg'),
     },
     {
       id: '2',
-      nama: 'BNI Taplus Muda',
-      deskripsi: 'Tabungan khusus anak muda dengan biaya ringan.',
-      gambar: 'https://picsum.photos/id/238/200/140',
+      nama: 'BNI Fleksi',
+      deskripsi: 'Kredit tanpa agunan khusus pegawai bergaji.',
+      gambar: require ('../../assets/images/bni-fleksi.jpg'),
     },
     {
       id: '3',
       nama: 'BNI Griya',
       deskripsi: 'Kredit kepemilikan rumah dengan bunga kompetitif.',
-      gambar: 'https://picsum.photos/id/239/200/140',
+      gambar: require ('../../assets/images/bni-griya.jpg'),
     },
   ],
   korporasi: [
@@ -41,39 +41,27 @@ const produkData = {
       id: '4',
       nama: 'BNI Giro',
       deskripsi: 'Layanan rekening giro untuk transaksi bisnis.',
-      gambar: 'https://picsum.photos/id/240/200/140',
+      gambar: require ('../../assets/images/bni-giro.jpg'),
     },
     {
       id: '5',
       nama: 'BNI Cash Management',
       deskripsi: 'Solusi pengelolaan keuangan perusahaan.',
-      gambar: 'https://picsum.photos/id/241/200/140',
+      gambar: require ('../../assets/images/bni-giro.jpg'),
     },
     {
       id: '6',
       nama: 'BNI Trade Finance',
       deskripsi: 'Layanan perdagangan internasional.',
-      gambar: 'https://picsum.photos/id/242/200/140',
+      gambar: require ('../../assets/images/bni-giro.jpg'),
     },
   ],
   umkm: [
     {
       id: '7',
-      nama: 'BNI UMKM',
+      nama: 'BNI Xpora',
       deskripsi: 'Kredit modal kerja untuk usaha mikro kecil menengah.',
-      gambar: 'https://picsum.photos/id/243/200/140',
-    },
-    {
-      id: '8',
-      nama: 'BNI Wirausaha',
-      deskripsi: 'Pembiayaan untuk pengembangan usaha wirausaha.',
-      gambar: 'https://picsum.photos/id/244/200/140',
-    },
-    {
-      id: '9',
-      nama: 'BNI Fleksi',
-      deskripsi: 'Kredit fleksibel untuk kebutuhan bisnis UMKM.',
-      gambar: 'https://picsum.photos/id/245/200/140',
+      gambar: require ('../../assets/images/bni-xpora.png'),
     },
   ],
 };
@@ -82,7 +70,7 @@ interface ProdukItem {
   id: string;
   nama: string;
   deskripsi: string;
-  gambar: string;
+  gambar: string | any;
 }
 
 export default function ProdukScreen() {
@@ -111,7 +99,7 @@ export default function ProdukScreen() {
 
   const renderProduk = ({ item }: { item: ProdukItem }) => (
     <TouchableOpacity style={styles.card}>
-      <Image source={{ uri: item.gambar }} style={styles.cardImage} />
+      <Image source={typeof item.gambar === 'string' ? { uri: item.gambar } : item.gambar} style={styles.cardImage} />
       <LinearGradient
         colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)']}
         style={styles.cardOverlay}
@@ -150,68 +138,75 @@ export default function ProdukScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.container}>
+      <FlatList
+        style={styles.container}
+        data={[1]}
+        renderItem={() => (
+          <View>
+            {/* Individual Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <MaterialCommunityIcons name="account" size={24} color="#FF6600" />
+                <Text style={styles.subHeader}>Individual</Text>
+              </View>
+              <Text style={styles.sectionDesc}>Produk perbankan untuk kebutuhan pribadi dan keluarga</Text>
+              <FlatList
+                data={produkData.individual}
+                renderItem={renderProduk}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onScroll={(event) => handleScroll(event, 'individual')}
+                scrollEventThrottle={16}
+                contentContainerStyle={styles.listContainer}
+              />
+              {renderScrollIndicator('individual')}
+            </View>
 
-        {/* Individual Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="account" size={24} color="#FF6600" />
-            <Text style={styles.subHeader}>Individual</Text>
-          </View>
-          <Text style={styles.sectionDesc}>Produk perbankan untuk kebutuhan pribadi dan keluarga</Text>
-          <FlatList
-            data={produkData.individual}
-            renderItem={renderProduk}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            onScroll={(event) => handleScroll(event, 'individual')}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.listContainer}
-          />
-          {renderScrollIndicator('individual')}
-        </View>
+            {/* Korporasi Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <MaterialCommunityIcons name="office-building" size={24} color="#FF6600" />
+                <Text style={styles.subHeader}>Korporasi</Text>
+              </View>
+              <Text style={styles.sectionDesc}>Solusi perbankan untuk kebutuhan perusahaan dan institusi</Text>
+              <FlatList
+                data={produkData.korporasi}
+                renderItem={renderProduk}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onScroll={(event) => handleScroll(event, 'korporasi')}
+                scrollEventThrottle={16}
+                contentContainerStyle={styles.listContainer}
+              />
+              {renderScrollIndicator('korporasi')}
+            </View>
 
-        {/* Korporasi Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="office-building" size={24} color="#FF6600" />
-            <Text style={styles.subHeader}>Korporasi</Text>
+            {/* UMKM Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <MaterialCommunityIcons name="store" size={24} color="#FF6600" />
+                <Text style={styles.subHeader}>UMKM</Text>
+              </View>
+              <Text style={styles.sectionDesc}>Dukungan finansial untuk usaha mikro, kecil, dan menengah</Text>
+              <FlatList
+                data={produkData.umkm}
+                renderItem={renderProduk}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onScroll={(event) => handleScroll(event, 'umkm')}
+                scrollEventThrottle={16}
+                contentContainerStyle={styles.listContainer}
+              />
+              {renderScrollIndicator('umkm')}
+            </View>
           </View>
-          <Text style={styles.sectionDesc}>Solusi perbankan untuk kebutuhan perusahaan dan institusi</Text>
-          <FlatList
-            data={produkData.korporasi}
-            renderItem={renderProduk}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            onScroll={(event) => handleScroll(event, 'korporasi')}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.listContainer}
-          />
-          {renderScrollIndicator('korporasi')}
-        </View>
-
-        {/* UMKM Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="store" size={24} color="#FF6600" />
-            <Text style={styles.subHeader}>UMKM</Text>
-          </View>
-          <Text style={styles.sectionDesc}>Dukungan finansial untuk usaha mikro, kecil, dan menengah</Text>
-          <FlatList
-            data={produkData.umkm}
-            renderItem={renderProduk}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            onScroll={(event) => handleScroll(event, 'umkm')}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.listContainer}
-          />
-          {renderScrollIndicator('umkm')}
-        </View>
-      </ScrollView>
+        )}
+        keyExtractor={() => 'produk'}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 }
@@ -359,8 +354,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 16,
     marginRight: 16,
-    width: 240,
-    height: 280,
+    width: 280,
+    height: 320,
     overflow: 'hidden',
     position: 'relative',
     ...Platform.select({

@@ -1,19 +1,18 @@
+import { Fonts } from "@/constants/Fonts";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import React from "react";
 import {
   FlatList,
   Image,
   Platform,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { Fonts } from "@/constants/Fonts";
 
 const promoData = {
   featured: [
@@ -22,17 +21,9 @@ const promoData = {
       title: "Cashback 50% Belanja Online",
       description:
         "Dapatkan cashback hingga Rp 100.000 untuk transaksi e-commerce",
-      image: "https://picsum.photos/id/100/300/180",
+      image: require ('../../assets/images/promo-bni.png'),
       validUntil: "31 Des 2024",
       category: "E-Commerce",
-    },
-    {
-      id: "2",
-      title: "Gratis Biaya Admin 6 Bulan",
-      description: "Buka rekening BNI Taplus dan nikmati bebas biaya admin",
-      image: "https://picsum.photos/id/101/300/180",
-      validUntil: "15 Jan 2025",
-      category: "Tabungan",
     },
   ],
   lifestyle: [
@@ -40,7 +31,7 @@ const promoData = {
       id: "3",
       title: "Diskon 25% Restoran Partner",
       description: "Nikmati diskon di 500+ restoran favorit Anda",
-      image: "https://picsum.photos/id/102/300/180",
+      image: require ('../../assets/images/promo-bni2.png'),
       validUntil: "28 Feb 2025",
       category: "F&B",
     },
@@ -48,7 +39,7 @@ const promoData = {
       id: "4",
       title: "Cashback 20% Transportasi",
       description: "Hemat perjalanan dengan cashback ojek online dan taksi",
-      image: "https://picsum.photos/id/103/300/180",
+      image: require ('../../assets/images/promo-bni2.png'),
       validUntil: "31 Mar 2025",
       category: "Transport",
     },
@@ -56,7 +47,7 @@ const promoData = {
       id: "5",
       title: "Diskon Hotel hingga 40%",
       description: "Liburan lebih hemat dengan promo hotel eksklusif",
-      image: "https://picsum.photos/id/104/300/180",
+      image: require ('../../assets/images/promo-bni2.png'),
       validUntil: "30 Apr 2025",
       category: "Travel",
     },
@@ -67,7 +58,7 @@ interface PromoItem {
   id: string;
   title: string;
   description: string;
-  image: string;
+  image: string | any;
   validUntil: string;
   category: string;
 }
@@ -75,7 +66,7 @@ interface PromoItem {
 export default function PromoScreen() {
   const renderFeaturedPromo = ({ item }: { item: PromoItem }) => (
     <TouchableOpacity style={styles.featuredCard}>
-      <Image source={{ uri: item.image }} style={styles.featuredImage} />
+      <Image source={typeof item.image === 'string' ? { uri: item.image } : item.image} style={styles.featuredImage} />
       <View style={styles.featuredContent}>
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{item.category}</Text>
@@ -94,7 +85,7 @@ export default function PromoScreen() {
 
   const renderLifestylePromo = ({ item }: { item: PromoItem }) => (
     <TouchableOpacity style={styles.lifestyleCard}>
-      <Image source={{ uri: item.image }} style={styles.lifestyleImage} />
+      <Image source={typeof item.image === 'string' ? { uri: item.image } : item.image} style={styles.lifestyleImage} />
       <View style={styles.lifestyleContent}>
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{item.category}</Text>
@@ -194,14 +185,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   horizontalList: {
-    paddingRight: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
   featuredCard: {
     backgroundColor: "white",
     borderRadius: 12,
-    marginRight: 16,
     width: 280,
     overflow: "hidden",
+    alignSelf: 'center',
     ...Platform.select({
       ios: {
         shadowColor: "#000",
