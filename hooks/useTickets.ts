@@ -38,6 +38,7 @@ export type Complaint = {
 };
 
 export type Ticket = {
+  ticket_id?: number;
   ticket_number: string;
   description: string;
   transaction_date: string;
@@ -103,6 +104,8 @@ export function useTickets() {
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
+
+
 
   return {
     tickets,

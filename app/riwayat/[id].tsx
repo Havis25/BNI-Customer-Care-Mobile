@@ -11,39 +11,35 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useTickets } from "@/hooks/useTickets";
 
 export default function RiwayatDetailScreen() {
   const { id } = useLocalSearchParams();
   const { tickets } = useTickets();
-  const [ticket, setTicket] = useState<any>(null);
-  const [feedback, setFeedback] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { ticketDetail, isLoading, error, fetchTicketDetail, progressData } =
+    useTicketDetail();
 
   useEffect(() => {
-    if (tickets && id) {
-      const foundTicket = tickets.find((t) => t.ticket_number === id);
-      if (foundTicket) {
-        setTicket(foundTicket);
-      }
-      setLoading(false);
+    if (id) {
+      fetchTicketDetail(id as string);
     }
-  }, [tickets, id]);
+  }, [id, fetchTicketDetail]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -52,7 +48,7 @@ export default function RiwayatDetailScreen() {
       case "ACC":
         return "Diterima";
       case "VERIF":
-        return "Validasi";
+        return "Verifikasi";
       case "PROCESS":
         return "Diproses";
       case "CLOSED":
@@ -64,19 +60,7 @@ export default function RiwayatDetailScreen() {
     }
   };
 
-  // Dummy progress data
-  const progressData = [
-    {
-      status: "Diterima",
-      tanggal: ticket ? `${formatDate(ticket.created_time)}, ${formatTime(ticket.created_time)}` : "",
-      penjelasan: "Laporan telah diterima dan akan segera ditindaklanjuti",
-    },
-    { status: "Validasi", tanggal: " ", penjelasan: " " },
-    { status: "Diproses", tanggal: " ", penjelasan: " " },
-    { status: "Selesai", tanggal: " ", penjelasan: " " },
-  ];
-
-  if (loading) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <Text style={styles.loadingText}>Loading...</Text>
@@ -84,20 +68,54 @@ export default function RiwayatDetailScreen() {
     );
   }
 
-  if (!ticket) {
+  if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Data tidak ditemukan</Text>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <MaterialIcons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detail Laporan</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <Text style={styles.loadingText}>Error: {error}</Text>
+          <TouchableOpacity
+            style={{
+              marginTop: 16,
+              padding: 12,
+              backgroundColor: "#FF6600",
+              borderRadius: 8,
+            }}
+            onPress={() => id && fetchTicketDetail(id as string)}
+          >
+            <Text style={{ color: "#FFF" }}>Coba Lagi</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
-  const getProgressStepStatus = (currentStatus: string, stepStatus: string) => {
-    const statusOrder = ["Diterima", "Validasi", "Diproses", "Selesai"];
-    const currentIndex = statusOrder.indexOf(currentStatus);
-    const stepIndex = statusOrder.indexOf(stepStatus);
-    return stepIndex <= currentIndex ? "completed" : "pending";
-  };
+  if (!ticketDetail) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <MaterialIcons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detail Laporan</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <Text style={styles.loadingText}>Data tidak ditemukan</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -114,30 +132,46 @@ export default function RiwayatDetailScreen() {
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled={true}
       >
-        <View style={styles.complaintContainer}>
+        {ticketDetail.customer_status.customer_status_code === "DECLINED" && (
+          <View style={styles.warningContainer}>
+            <MaterialIcons name="error-outline" size={24} color="#E24646" />
+            <Text style={styles.warningText}>
+              Mohon maaf, laporan Anda ditolak karena tidak sesuai ketentuan.
+            </Text>
+          </View>
+        )}
+
+        <View style={[
+          styles.complaintContainer,
+          ticketDetail.customer_status.customer_status_code === "DECLINED" && styles.complaintContainerDeclined
+        ]}>
           <View style={styles.detailHeader}>
-            <Text style={styles.detailId}>{ticket.ticket_number}</Text>
+            <Text style={styles.detailId}>{ticketDetail.ticket_number}</Text>
             <Text style={styles.detailDateTime}>
-              {formatDate(ticket.created_time)}, {formatTime(ticket.created_time)}
+              {formatDate(ticketDetail.created_time)},{" "}
+              {formatTime(ticketDetail.created_time)}
             </Text>
           </View>
 
-          <Text style={styles.detailTitle}>{ticket.issue_channel.channel_name}</Text>
+          <Text style={styles.detailTitle}>
+            {ticketDetail.issue_channel.channel_name}
+          </Text>
 
           <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>Deskripsi</Text>
-            <Text style={styles.descriptionText}>{ticket.description}</Text>
+            <Text style={styles.descriptionText}>
+              {ticketDetail.description}
+            </Text>
           </View>
         </View>
 
         <View style={styles.progressSection}>
           <Text style={styles.progressTitle}>Status Progress</Text>
-          <View style={styles.progressCard}>
+          <View style={[
+            styles.progressCard,
+            ticketDetail.customer_status.customer_status_code === "DECLINED" && styles.progressCardDeclined
+          ]}>
             {progressData?.map((step: any, index: number) => {
-              const stepStatus = getProgressStepStatus(
-                toIndoStatus(ticket.customer_status.customer_status_code),
-                step.status
-              );
               const isLast = index === progressData.length - 1;
 
               return (
@@ -146,8 +180,7 @@ export default function RiwayatDetailScreen() {
                     <View
                       style={[
                         styles.progressDot,
-                        stepStatus === "completed" &&
-                          styles.progressDotCompleted,
+                        step.completed && (ticketDetail.customer_status.customer_status_code === "DECLINED" ? styles.progressDotDeclined : styles.progressDotCompleted),
                       ]}
                     />
 
@@ -155,8 +188,7 @@ export default function RiwayatDetailScreen() {
                       <View
                         style={[
                           styles.progressLine,
-                          stepStatus === "completed" &&
-                            styles.progressLineCompleted,
+                          step.completed && (ticketDetail.customer_status.customer_status_code === "DECLINED" ? styles.progressLineDeclined : styles.progressLineCompleted),
                         ]}
                       />
                     )}
@@ -165,8 +197,7 @@ export default function RiwayatDetailScreen() {
                     <Text
                       style={[
                         styles.progressStepTitle,
-                        stepStatus === "completed" &&
-                          styles.progressStepTitleCompleted,
+                        step.completed && styles.progressStepTitleCompleted,
                       ]}
                     >
                       {step.status}
@@ -188,49 +219,37 @@ export default function RiwayatDetailScreen() {
           </View>
         </View>
 
-        {feedback && toIndoStatus(ticket.customer_status.customer_status_code) === "Selesai" && (
-          <View style={styles.feedbackSection}>
-            <Text style={styles.feedbackTitle}>Feedback Anda</Text>
-            <View style={styles.feedbackCard}>
-              <View style={styles.feedbackRating}>
-                <Text style={styles.feedbackRatingLabel}>Rating:</Text>
-                <View style={styles.feedbackStars}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <MaterialIcons
-                      key={star}
-                      name="star"
-                      size={20}
-                      color={star <= (feedback.score / 2) ? "#FFD700" : "#E0E0E0"}
-                    />
-                  ))}
-                  <Text style={styles.feedbackScore}>({feedback.score}/10)</Text>
+        {ticketDetail.feedback &&
+          ticketDetail.customer_status.customer_status_code === "CLOSED" && (
+            <View style={styles.feedbackContainer}>
+              <View style={styles.feedbackSection}>
+                <Text style={styles.feedbackTitle}>Feedback Anda</Text>
+                <View style={styles.feedbackCard}>
+                  <View style={styles.feedbackComment}>
+                    <Text style={styles.feedbackCommentLabel}>Komentar:</Text>
+                    <Text style={styles.feedbackCommentText}>
+                      {ticketDetail.feedback.comment}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              {feedback.comment && (
-                <View style={styles.feedbackComment}>
-                  <Text style={styles.feedbackCommentLabel}>Komentar:</Text>
-                  <Text style={styles.feedbackCommentText}>{feedback.comment}</Text>
-                </View>
-              )}
-              <Text style={styles.feedbackDate}>
-                Diberikan pada: {formatDate(feedback.submit_time)}, {formatTime(feedback.submit_time)}
-              </Text>
             </View>
-          </View>
-        )}
+          )}
       </ScrollView>
 
-      <View style={styles.liveChatCard}>
-        <TouchableOpacity style={styles.liveChatButton}>
-          <MaterialIcons
-            name="message"
-            size={20}
-            color="#fff"
-            style={styles.chatIcon}
-          />
-          <Text style={styles.liveChatText}>Live Chat</Text>
-        </TouchableOpacity>
-      </View>
+      {ticketDetail.customer_status.customer_status_code !== "DECLINED" && (
+        <View style={styles.liveChatCard}>
+          <TouchableOpacity style={styles.liveChatButton}>
+            <MaterialIcons
+              name="message"
+              size={20}
+              color="#fff"
+              style={styles.chatIcon}
+            />
+            <Text style={styles.liveChatText}>Live Chat</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -330,7 +349,9 @@ const styles = StyleSheet.create({
   warningContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fbeaea",
+    backgroundColor: "#FFF1F1",
+    borderWidth: 1,
+    borderColor: "#E24646",
     padding: 16,
     borderRadius: 8,
     marginBottom: 20,
@@ -340,7 +361,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: "black",
+    color: "#E24646",
+  },
+  complaintContainerDeclined: {
+    borderColor: "#E24646",
   },
   progressSection: {
     marginBottom: 20,
@@ -356,8 +380,12 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#71DAD3",
     borderRadius: 12,
-    padding: 24,
-    marginBottom: Platform.OS === "ios" ? 80 : 0,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  progressCardDeclined: {
+    backgroundColor: "#FFF1F1",
+    borderLeftColor: "#E24646",
   },
   progressStep: {
     flexDirection: "row",
@@ -412,6 +440,9 @@ const styles = StyleSheet.create({
   progressDotCompleted: {
     backgroundColor: "#71DAD3",
   },
+  progressDotDeclined: {
+    backgroundColor: "#E24646",
+  },
   progressLine: {
     width: 2,
     height: "100%",
@@ -422,6 +453,9 @@ const styles = StyleSheet.create({
   },
   progressLineCompleted: {
     backgroundColor: "#71DAD3",
+  },
+  progressLineDeclined: {
+    backgroundColor: "#E24646",
   },
   progressStepContent: {
     flex: 1,
@@ -453,6 +487,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     color: "#666",
     marginTop: 50,
+  },
+  feedbackContainer: {
+    marginBottom: Platform.OS === "ios" ? 80 : 0,
   },
   feedbackSection: {
     marginBottom: 20,
