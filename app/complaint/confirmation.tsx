@@ -1,11 +1,11 @@
 import BottomSheet from "@/components/modals/BottomSheet";
-import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
+import { api } from "@/lib/api";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
-import { api } from "@/lib/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActionSheetIOS,
@@ -259,7 +259,7 @@ export default function ConfirmationScreen() {
           <View style={{ flex: 1 }}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>Form Complain</Text>
+              <Text style={styles.headerTitle}>Formulir Pengaduan</Text>
             </View>
 
             <ScrollView
@@ -344,7 +344,7 @@ export default function ConfirmationScreen() {
 
               {/* Deskripsi */}
               <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Description</Text>
+                <Text style={styles.label}>Deskripsi</Text>
                 <TextInput
                   style={[styles.textInput, styles.textArea]}
                   value={description}

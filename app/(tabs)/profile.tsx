@@ -1,10 +1,10 @@
+import TabTransition from "@/components/TabTransition";
+import { useTickets } from "@/hooks/useTickets";
+import { useUser } from "@/hooks/useUser";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { api } from "@/lib/api";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { useUser } from "@/hooks/useUser";
-import { useTickets } from "@/hooks/useTickets";
 import {
   ActivityIndicator,
   Alert,
@@ -21,7 +21,6 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
-import TabTransition from "@/components/TabTransition";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -109,7 +108,7 @@ export default function ProfileScreen() {
   return (
     <TabTransition>
       <SafeAreaView style={styles.safeArea}>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>Profil</Text>
         <ScrollView
           contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         >
