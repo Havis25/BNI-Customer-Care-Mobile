@@ -53,7 +53,13 @@ export default function UploadModal({
       });
       
       if (!result.canceled && result.assets[0]) {
-        setSelectedFile(result.assets[0]);
+        const file = result.assets[0];
+        // For images, use fileSize property instead of size
+        const fileWithSize = {
+          ...file,
+          size: file.fileSize || file.size
+        };
+        setSelectedFile(fileWithSize);
         setFileType('image');
       }
     } catch (error) {
@@ -86,15 +92,29 @@ export default function UploadModal({
       return;
     }
     
+    // Validate file size (max 2MB - sesuai batasan server)
+    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    const fileSize = selectedFile.size || selectedFile.fileSize || 0;
+    
+    if (fileSize > maxSize) {
+      Alert.alert(
+        'File Terlalu Besar', 
+        `Ukuran file maksimal 2MB. File Anda berukuran ${formatFileSize(fileSize)}.`
+      );
+      return;
+    }
+    
+    if (fileSize === 0) {
+      Alert.alert(
+        'Error', 
+        'Tidak dapat mendeteksi ukuran file. Silakan coba file lain.'
+      );
+      return;
+    }
+    
     setUploading(true);
     
     try {
-      console.log('Starting upload process...');
-      console.log('Selected file:', selectedFile);
-      console.log('File type:', fileType);
-      console.log('Ticket ID:', ticketId);
-      console.log('API_BASE:', API_BASE);
-      
       const formData = new FormData();
       
       // Determine proper MIME type
@@ -105,13 +125,6 @@ export default function UploadModal({
       
       const fileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
       
-      console.log('File details:', {
-        uri: selectedFile.uri,
-        type: mimeType,
-        name: fileName,
-        size: selectedFile.size
-      });
-      
       // Append file with proper format for React Native
       const fileObject = {
         uri: selectedFile.uri,
@@ -119,18 +132,11 @@ export default function UploadModal({
         name: fileName,
       };
       
-      console.log('Appending file to FormData:', fileObject);
       formData.append('file', fileObject as any);
-      
-      // Log FormData contents (for debugging)
-      console.log('FormData created successfully');
       
       // Use ticket attachment endpoint
       const endpoint = `/v1/tickets/${ticketId}/attachments`;
       const fullUrl = `${API_BASE}${endpoint}`;
-      
-      console.log('Upload URL:', fullUrl);
-      console.log('Environment API URL:', process.env.EXPO_PUBLIC_API_URL);
       
       // Get authorization token from SecureStore
       const token = await SecureStore.getItemAsync('access_token');
@@ -140,27 +146,17 @@ export default function UploadModal({
       }
       
       const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-      console.log('Auth header prepared:', authHeader.substring(0, 20) + '...');
       
       // Use fetch directly for FormData with authorization
       const requestHeaders = {
         'Authorization': authHeader,
         'ngrok-skip-browser-warning': 'true',
         'Accept': 'application/json',
-        // Don't set Content-Type for FormData - browser will set it automatically with boundary
       };
-      
-      console.log('Making request with headers:', {
-        'Authorization': authHeader.substring(0, 20) + '...',
-        'ngrok-skip-browser-warning': 'true',
-        'Accept': 'application/json'
-      });
-      
-      console.log('Making POST request to:', fullUrl);
       
       // Create AbortController for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const response = await fetch(fullUrl, {
         method: 'POST',
@@ -171,39 +167,34 @@ export default function UploadModal({
       
       clearTimeout(timeoutId);
       
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
       let result;
       let errorText = '';
       
       try {
         const responseText = await response.text();
-        console.log('Raw response:', responseText);
-        
         if (responseText) {
           try {
             result = JSON.parse(responseText);
           } catch (parseError) {
-            console.error('Failed to parse JSON response:', parseError);
             errorText = responseText;
           }
         }
       } catch (textError) {
-        console.error('Failed to read response text:', textError);
         errorText = 'Failed to read response';
       }
       
       if (!response.ok) {
-        console.error('Upload failed:', {
+        const errorDetails = {
           status: response.status,
           statusText: response.statusText,
-          errorText: errorText || result?.message || 'Unknown error'
-        });
+          errorText: errorText || 'No error text',
+          resultMessage: result?.message || 'No result message',
+          fileSize: fileSize,
+          fileName: fileName
+        };
+        console.error('Upload failed - Server Response:', errorDetails);
         throw new Error(`Upload failed: ${response.status} - ${errorText || result?.message || response.statusText}`);
       }
-      
-      console.log('Upload result:', result);
       
       if (result) {
         // Use the actual filename that will be saved on server
@@ -211,8 +202,6 @@ export default function UploadModal({
         
         // Get attachment ID from upload response
         const attachmentId = result.data?.attachments?.[0]?.attachment_id || result.data?.attachment_id;
-        
-        console.log('Attachment ID from response:', attachmentId);
         
         // Get download URL for later use in chat
         let downloadUrl = null;
@@ -231,10 +220,8 @@ export default function UploadModal({
             if (attachmentResponse.ok) {
               const attachmentData = await attachmentResponse.json();
               downloadUrl = attachmentData.data?.download_url;
-              console.log('Download URL obtained:', downloadUrl);
             }
           } catch (error) {
-            console.error('Failed to get download URL:', error);
             // Failed to get download URL, continue without it
           }
         }
@@ -246,12 +233,12 @@ export default function UploadModal({
       }
       
     } catch (error: any) {
-      console.error('Upload error:', error);
-      
       let errorMessage = 'Terjadi kesalahan saat upload';
       
       if (error.name === 'AbortError') {
         errorMessage = 'Upload timeout. Silakan coba lagi.';
+      } else if (error.message?.includes('413')) {
+        errorMessage = 'File terlalu besar untuk server. Maksimal 2MB.';
       } else if (error.message?.includes('Network request failed')) {
         errorMessage = 'Koneksi internet bermasalah. Silakan cek koneksi Anda.';
       } else if (error.message?.includes('Failed to fetch')) {
@@ -398,6 +385,11 @@ export default function UploadModal({
 
           {!selectedFile ? (
             <>
+              <View style={styles.fileLimitInfo}>
+                <MaterialIcons name="info" size={16} color="#666" />
+                <Text style={styles.fileLimitText}>Maksimal ukuran file: 2MB</Text>
+              </View>
+              
               <TouchableOpacity style={styles.uploadOption} onPress={handleImageSelect}>
                 <MaterialIcons name="photo" size={24} color="#52B5AB" />
                 <Text style={styles.uploadOptionText}>Upload Gambar</Text>
@@ -417,6 +409,11 @@ export default function UploadModal({
                   <MaterialIcons name="description" size={48} color="#52B5AB" />
                 )}
                 <Text style={styles.fileName}>{selectedFile.name}</Text>
+                {(selectedFile.size || selectedFile.fileSize) && (
+                  <Text style={styles.fileSize}>
+                    Ukuran: {formatFileSize(selectedFile.size || selectedFile.fileSize || 0)}
+                  </Text>
+                )}
               </View>
               
               <View style={styles.buttonContainer}>
@@ -510,6 +507,13 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     fontFamily: "Poppins",
+  },
+  fileSize: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    fontFamily: "Poppins",
+    marginTop: 4,
   },
   buttonContainer: {
     flexDirection: "row",
@@ -611,6 +615,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
     marginTop: 8,
+    fontFamily: "Poppins",
+  },
+  fileLimitInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#F0F8FF",
+    borderRadius: 8,
+    gap: 6,
+  },
+  fileLimitText: {
+    fontSize: 12,
+    color: "#666",
     fontFamily: "Poppins",
   },
 });

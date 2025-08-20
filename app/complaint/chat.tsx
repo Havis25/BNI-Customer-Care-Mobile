@@ -116,7 +116,7 @@ export default function ChatScreen() {
     [uid]
   );
 
-  const [messages, setMessages] = useState<MessageType[]>(chatMessages);
+  const [messages, setMessages] = useState<MessageType[]>([]);
   const [connected, setConnected] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [socketId, setSocketId] = useState<string>("");
@@ -249,23 +249,21 @@ export default function ChatScreen() {
 
   useEffect(() => {
     const initializeTicket = async () => {
+      // Always try to get ticket ID from storage first
+      try {
+        const storedTicketId = await AsyncStorage.getItem("currentTicketId");
+        if (storedTicketId) {
+          setCurrentTicketId(storedTicketId);
+        }
+      } catch (error) {
+        // Error reading from storage
+      }
+      
       if (fromConfirmation === "true") {
-        // Try to get ticket ID from URL params first
+        // Try to get ticket ID from URL params
         if (ticketId && typeof ticketId === "string") {
           setCurrentTicketId(ticketId);
           await AsyncStorage.setItem("currentTicketId", ticketId);
-        } else {
-          // Fallback to AsyncStorage
-          try {
-            const storedTicketId = await AsyncStorage.getItem(
-              "currentTicketId"
-            );
-            if (storedTicketId) {
-              setCurrentTicketId(storedTicketId);
-            }
-          } catch (error) {
-            // Error reading from storage
-          }
         }
 
         const ticketCreatedMessage = {
@@ -284,7 +282,16 @@ export default function ChatScreen() {
             (m) => m.hasTicketButton && m.text.includes("berhasil dibuat")
           );
           if (exists) return prev;
-          return [...prev, ticketCreatedMessage];
+          const newMessages = [...prev, ticketCreatedMessage];
+          // Save to AsyncStorage
+          AsyncStorage.setItem(
+            storageKey,
+            JSON.stringify(
+              newMessages.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
+            )
+          );
+          console.log('[DEBUG] Saved ticket created message to storage');
+          return newMessages;
         });
 
         // Show validation message after 3 seconds
@@ -303,7 +310,16 @@ export default function ChatScreen() {
             // Avoid duplicate validation messages
             const exists = prev.find((m) => m.hasValidationButtons);
             if (exists) return prev;
-            return [...prev, validationMessage];
+            const newMessages = [...prev, validationMessage];
+            // Save to AsyncStorage
+            AsyncStorage.setItem(
+              storageKey,
+              JSON.stringify(
+                newMessages.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
+              )
+            );
+            console.log('[DEBUG] Saved validation message to storage');
+            return newMessages;
           });
         }, 3000);
 
@@ -355,17 +371,20 @@ export default function ChatScreen() {
   useEffect(() => {
     (async () => {
       const raw = await AsyncStorage.getItem(storageKey);
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw) as MessageType[];
-        const uniq = Array.from(new Map(parsed.map((m) => [m.id, m])).values());
-        // Merge with initial chatMessages
-        const merged = [
-          ...chatMessages,
-          ...uniq.filter((m) => !chatMessages.find((cm) => cm.id === m.id)),
-        ];
-        setMessages(merged);
-      } catch {
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as MessageType[];
+          const uniq = Array.from(new Map(parsed.map((m) => [m.id, m])).values());
+          // Merge with initial chatMessages
+          const merged = [
+            ...chatMessages,
+            ...uniq.filter((m) => !chatMessages.find((cm) => cm.id === m.id)),
+          ];
+          setMessages(merged);
+        } catch (error) {
+          setMessages(chatMessages);
+        }
+      } else {
         setMessages(chatMessages);
       }
     })();
@@ -708,7 +727,7 @@ export default function ChatScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => setShowBottomSheet(true)}
+            onPress={() => router.replace("/(tabs)")}
           >
             <MaterialIcons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
@@ -1016,6 +1035,15 @@ export default function ChatScreen() {
         <TicketSummaryModal
           visible={showTicketModal}
           onClose={() => setShowTicketModal(false)}
+          ticketData={{
+            ticketNumber: currentTicketId ? `#${currentTicketId}` : undefined,
+            accountNumber: user?.selectedAccount?.account_number?.toString(),
+            channelName: 'Live Chat',
+            categoryName: 'Customer Support',
+            description: 'Chat dengan agent customer service',
+            status: 'Aktif',
+            createdDate: new Date().toLocaleDateString('id-ID')
+          }}
         />
 
         <BottomSheet

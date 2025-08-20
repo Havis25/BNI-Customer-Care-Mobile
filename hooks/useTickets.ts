@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { useAuth } from "./useAuth";
 import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "./useAuth";
 
 export type CustomerStatus = {
   customer_status_id: number;
@@ -86,8 +86,10 @@ export function useTickets() {
     try {
       // Fetch fresh data dari API with cache busting
       const cacheBuster = `?_t=${Date.now()}`;
-      const response = await api<TicketsResponse>(`${TICKETS_PATH}${cacheBuster}`);
-      
+      const response = await api<TicketsResponse>(
+        `${TICKETS_PATH}${cacheBuster}`
+      );
+
       if (response.success && response.data) {
         setTickets(response.data);
       } else {
@@ -116,15 +118,13 @@ export function useTickets() {
   // Auto-refresh every 30 seconds when authenticated
   useEffect(() => {
     if (!isAuthenticated) return;
-    
+
     const interval = setInterval(() => {
       fetchTickets();
     }, 30000); // 30 seconds
-    
+
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchTickets]);
-
-
 
   return {
     tickets,
