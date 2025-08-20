@@ -3,6 +3,7 @@ import CallModal from "@/components/modals/CallModal";
 import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
 import UploadModal from "@/components/modals/UploadModal";
 import { useAuth } from "@/hooks/useAuth";
+import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { useUser } from "@/hooks/useUser";
 import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -20,6 +21,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -46,6 +48,7 @@ type MessageType = {
   isFile?: boolean;
   isImage?: boolean;
   fileName?: string;
+  downloadUrl?: string;
   author?: { id: string; firstName?: string };
   createdAt?: number;
   type?: string;
@@ -113,7 +116,7 @@ export default function ChatScreen() {
     [uid]
   );
 
-  const [messages, setMessages] = useState<MessageType[]>(chatMessages);
+  const [messages, setMessages] = useState<MessageType[]>([]);
   const [connected, setConnected] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [socketId, setSocketId] = useState<string>("");
@@ -149,10 +152,20 @@ export default function ChatScreen() {
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [currentTicketId, setCurrentTicketId] = useState<string | null>(null);
+  
+
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const messageIdRef = useRef(1000);
+
+  // Attachment management - initialize without auto-fetch
+  const {
+    attachments,
+    isLoading: attachmentsLoading,
+    fetchAttachments,
+    deleteAttachment,
+  } = useTicketAttachments();
 
   const getUniqueId = () => {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -189,14 +202,14 @@ export default function ChatScreen() {
 
   const handleUploadSuccess = (
     fileName: string,
-    type: "image" | "document"
+    type: "image" | "document",
+    downloadUrl?: string
   ) => {
     const message = {
       id: getUniqueId(),
-      text:
-        type === "image"
-          ? `🖼️ ${fileName} berhasil dikirim ke tiket #${currentTicketId?.slice(-6) || 'unknown'}`
-          : `📎 ${fileName} berhasil dikirim ke tiket #${currentTicketId?.slice(-6) || 'unknown'}`,
+      text: `File berhasil dikirim ke tiket #${
+        currentTicketId?.slice(-6) || "unknown"
+      }`,
       isBot: false,
       timestamp: new Date().toLocaleTimeString("id-ID", {
         hour: "2-digit",
@@ -205,33 +218,64 @@ export default function ChatScreen() {
       isFile: type === "document",
       isImage: type === "image",
       fileName,
+      downloadUrl,
     };
     setMessages((prev) => [...prev, message]);
+
+    // Refresh attachments after successful upload
+    if (currentTicketId) {
+      setTimeout(() => {
+        fetchAttachments(currentTicketId);
+      }, 1500); // Give server time to process
+    }
+  };
+
+  const handleDeleteFile = async (attachmentId: number) => {
+    if (!currentTicketId) return;
+
+    const success = await deleteAttachment(currentTicketId, attachmentId);
+    if (success) {
+      // Add message to chat about file deletion
+      const deleteMessage = {
+        id: getUniqueId(),
+        text: `File berhasil dihapus dari tiket #${currentTicketId.slice(-6)}`,
+        isBot: false,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages((prev) => [...prev, deleteMessage]);
+    }
   };
 
   useEffect(() => {
     const initializeTicket = async () => {
-      if (fromConfirmation === "true") {
-        // Try to get ticket ID from URL params first
-        if (ticketId && typeof ticketId === 'string') {
-          console.log('Setting ticket ID from URL:', ticketId);
-          setCurrentTicketId(ticketId);
-          await AsyncStorage.setItem('currentTicketId', ticketId);
+      // Always try to get ticket ID from storage first
+      try {
+        const storedTicketId = await AsyncStorage.getItem("currentTicketId");
+        if (storedTicketId && storedTicketId.trim() !== '' && storedTicketId !== 'null' && storedTicketId !== 'undefined') {
+          setCurrentTicketId(storedTicketId);
         } else {
-          // Fallback to AsyncStorage
-          try {
-            const storedTicketId = await AsyncStorage.getItem('currentTicketId');
-            if (storedTicketId) {
-              console.log('Setting ticket ID from storage:', storedTicketId);
-              setCurrentTicketId(storedTicketId);
-            } else {
-              console.log('No ticket ID found in URL or storage');
-            }
-          } catch (error) {
-            console.error('Error reading ticket ID from storage:', error);
+          setCurrentTicketId(null);
+        }
+      } catch (error) {
+        setCurrentTicketId(null);
+      }
+      
+      if (fromConfirmation === "true") {
+        // Try to get ticket ID from URL params
+        if (ticketId && typeof ticketId === "string" && ticketId.trim() !== '' && ticketId !== 'null' && ticketId !== 'undefined') {
+          setCurrentTicketId(ticketId);
+          await AsyncStorage.setItem("currentTicketId", ticketId);
+        } else {
+          // If no URL param, check storage again
+          const storedId = await AsyncStorage.getItem("currentTicketId");
+          if (storedId && storedId.trim() !== '' && storedId !== 'null' && storedId !== 'undefined') {
+            setCurrentTicketId(storedId);
           }
         }
-        
+
         const ticketCreatedMessage = {
           id: getUniqueId(),
           text: "Terima kasih, tiket Anda telah berhasil dibuat!",
@@ -244,9 +288,19 @@ export default function ChatScreen() {
         };
         setMessages((prev) => {
           // Avoid duplicate messages
-          const exists = prev.find(m => m.hasTicketButton && m.text.includes('berhasil dibuat'));
+          const exists = prev.find(
+            (m) => m.hasTicketButton && m.text.includes("berhasil dibuat")
+          );
           if (exists) return prev;
-          return [...prev, ticketCreatedMessage];
+          const newMessages = [...prev, ticketCreatedMessage];
+          // Save to AsyncStorage
+          AsyncStorage.setItem(
+            storageKey,
+            JSON.stringify(
+              newMessages.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
+            )
+          );
+          return newMessages;
         });
 
         // Show validation message after 3 seconds
@@ -263,18 +317,33 @@ export default function ChatScreen() {
           };
           setMessages((prev) => {
             // Avoid duplicate validation messages
-            const exists = prev.find(m => m.hasValidationButtons);
+            const exists = prev.find((m) => m.hasValidationButtons);
             if (exists) return prev;
-            return [...prev, validationMessage];
+            const newMessages = [...prev, validationMessage];
+            // Save to AsyncStorage
+            AsyncStorage.setItem(
+              storageKey,
+              JSON.stringify(
+                newMessages.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
+              )
+            );
+            return newMessages;
           });
         }, 3000);
-        
+
         return () => clearTimeout(timeoutId);
       }
     };
-    
+
     initializeTicket();
   }, [fromConfirmation, ticketId]);
+
+  // Fetch attachments only when ticket ID is available and valid
+  useEffect(() => {
+    if (currentTicketId && currentTicketId.trim() !== '') {
+      fetchAttachments(currentTicketId);
+    }
+  }, [currentTicketId, fetchAttachments]);
 
   // Socket connection and auth
   useEffect(() => {
@@ -310,17 +379,20 @@ export default function ChatScreen() {
   useEffect(() => {
     (async () => {
       const raw = await AsyncStorage.getItem(storageKey);
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw) as MessageType[];
-        const uniq = Array.from(new Map(parsed.map((m) => [m.id, m])).values());
-        // Merge with initial chatMessages
-        const merged = [
-          ...chatMessages,
-          ...uniq.filter((m) => !chatMessages.find((cm) => cm.id === m.id)),
-        ];
-        setMessages(merged);
-      } catch {
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as MessageType[];
+          const uniq = Array.from(new Map(parsed.map((m) => [m.id, m])).values());
+          // Merge with initial chatMessages
+          const merged = [
+            ...chatMessages,
+            ...uniq.filter((m) => !chatMessages.find((cm) => cm.id === m.id)),
+          ];
+          setMessages(merged);
+        } catch (error) {
+          setMessages(chatMessages);
+        }
+      } else {
         setMessages(chatMessages);
       }
     })();
@@ -509,7 +581,7 @@ export default function ChatScreen() {
         }
       }, 500);
     } catch (error) {
-      console.error("Error clearing chat history:", error);
+      // Error clearing chat history
     }
   }, [ACTIVE_ROOM, uid, socket]);
 
@@ -663,7 +735,7 @@ export default function ChatScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => setShowBottomSheet(true)}
+            onPress={() => router.replace("/(tabs)")}
           >
             <MaterialIcons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
@@ -744,6 +816,39 @@ export default function ChatScreen() {
                   >
                     {message.text}
                   </Text>
+
+                  {/* Show download button if it's a file message */}
+                  {(message.isFile || message.isImage) && message.fileName && (
+                    <TouchableOpacity
+                      style={styles.downloadButton}
+                      onPress={async () => {
+                        if (message.downloadUrl) {
+                          try {
+                            await Linking.openURL(message.downloadUrl);
+                          } catch (error) {
+                            Alert.alert("Error", "Gagal membuka download link");
+                          }
+                        } else {
+                          Alert.alert("Info", "Download link tidak tersedia");
+                        }
+                      }}
+                    >
+                      <MaterialIcons
+                        name="download"
+                        size={16}
+                        color={message.isBot ? "#52B5AB" : "#FFF"}
+                      />
+                      <Text
+                        style={[
+                          styles.downloadButtonText,
+                          message.isBot ? styles.botText : styles.userText,
+                        ]}
+                      >
+                        Download {message.fileName}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
                   <Text style={styles.timestamp}>{message.timestamp}</Text>
                 </View>
                 {/* Call icon only for bot messages when live chat is active */}
@@ -837,12 +942,15 @@ export default function ChatScreen() {
         {/* Input Area */}
         <View style={styles.inputContainer}>
           <TouchableOpacity
-            style={styles.addFileButton}
+            style={[
+              styles.addFileButton,
+              (!currentTicketId || currentTicketId.trim() === '' || currentTicketId === 'undefined' || currentTicketId === 'null') && styles.addFileButtonDisabled
+            ]}
+            disabled={!currentTicketId || currentTicketId.trim() === '' || currentTicketId === 'undefined' || currentTicketId === 'null'}
             onPress={() => {
-              console.log('Upload button pressed, currentTicketId:', currentTicketId);
-              if (!currentTicketId) {
+              if (!currentTicketId || currentTicketId.trim() === '' || currentTicketId === 'undefined' || currentTicketId === 'null') {
                 Alert.alert(
-                  "Tidak ada tiket aktif", 
+                  "Tiket Tidak Tersedia",
                   "Silakan buat tiket terlebih dahulu untuk mengirim attachment."
                 );
                 return;
@@ -850,7 +958,11 @@ export default function ChatScreen() {
               setShowUploadModal(true);
             }}
           >
-            <MaterialIcons name="add" size={24} color="#FFF" />
+            <MaterialIcons 
+              name="add" 
+              size={24} 
+              color={(!currentTicketId || currentTicketId.trim() === '' || currentTicketId === 'undefined' || currentTicketId === 'null') ? "#999" : "#FFF"} 
+            />
           </TouchableOpacity>
           <TextInput
             style={styles.textInput}
@@ -913,6 +1025,8 @@ export default function ChatScreen() {
           onClose={() => setShowUploadModal(false)}
           onUploadSuccess={handleUploadSuccess}
           ticketId={currentTicketId || undefined}
+          existingFiles={attachments || []}
+          onDeleteFile={handleDeleteFile}
         />
 
         {/* Call Modal */}
@@ -937,6 +1051,7 @@ export default function ChatScreen() {
         <TicketSummaryModal
           visible={showTicketModal}
           onClose={() => setShowTicketModal(false)}
+          ticketId={currentTicketId || undefined}
         />
 
         <BottomSheet
@@ -1074,6 +1189,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+  },
+  addFileButtonDisabled: {
+    backgroundColor: "#E0E0E0",
   },
   sendButton: {
     width: 40,
@@ -1229,5 +1347,63 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 16,
     gap: 4,
+  },
+  filePreviewContainer: {
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  imagePreviewContainer: {
+    position: "relative",
+    width: 200,
+    height: 150,
+  },
+  chatImagePreview: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
+  imageOverlay: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 16,
+    padding: 6,
+  },
+  documentPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    minWidth: 180,
+    gap: 10,
+  },
+  documentFileName: {
+    fontSize: 12,
+    fontFamily: "Poppins",
+    flex: 1,
+    fontWeight: "500",
+  },
+  documentFileSize: {
+    fontSize: 10,
+    fontFamily: "Poppins",
+    opacity: 0.8,
+  },
+  downloadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    gap: 6,
+  },
+  downloadButtonText: {
+    fontSize: 12,
+    fontFamily: "Poppins",
   },
 });

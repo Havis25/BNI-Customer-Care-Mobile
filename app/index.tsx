@@ -1,10 +1,17 @@
+import Splashscreen from "@/components/Splashscreen";
 import { router } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState, startTransition } from "react";
 
 export default function Index() {
-  useEffect(() => {
-    router.replace("/WelcomePage");
-  }, []);
+  const [splashDone, setSplashDone] = useState(false);
 
-  return null;
+  useEffect(() => {
+    if (splashDone) {
+      startTransition(() => {
+        router.replace("/WelcomePage");
+      });
+    }
+  }, [splashDone]);
+
+  return <Splashscreen onFinish={() => setSplashDone(true)} />;
 }

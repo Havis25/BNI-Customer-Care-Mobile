@@ -34,7 +34,7 @@ export async function api<T = JSONValue>(
         headers.Authorization = `Bearer ${cleanToken}`;
       }
     } catch (error) {
-      console.error("Error getting token:", error);
+      // Error getting token
     }
   }
 

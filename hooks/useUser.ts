@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
 
 interface Customer {
   id?: number;
@@ -40,10 +39,10 @@ interface AccountWithType {
 // Manual mapping untuk account types
 const ACCOUNT_TYPE_MAP: Record<number, string> = {
   1: "Tabungan",
-  2: "Giro", 
+  2: "Giro",
   3: "Deposito",
   4: "Kartu Kredit",
-  5: "Pinjaman"
+  5: "Pinjaman",
 };
 
 interface UserWithAccounts {
@@ -81,12 +80,16 @@ export const useUser = () => {
         if (customer.accounts && customer.accounts.length > 0) {
           const userAccounts = customer.accounts.map((acc) => ({
             ...acc,
-            account_type: acc.account_type?.account_type_name || ACCOUNT_TYPE_MAP[acc.account_type_id] || "Unknown"
+            account_type:
+              acc.account_type?.account_type_name ||
+              ACCOUNT_TYPE_MAP[acc.account_type_id] ||
+              "Unknown",
           }));
           setAccounts(userAccounts);
 
-          const primaryAccount = userAccounts.find((acc) => acc.is_primary) || userAccounts[0];
-          
+          const primaryAccount =
+            userAccounts.find((acc) => acc.is_primary) || userAccounts[0];
+
           setUser({
             ...customer,
             accounts: userAccounts,

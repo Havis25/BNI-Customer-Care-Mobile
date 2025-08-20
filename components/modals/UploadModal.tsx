@@ -6,26 +6,38 @@ import React, { useState } from "react";
 import {
   Alert,
   Image,
+  Linking,
   Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { api } from "@/lib/api";
+import { api, API_BASE } from "@/lib/api";
 
 interface UploadModalProps {
   visible: boolean;
   onClose: () => void;
-  onUploadSuccess: (fileName: string, type: 'image' | 'document') => void;
+  onUploadSuccess: (fileName: string, type: 'image' | 'document', downloadUrl?: string) => void;
   ticketId?: string;
+  existingFiles?: Array<{
+    attachment_id: number;
+    file_name: string;
+    file_type: string;
+    file_size: number;
+    upload_time: string;
+    file_path: string;
+  }>;
+  onDeleteFile?: (attachmentId: number) => void;
 }
 
 export default function UploadModal({ 
   visible, 
   onClose, 
   onUploadSuccess,
-  ticketId
+  ticketId,
+  existingFiles = [],
+  onDeleteFile
 }: UploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [fileType, setFileType] = useState<'image' | 'document' | null>(null);
@@ -41,7 +53,13 @@ export default function UploadModal({
       });
       
       if (!result.canceled && result.assets[0]) {
-        setSelectedFile(result.assets[0]);
+        const file = result.assets[0];
+        // For images, use fileSize property instead of size
+        const fileWithSize = {
+          ...file,
+          size: file.fileSize || file.size
+        };
+        setSelectedFile(fileWithSize);
         setFileType('image');
       }
     } catch (error) {
@@ -68,9 +86,37 @@ export default function UploadModal({
   const handleUpload = async () => {
     if (!selectedFile || !fileType) return;
     
-    // Validate ticketId exists
-    if (!ticketId) {
-      Alert.alert('Error', 'Tidak ada tiket aktif untuk mengirim attachment.');
+
+    
+    // Validate ticketId exists and is valid
+    if (!ticketId || 
+        ticketId.trim() === '' || 
+        ticketId === 'undefined' || 
+        ticketId === 'null') {
+      Alert.alert(
+        'Tiket Tidak Tersedia', 
+        'Silakan buat tiket terlebih dahulu sebelum mengirim attachment.'
+      );
+      return;
+    }
+    
+    // Validate file size (max 2MB - sesuai batasan server)
+    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    const fileSize = selectedFile.size || selectedFile.fileSize || 0;
+    
+    if (fileSize > maxSize) {
+      Alert.alert(
+        'File Terlalu Besar', 
+        `Ukuran file maksimal 2MB. File Anda berukuran ${formatFileSize(fileSize)}.`
+      );
+      return;
+    }
+    
+    if (fileSize === 0) {
+      Alert.alert(
+        'Error', 
+        'Tidak dapat mendeteksi ukuran file. Silakan coba file lain.'
+      );
       return;
     }
     
@@ -79,22 +125,33 @@ export default function UploadModal({
     try {
       const formData = new FormData();
       
-      // Append file with proper format
-      formData.append('file', {
-        uri: selectedFile.uri,
-        type: fileType === 'image' ? 'image/jpeg' : (selectedFile.mimeType || 'application/octet-stream'),
-        name: selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf'),
-      } as any);
+      // Determine proper MIME type
+      let mimeType = selectedFile.mimeType || 'application/octet-stream';
+      if (fileType === 'image' && !mimeType.startsWith('image/')) {
+        mimeType = 'image/jpeg';
+      }
       
-      console.log('Uploading to ticket:', ticketId);
-      console.log('File info:', {
-        name: selectedFile.name,
-        type: fileType,
-        uri: selectedFile.uri
-      });
+      const fileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
+      
+      // Append file with proper format for React Native
+      const fileObject = {
+        uri: selectedFile.uri,
+        type: mimeType,
+        name: fileName,
+      };
+      
+      formData.append('file', fileObject as any);
+      
+      // Final validation before server request
+      if (!ticketId || ticketId.toString().trim() === '' || ticketId === 'undefined' || ticketId === 'null') {
+        throw new Error('Invalid ticket ID - cannot upload without valid ticket');
+      }
+      
+
       
       // Use ticket attachment endpoint
       const endpoint = `/v1/tickets/${ticketId}/attachments`;
+      const fullUrl = `${API_BASE}${endpoint}`;
       
       // Get authorization token from SecureStore
       const token = await SecureStore.getItemAsync('access_token');
@@ -103,38 +160,109 @@ export default function UploadModal({
         throw new Error('No authorization token found. Please login again.');
       }
       
-      console.log('Using token for upload:', token.substring(0, 20) + '...');
-      console.log('Full API URL:', `${process.env.EXPO_PUBLIC_API_URL}${endpoint}`);
-      
       const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-      console.log('Authorization header:', authHeader.substring(0, 30) + '...');
       
       // Use fetch directly for FormData with authorization
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}${endpoint}`, {
+      const requestHeaders = {
+        'Authorization': authHeader,
+        'ngrok-skip-browser-warning': 'true',
+        'Accept': 'application/json',
+      };
+      
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(fullUrl, {
         method: 'POST',
         body: formData,
-        headers: {
-          'Authorization': authHeader,
-          'ngrok-skip-browser-warning': 'true',
-          // Don't set Content-Type for FormData
-        },
+        headers: requestHeaders,
+        signal: controller.signal,
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Upload failed:', response.status, errorText);
-        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+      clearTimeout(timeoutId);
+      
+      let result;
+      let errorText = '';
+      
+      try {
+        const responseText = await response.text();
+        if (responseText) {
+          try {
+            result = JSON.parse(responseText);
+          } catch (parseError) {
+            errorText = responseText;
+          }
+        }
+      } catch (textError) {
+        errorText = 'Failed to read response';
       }
       
-      const result = await response.json();
-      console.log('Upload success for ticket:', ticketId, result);
+      if (!response.ok) {
+        const errorDetails = {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText || 'No error text',
+          resultMessage: result?.message || 'No result message',
+          fileSize: fileSize,
+          fileName: fileName
+        };
+        console.error('Upload failed - Server Response:', errorDetails);
+        throw new Error(`Upload failed: ${response.status} - ${errorText || result?.message || response.statusText}`);
+      }
       
-      onUploadSuccess(selectedFile.name || 'file', fileType);
-      handleClose();
+      if (result) {
+        // Use the actual filename that will be saved on server
+        const actualFileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
+        
+        // Get attachment ID from upload response
+        const attachmentId = result.data?.attachments?.[0]?.attachment_id || result.data?.attachment_id;
+        
+        // Get download URL for later use in chat
+        let downloadUrl = null;
+        if (attachmentId) {
+          try {
+            const attachmentEndpoint = `/v1/attachments/${attachmentId}`;
+            const attachmentResponse = await fetch(`${API_BASE}${attachmentEndpoint}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': authHeader,
+                'ngrok-skip-browser-warning': 'true',
+                'Accept': 'application/json',
+              },
+            });
+            
+            if (attachmentResponse.ok) {
+              const attachmentData = await attachmentResponse.json();
+              downloadUrl = attachmentData.data?.download_url;
+            }
+          } catch (error) {
+            // Failed to get download URL, continue without it
+          }
+        }
+        
+        onUploadSuccess(actualFileName, fileType, downloadUrl);
+        handleClose();
+      } else {
+        throw new Error('No response data received from server');
+      }
       
     } catch (error: any) {
-      console.log('Upload error for ticket:', ticketId, error);
-      Alert.alert('Error', error.message || 'Terjadi kesalahan saat upload');
+      let errorMessage = 'Terjadi kesalahan saat upload';
+      
+      if (error.name === 'AbortError') {
+        errorMessage = 'Upload timeout. Silakan coba lagi.';
+      } else if (error.message?.includes('413')) {
+        errorMessage = 'File terlalu besar untuk server. Maksimal 2MB.';
+      } else if (error.message?.includes('Network request failed')) {
+        errorMessage = 'Koneksi internet bermasalah. Silakan cek koneksi Anda.';
+      } else if (error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Tidak dapat terhubung ke server. Silakan coba lagi.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error Upload', errorMessage);
     } finally {
       setUploading(false);
     }
@@ -144,6 +272,67 @@ export default function UploadModal({
     setSelectedFile(null);
     setFileType(null);
     onClose();
+  };
+
+  const handleViewFile = (file: any) => {
+    const isImage = file.file_type.startsWith('image/');
+    const fileUrl = `${API_BASE}${file.file_path}`;
+    
+    Alert.alert(
+      isImage ? 'Preview Gambar' : 'File Dokumen',
+      `Nama: ${file.file_name}\nUkuran: ${formatFileSize(file.file_size)}\nDiupload: ${formatUploadTime(file.upload_time)}\n\nURL: ${fileUrl}`,
+      [
+        { text: 'Tutup', style: 'cancel' },
+        { 
+          text: 'Buka File', 
+          onPress: async () => {
+            try {
+              const supported = await Linking.canOpenURL(fileUrl);
+              if (supported) {
+                await Linking.openURL(fileUrl);
+              } else {
+                Alert.alert('Error', 'Tidak dapat membuka file ini');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Gagal membuka file');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteFile = async (attachmentId: number) => {
+    Alert.alert(
+      'Hapus File',
+      'Apakah Anda yakin ingin menghapus file ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: () => onDeleteFile?.(attachmentId)
+        }
+      ]
+    );
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatUploadTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -161,8 +350,61 @@ export default function UploadModal({
             </TouchableOpacity>
           </View>
           
+          {/* Existing Files */}
+          {existingFiles && existingFiles.length > 0 && (
+            <View style={styles.existingFilesContainer}>
+              <Text style={styles.existingFilesTitle}>File yang sudah dikirim ({existingFiles.length}):</Text>
+              {existingFiles.map((file) => (
+                <View key={file.attachment_id} style={styles.existingFileItem}>
+                  <View style={styles.fileInfo}>
+                    <MaterialIcons 
+                      name={file.file_type.startsWith('image/') ? 'image' : 'description'} 
+                      size={20} 
+                      color="#52B5AB" 
+                    />
+                    <View style={styles.fileDetails}>
+                      <Text style={styles.existingFileName} numberOfLines={1}>{file.file_name}</Text>
+                      <Text style={styles.fileMetadata}>
+                        {formatFileSize(file.file_size)} • {formatUploadTime(file.upload_time)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.fileActions}>
+                    <TouchableOpacity 
+                      onPress={() => handleViewFile(file)}
+                      style={styles.viewButton}
+                    >
+                      <MaterialIcons name="visibility" size={16} color="#52B5AB" />
+                    </TouchableOpacity>
+                    {onDeleteFile && (
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteFile(file.attachment_id)}
+                        style={styles.deleteButton}
+                      >
+                        <MaterialIcons name="delete" size={16} color="#FF4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+          
+          {/* No files message */}
+          {existingFiles && existingFiles.length === 0 && (
+            <View style={styles.noFilesContainer}>
+              <MaterialIcons name="attach-file" size={32} color="#CCC" />
+              <Text style={styles.noFilesText}>Belum ada file yang dikirim</Text>
+            </View>
+          )}
+
           {!selectedFile ? (
             <>
+              <View style={styles.fileLimitInfo}>
+                <MaterialIcons name="info" size={16} color="#666" />
+                <Text style={styles.fileLimitText}>Maksimal ukuran file: 2MB</Text>
+              </View>
+              
               <TouchableOpacity style={styles.uploadOption} onPress={handleImageSelect}>
                 <MaterialIcons name="photo" size={24} color="#52B5AB" />
                 <Text style={styles.uploadOptionText}>Upload Gambar</Text>
@@ -182,6 +424,11 @@ export default function UploadModal({
                   <MaterialIcons name="description" size={48} color="#52B5AB" />
                 )}
                 <Text style={styles.fileName}>{selectedFile.name}</Text>
+                {(selectedFile.size || selectedFile.fileSize) && (
+                  <Text style={styles.fileSize}>
+                    Ukuran: {formatFileSize(selectedFile.size || selectedFile.fileSize || 0)}
+                  </Text>
+                )}
               </View>
               
               <View style={styles.buttonContainer}>
@@ -276,6 +523,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Poppins",
   },
+  fileSize: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    fontFamily: "Poppins",
+    marginTop: 4,
+  },
   buttonContainer: {
     flexDirection: "row",
     gap: 12,
@@ -308,6 +562,90 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#FFF",
+    fontFamily: "Poppins",
+  },
+  existingFilesContainer: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: "#F9F9F9",
+    borderRadius: 10,
+  },
+  existingFilesTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 12,
+    fontFamily: "Poppins",
+  },
+  existingFileItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  fileInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  fileDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  existingFileName: {
+    fontSize: 14,
+    color: "#333",
+    fontFamily: "Poppins",
+  },
+  fileMetadata: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+    fontFamily: "Poppins",
+  },
+  fileActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  viewButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "#E8F5E8",
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "#FFE5E5",
+  },
+  noFilesContainer: {
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#F9F9F9",
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  noFilesText: {
+    fontSize: 14,
+    color: "#999",
+    marginTop: 8,
+    fontFamily: "Poppins",
+  },
+  fileLimitInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#F0F8FF",
+    borderRadius: 8,
+    gap: 6,
+  },
+  fileLimitText: {
+    fontSize: 12,
+    color: "#666",
     fontFamily: "Poppins",
   },
 });

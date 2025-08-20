@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
 
 export type CustomerStatus = {
@@ -71,33 +72,51 @@ export function useTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<number>(0);
+  const [isFetching, setIsFetching] = useState(false);
   const { user, isAuthenticated } = useAuth();
 
-  const fetchTickets = useCallback(async () => {
+  const fetchTickets = useCallback(async (force = false) => {
     if (!isAuthenticated) {
       setError("User not authenticated");
       return;
     }
 
+    // Prevent concurrent requests
+    if (isFetching) {
+      return;
+    }
+
+    // Debounce: prevent multiple calls within 5 seconds
+    const now = Date.now();
+    if (!force && now - lastFetch < 5000) {
+      return;
+    }
+
+    setIsFetching(true);
     setIsLoading(true);
     setError(null);
+    setLastFetch(now);
 
     try {
-      // Fetch fresh data dari API
-      const response = await api<TicketsResponse>(TICKETS_PATH);
-      
+      // Single request with reasonable limit instead of pagination loop
+      const response = await api<TicketsResponse>(
+        `${TICKETS_PATH}?limit=50&offset=0`
+      );
+
       if (response.success && response.data) {
         setTickets(response.data);
+        setLastFetch(Date.now());
       } else {
         setTickets([]);
       }
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to fetch tickets";
       setError(errorMessage);
-      console.error("Error fetching tickets:", error);
       setTickets([]);
     } finally {
       setIsLoading(false);
+      setIsFetching(false);
     }
   }, [isAuthenticated]);
 
@@ -105,12 +124,12 @@ export function useTickets() {
     fetchTickets();
   }, [fetchTickets]);
 
-
+  // Remove auto-refresh on focus and interval to prevent excessive requests
 
   return {
     tickets,
     isLoading,
     error,
-    refetch: fetchTickets,
+    refetch: () => fetchTickets(true),
   };
 }

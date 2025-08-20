@@ -77,58 +77,83 @@ const agen46Services = [
 const agenData = [
   {
     id: '1',
-    nama: 'Agen46 - Toko Berkah Jaya',
-    alamat: 'Jl. Jend. Sudirman No. 45, Jakarta Pusat',
-    telepon: '(021) 5551234',
-    jamBuka: '08:00 - 20:00',
-    layanan: ['Laku Pandai', 'E-Payment', 'Bayar Tagihan', 'Top Up Pulsa', 'Uang Elektronik'],
-    jarak: '0.8 km',
-    rating: 4.5,
-    kodeAgen: 'AG001234',
+    nama: 'Indomaret Sudirman',
+    alamat: 'Jl. Jend. Sudirman Kav. 45-46, Jakarta Pusat 10210',
+    telepon: '(021) 5140046',
+    jamBuka: '24 Jam',
+    layanan: ['Laku Pandai', 'Setor Tunai', 'Tarik Tunai', 'Transfer', 'Bayar Tagihan'],
+    jarak: '0.5 km',
+    rating: 4.6,
   },
   {
     id: '2',
-    nama: 'Agen46 - Warung Maju Bersama',
-    alamat: 'Jl. Kebon Sirih No. 12, Jakarta Pusat',
-    telepon: '(021) 5552345',
-    jamBuka: '07:00 - 21:00',
-    layanan: ['Laku Pandai', 'Transfer', 'Bayar Tagihan', 'Token Listrik'],
-    jarak: '1.2 km',
-    rating: 4.2,
-    kodeAgen: 'AG001235',
+    nama: 'Alfamart Thamrin Plaza',
+    alamat: 'Jl. M.H. Thamrin No. 28-30, Jakarta Pusat 10350',
+    telepon: '(021) 3983046',
+    jamBuka: '24 Jam',
+    layanan: ['Laku Pandai', 'E-Payment', 'Top Up Pulsa', 'Token Listrik', 'BPJS'],
+    jarak: '0.8 km',
+    rating: 4.4,
   },
   {
     id: '3',
-    nama: 'Agen46 - Apotek Sehat Sentosa',
-    alamat: 'Jl. M.H. Thamrin No. 28, Jakarta Pusat',
-    telepon: '(021) 5553456',
+    nama: 'Apotek Kimia Farma Menteng',
+    alamat: 'Jl. Menteng Raya No. 25, Jakarta Pusat 10340',
+    telepon: '(021) 3190046',
     jamBuka: '08:00 - 22:00',
-    layanan: ['Laku Pandai', 'E-Payment', 'BPJS Kesehatan', 'Top Up Pulsa', 'Referral'],
-    jarak: '1.5 km',
-    rating: 4.7,
-    kodeAgen: 'AG001236',
+    layanan: ['Laku Pandai', 'Bayar Tagihan', 'BPJS Kesehatan', 'Asuransi'],
+    jarak: '1.2 km',
+    rating: 4.5,
   },
   {
     id: '4',
-    nama: 'Agen46 - Minimarket Sumber Rejeki',
-    alamat: 'Jl. Menteng Raya No. 67, Jakarta Pusat',
-    telepon: '(021) 5554567',
-    jamBuka: '06:00 - 23:00',
-    layanan: ['Laku Pandai', 'E-Payment', 'Bayar Tagihan', 'Uang Elektronik', 'Multifinance'],
-    jarak: '2.1 km',
-    rating: 4.3,
-    kodeAgen: 'AG001237',
+    nama: 'Toko Serba Ada Cikini',
+    alamat: 'Jl. Cikini Raya No. 15, Jakarta Pusat 10330',
+    telepon: '(021) 3154046',
+    jamBuka: '07:00 - 21:00',
+    layanan: ['Setor Tunai', 'Tarik Tunai', 'Transfer', 'Top Up Pulsa'],
+    jarak: '1.5 km',
+    rating: 4.2,
   },
   {
     id: '5',
-    nama: 'Agen46 - Toko Elektronik Mitra',
-    alamat: 'Jl. Cikini Raya No. 89, Jakarta Pusat',
-    telepon: '(021) 5555678',
-    jamBuka: '09:00 - 21:00',
-    layanan: ['Transfer', 'Bayar Tagihan', 'Token Listrik', 'Top Up Pulsa'],
-    jarak: '2.8 km',
+    nama: 'Warung Berkah Kebon Sirih',
+    alamat: 'Jl. Kebon Sirih Timur No. 8, Jakarta Pusat 10340',
+    telepon: '(021) 3901046',
+    jamBuka: '06:00 - 22:00',
+    layanan: ['Laku Pandai', 'Bayar Tagihan', 'Token Listrik', 'Multifinance'],
+    jarak: '1.8 km',
+    rating: 4.3,
+  },
+  {
+    id: '6',
+    nama: 'Indomaret Sarinah',
+    alamat: 'Jl. M.H. Thamrin No. 11, Jakarta Pusat 10350',
+    telepon: '(021) 3142046',
+    jamBuka: '24 Jam',
+    layanan: ['Laku Pandai', 'E-Payment', 'Uang Elektronik', 'Transfer'],
+    jarak: '2.1 km',
+    rating: 4.7,
+  },
+  {
+    id: '7',
+    nama: 'Alfamidi Gondangdia',
+    alamat: 'Jl. Gondangdia Lama No. 2, Jakarta Pusat 10350',
+    telepon: '(021) 3904046',
+    jamBuka: '06:00 - 24:00',
+    layanan: ['Setor Tunai', 'Bayar Tagihan', 'Top Up Pulsa', 'BPJS'],
+    jarak: '2.3 km',
     rating: 4.1,
-    kodeAgen: 'AG001238',
+  },
+  {
+    id: '8',
+    nama: 'Toko Elektronik Mega',
+    alamat: 'Jl. Sabang No. 45, Jakarta Pusat 10160',
+    telepon: '(021) 3157046',
+    jamBuka: '09:00 - 20:00',
+    layanan: ['Transfer', 'Token Listrik', 'Top Up Pulsa', 'Bayar Tagihan'],
+    jarak: '2.5 km',
+    rating: 4.0,
   },
 ];
 
@@ -141,7 +166,6 @@ interface AgenItem {
   layanan: string[];
   jarak: string;
   rating: number;
-  kodeAgen: string;
 }
 
 export default function AgentScreen() {
@@ -191,9 +215,7 @@ export default function AgentScreen() {
             </View>
           </View>
         </View>
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{item.kodeAgen}</Text>
-        </View>
+
       </View>
       
       <View style={styles.cardContent}>
@@ -211,17 +233,7 @@ export default function AgentScreen() {
           <Ionicons name="time" size={16} color="#FF6600" />
           <Text style={styles.infoText}>{item.jamBuka}</Text>
         </View>
-        
-        <View style={styles.layananContainer}>
-          <Text style={styles.layananLabel}>Layanan:</Text>
-          <View style={styles.layananList}>
-            {item.layanan.map((layanan, index) => (
-              <View key={index} style={styles.layananBadge}>
-                <Text style={styles.layananText}>{layanan}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+
       </View>
     </TouchableOpacity>
   );

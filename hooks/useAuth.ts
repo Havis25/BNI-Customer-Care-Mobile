@@ -1,8 +1,8 @@
+import { api } from "@/lib/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
-import { api } from "@/lib/api";
 import { useTokenManager } from "./useTokenManager";
 
 type Customer = {
@@ -31,10 +31,10 @@ const LOGIN_PATH = "/v1/auth/login/customer";
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<Customer | null>(null);
+  const [isLoginInProgress, setIsLoginInProgress] = useState(false);
   const { token, saveTokens, clearTokens, getValidToken } = useTokenManager();
   const isAuthenticated = !!token;
 
-  // load sesi awal
   useEffect(() => {
     (async () => {
       try {
@@ -57,7 +57,13 @@ export function useAuth() {
       return;
     }
 
+    if (isLoginInProgress) {
+      return;
+    }
+
+    setIsLoginInProgress(true);
     setIsLoading(true);
+
     try {
       const res = await api<LoginResponse>(LOGIN_PATH, {
         method: "POST",
@@ -68,20 +74,24 @@ export function useAuth() {
         throw new Error(res?.message || "Login gagal");
       }
 
-      // Simpan tokens ke secure storage
       await saveTokens(res.access_token, res.refresh_token);
-      
-      // Fetch user data lengkap dengan /v1/auth/me
+
       const userDetail = await api("/v1/auth/me", {
-        headers: {
-          Authorization: res.access_token,
-        },
+        headers: { Authorization: res.access_token },
       });
 
-      const fullUserData = {
-        ...userDetail.data,
-        customer_id: userDetail.data.id,
-      };
+      const fullUserData = { ...userDetail.data, customer_id: userDetail.data.id };
+
+      // Clear any existing session data before setting new user data
+      const allKeys = await AsyncStorage.getAllKeys();
+      const sessionKeys = allKeys.filter(key => 
+        key.includes('currentTicketId') || 
+        key.includes('msgs:') ||
+        key.includes('shouldRefresh')
+      );
+      if (sessionKeys.length > 0) {
+        await AsyncStorage.multiRemove(sessionKeys);
+      }
 
       await AsyncStorage.multiSet([
         ["customer", JSON.stringify(fullUserData)],
@@ -89,24 +99,35 @@ export function useAuth() {
       ]);
 
       setUser(fullUserData);
-
       router.replace("/(tabs)");
     } catch (error: any) {
       const msg =
         typeof error?.message === "string" &&
-        (error.message.includes("401") ||
-          /unauthorized|invalid/i.test(error.message))
+        (error.message.includes("401") || /unauthorized|invalid/i.test(error.message))
           ? "Email atau password salah"
           : "Gagal login. Periksa koneksi atau coba lagi.";
       Alert.alert("Error", msg);
     } finally {
       setIsLoading(false);
+      setIsLoginInProgress(false);
     }
-  }, []);
+  }, [isLoginInProgress]);
 
   const logout = useCallback(async () => {
     try {
       await clearTokens();
+      // Clear all user-related storage
+      const allKeys = await AsyncStorage.getAllKeys();
+      const userKeys = allKeys.filter(key => 
+        key.includes('customer') || 
+        key.includes('ticket') || 
+        key.includes('msgs:') ||
+        key.includes('currentTicketId') ||
+        key.includes('shouldRefresh')
+      );
+      if (userKeys.length > 0) {
+        await AsyncStorage.multiRemove(userKeys);
+      }
       await AsyncStorage.multiRemove(["customer", "isLoggedIn"]);
       setUser(null);
       router.replace("/login");
