@@ -1,13 +1,11 @@
 import BottomSheet from "@/components/modals/BottomSheet";
-import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
 import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
-import { api } from "@/lib/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActionSheetIOS,
   Alert,
@@ -582,3 +580,4 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins",
   },
 });
+
