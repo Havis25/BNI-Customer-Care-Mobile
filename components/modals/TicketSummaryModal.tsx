@@ -11,9 +11,18 @@ import {
 type TicketSummaryModalProps = {
   visible: boolean;
   onClose: () => void;
+  ticketData?: {
+    ticketNumber?: string;
+    accountNumber?: string;
+    channelName?: string;
+    categoryName?: string;
+    description?: string;
+    status?: string;
+    createdDate?: string;
+  };
 };
 
-export default function TicketSummaryModal({ visible, onClose }: TicketSummaryModalProps) {
+export default function TicketSummaryModal({ visible, onClose, ticketData }: TicketSummaryModalProps) {
   return (
     <Modal
       visible={visible}
@@ -28,20 +37,34 @@ export default function TicketSummaryModal({ visible, onClose }: TicketSummaryMo
           <View style={styles.ticketSummary}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Nomor Tiket:</Text>
-              <Text style={styles.summaryValue}>#TKT{Date.now().toString().slice(-6)}</Text>
+              <Text style={styles.summaryValue}>{ticketData?.ticketNumber || `#TKT${Date.now().toString().slice(-6)}`}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>No Rekening:</Text>
+              <Text style={styles.summaryValue}>{ticketData?.accountNumber || '-'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Channel:</Text>
+              <Text style={styles.summaryValue}>{ticketData?.channelName || '-'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Category:</Text>
+              <Text style={styles.summaryValue}>{ticketData?.categoryName || '-'}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Status:</Text>
-              <Text style={[styles.summaryValue, styles.statusPending]}>Menunggu Validasi</Text>
+              <Text style={[styles.summaryValue, styles.statusPending]}>{ticketData?.status || 'Menunggu Validasi'}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Tanggal:</Text>
-              <Text style={styles.summaryValue}>{new Date().toLocaleDateString('id-ID')}</Text>
+              <Text style={styles.summaryValue}>{ticketData?.createdDate || new Date().toLocaleDateString('id-ID')}</Text>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Waktu:</Text>
-              <Text style={styles.summaryValue}>{new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</Text>
-            </View>
+            {ticketData?.description && (
+              <View style={styles.descriptionContainer}>
+                <Text style={styles.summaryLabel}>Deskripsi:</Text>
+                <Text style={styles.descriptionText}>{ticketData.description}</Text>
+              </View>
+            )}
           </View>
 
           <TouchableOpacity
@@ -118,5 +141,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     fontFamily: "Poppins",
+  },
+  descriptionContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: "#333",
+    fontFamily: "Poppins",
+    marginTop: 4,
+    lineHeight: 20,
   },
 });

@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api } from "@/lib/api";
+import { api, API_BASE } from "@/lib/api";
 
 interface UploadModalProps {
   visible: boolean;
@@ -53,7 +53,13 @@ export default function UploadModal({
       });
       
       if (!result.canceled && result.assets[0]) {
-        setSelectedFile(result.assets[0]);
+        const file = result.assets[0];
+        // For images, use fileSize property instead of size
+        const fileWithSize = {
+          ...file,
+          size: file.fileSize || file.size
+        };
+        setSelectedFile(fileWithSize);
         setFileType('image');
       }
     } catch (error) {
@@ -86,20 +92,51 @@ export default function UploadModal({
       return;
     }
     
+    // Validate file size (max 2MB - sesuai batasan server)
+    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    const fileSize = selectedFile.size || selectedFile.fileSize || 0;
+    
+    if (fileSize > maxSize) {
+      Alert.alert(
+        'File Terlalu Besar', 
+        `Ukuran file maksimal 2MB. File Anda berukuran ${formatFileSize(fileSize)}.`
+      );
+      return;
+    }
+    
+    if (fileSize === 0) {
+      Alert.alert(
+        'Error', 
+        'Tidak dapat mendeteksi ukuran file. Silakan coba file lain.'
+      );
+      return;
+    }
+    
     setUploading(true);
     
     try {
       const formData = new FormData();
       
-      // Append file with proper format
-      formData.append('file', {
+      // Determine proper MIME type
+      let mimeType = selectedFile.mimeType || 'application/octet-stream';
+      if (fileType === 'image' && !mimeType.startsWith('image/')) {
+        mimeType = 'image/jpeg';
+      }
+      
+      const fileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
+      
+      // Append file with proper format for React Native
+      const fileObject = {
         uri: selectedFile.uri,
-        type: fileType === 'image' ? 'image/jpeg' : (selectedFile.mimeType || 'application/octet-stream'),
-        name: selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf'),
-      } as any);
+        type: mimeType,
+        name: fileName,
+      };
+      
+      formData.append('file', fileObject as any);
       
       // Use ticket attachment endpoint
       const endpoint = `/v1/tickets/${ticketId}/attachments`;
+      const fullUrl = `${API_BASE}${endpoint}`;
       
       // Get authorization token from SecureStore
       const token = await SecureStore.getItemAsync('access_token');
@@ -111,56 +148,106 @@ export default function UploadModal({
       const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
       
       // Use fetch directly for FormData with authorization
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}${endpoint}`, {
+      const requestHeaders = {
+        'Authorization': authHeader,
+        'ngrok-skip-browser-warning': 'true',
+        'Accept': 'application/json',
+      };
+      
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(fullUrl, {
         method: 'POST',
         body: formData,
-        headers: {
-          'Authorization': authHeader,
-          'ngrok-skip-browser-warning': 'true',
-          // Don't set Content-Type for FormData
-        },
+        headers: requestHeaders,
+        signal: controller.signal,
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
-      }
+      clearTimeout(timeoutId);
       
-      const result = await response.json();
+      let result;
+      let errorText = '';
       
-      // Use the actual filename that will be saved on server
-      const actualFileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
-      
-      // Get attachment ID from upload response
-      const attachmentId = result.data?.attachments?.[0]?.attachment_id;
-      
-      // Get download URL for later use in chat
-      let downloadUrl = null;
-      if (attachmentId) {
-        try {
-          const attachmentEndpoint = `/v1/attachments/${attachmentId}`;
-          const attachmentResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}${attachmentEndpoint}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': authHeader,
-              'ngrok-skip-browser-warning': 'true',
-            },
-          });
-          
-          if (attachmentResponse.ok) {
-            const attachmentData = await attachmentResponse.json();
-            downloadUrl = attachmentData.data?.download_url;
+      try {
+        const responseText = await response.text();
+        if (responseText) {
+          try {
+            result = JSON.parse(responseText);
+          } catch (parseError) {
+            errorText = responseText;
           }
-        } catch (error) {
-          // Failed to get download URL, continue without it
         }
+      } catch (textError) {
+        errorText = 'Failed to read response';
       }
       
-      onUploadSuccess(actualFileName, fileType, downloadUrl);
-      handleClose();
+      if (!response.ok) {
+        const errorDetails = {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText || 'No error text',
+          resultMessage: result?.message || 'No result message',
+          fileSize: fileSize,
+          fileName: fileName
+        };
+        console.error('Upload failed - Server Response:', errorDetails);
+        throw new Error(`Upload failed: ${response.status} - ${errorText || result?.message || response.statusText}`);
+      }
+      
+      if (result) {
+        // Use the actual filename that will be saved on server
+        const actualFileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
+        
+        // Get attachment ID from upload response
+        const attachmentId = result.data?.attachments?.[0]?.attachment_id || result.data?.attachment_id;
+        
+        // Get download URL for later use in chat
+        let downloadUrl = null;
+        if (attachmentId) {
+          try {
+            const attachmentEndpoint = `/v1/attachments/${attachmentId}`;
+            const attachmentResponse = await fetch(`${API_BASE}${attachmentEndpoint}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': authHeader,
+                'ngrok-skip-browser-warning': 'true',
+                'Accept': 'application/json',
+              },
+            });
+            
+            if (attachmentResponse.ok) {
+              const attachmentData = await attachmentResponse.json();
+              downloadUrl = attachmentData.data?.download_url;
+            }
+          } catch (error) {
+            // Failed to get download URL, continue without it
+          }
+        }
+        
+        onUploadSuccess(actualFileName, fileType, downloadUrl);
+        handleClose();
+      } else {
+        throw new Error('No response data received from server');
+      }
       
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Terjadi kesalahan saat upload');
+      let errorMessage = 'Terjadi kesalahan saat upload';
+      
+      if (error.name === 'AbortError') {
+        errorMessage = 'Upload timeout. Silakan coba lagi.';
+      } else if (error.message?.includes('413')) {
+        errorMessage = 'File terlalu besar untuk server. Maksimal 2MB.';
+      } else if (error.message?.includes('Network request failed')) {
+        errorMessage = 'Koneksi internet bermasalah. Silakan cek koneksi Anda.';
+      } else if (error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Tidak dapat terhubung ke server. Silakan coba lagi.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error Upload', errorMessage);
     } finally {
       setUploading(false);
     }
@@ -174,7 +261,7 @@ export default function UploadModal({
 
   const handleViewFile = (file: any) => {
     const isImage = file.file_type.startsWith('image/');
-    const fileUrl = `${process.env.EXPO_PUBLIC_API_URL}${file.file_path}`;
+    const fileUrl = `${API_BASE}${file.file_path}`;
     
     Alert.alert(
       isImage ? 'Preview Gambar' : 'File Dokumen',
@@ -298,6 +385,11 @@ export default function UploadModal({
 
           {!selectedFile ? (
             <>
+              <View style={styles.fileLimitInfo}>
+                <MaterialIcons name="info" size={16} color="#666" />
+                <Text style={styles.fileLimitText}>Maksimal ukuran file: 2MB</Text>
+              </View>
+              
               <TouchableOpacity style={styles.uploadOption} onPress={handleImageSelect}>
                 <MaterialIcons name="photo" size={24} color="#52B5AB" />
                 <Text style={styles.uploadOptionText}>Upload Gambar</Text>
@@ -317,6 +409,11 @@ export default function UploadModal({
                   <MaterialIcons name="description" size={48} color="#52B5AB" />
                 )}
                 <Text style={styles.fileName}>{selectedFile.name}</Text>
+                {(selectedFile.size || selectedFile.fileSize) && (
+                  <Text style={styles.fileSize}>
+                    Ukuran: {formatFileSize(selectedFile.size || selectedFile.fileSize || 0)}
+                  </Text>
+                )}
               </View>
               
               <View style={styles.buttonContainer}>
@@ -410,6 +507,13 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     fontFamily: "Poppins",
+  },
+  fileSize: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    fontFamily: "Poppins",
+    marginTop: 4,
   },
   buttonContainer: {
     flexDirection: "row",
@@ -511,6 +615,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
     marginTop: 8,
+    fontFamily: "Poppins",
+  },
+  fileLimitInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#F0F8FF",
+    borderRadius: 8,
+    gap: 6,
+  },
+  fileLimitText: {
+    fontSize: 12,
+    color: "#666",
     fontFamily: "Poppins",
   },
 });
