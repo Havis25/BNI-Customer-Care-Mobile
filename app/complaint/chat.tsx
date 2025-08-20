@@ -1035,15 +1035,7 @@ export default function ChatScreen() {
         <TicketSummaryModal
           visible={showTicketModal}
           onClose={() => setShowTicketModal(false)}
-          ticketData={{
-            ticketNumber: currentTicketId ? `#${currentTicketId}` : undefined,
-            accountNumber: user?.selectedAccount?.account_number?.toString(),
-            channelName: 'Live Chat',
-            categoryName: 'Customer Support',
-            description: 'Chat dengan agent customer service',
-            status: 'Aktif',
-            createdDate: new Date().toLocaleDateString('id-ID')
-          }}
+          ticketId={currentTicketId || undefined}
         />
 
         <BottomSheet
