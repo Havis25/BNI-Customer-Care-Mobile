@@ -26,8 +26,8 @@ export function useTicketAttachments() {
   const { isAuthenticated } = useAuth();
 
   const fetchAttachments = useCallback(async (ticketId: string | number) => {
-    if (!isAuthenticated) {
-      setError('User not authenticated');
+    if (!isAuthenticated || !ticketId) {
+      setAttachments([]);
       return;
     }
 
@@ -45,9 +45,13 @@ export function useTicketAttachments() {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(errorMessage);
       setAttachments([]);
-      console.error('Error fetching attachments:', err);
+      
+      // Don't show error for 404 ticket not found - it's expected for new tickets
+      if (!errorMessage.includes('404') && !errorMessage.includes('Ticket not found')) {
+        setError(errorMessage);
+        console.error('Error fetching attachments:', err);
+      }
     } finally {
       setIsLoading(false);
     }

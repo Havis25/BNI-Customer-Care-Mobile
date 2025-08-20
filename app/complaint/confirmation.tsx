@@ -1,6 +1,8 @@
 import BottomSheet from "@/components/modals/BottomSheet";
+import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
 import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
+import { api } from "@/lib/api";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
