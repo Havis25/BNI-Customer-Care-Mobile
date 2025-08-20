@@ -47,7 +47,7 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
       setComment("");
       onSuccess?.();
       onClose();
-      router.push("/feedbacksuccess");
+      router.push("/feedbackSuccess");
     } else {
       Alert.alert("Error", "Gagal mengirim feedback. Silakan coba lagi.");
     }
