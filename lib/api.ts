@@ -1,9 +1,20 @@
 // lib/api.ts
 import * as SecureStore from "expo-secure-store";
 
-export const API_BASE = (
-  process.env.EXPO_PUBLIC_API_URL || "https://275232686ea9.ngrok-free.app"
-).replace(/\/+$/, "");
+// Get API base URL from environment or fallback
+const getApiBase = () => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  const fallbackUrl = "https://bcare.my.id";
+  const baseUrl = envUrl || fallbackUrl;
+  const cleanUrl = baseUrl.replace(/\/+$/, "");
+  
+  console.log('Environment EXPO_PUBLIC_API_URL:', envUrl);
+  console.log('Using API_BASE:', cleanUrl);
+  
+  return cleanUrl;
+};
+
+export const API_BASE = getApiBase();
 
 type JSONValue = any;
 

@@ -3,15 +3,13 @@ import CallModal from "@/components/modals/CallModal";
 import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
 import UploadModal from "@/components/modals/UploadModal";
 import { useAuth } from "@/hooks/useAuth";
-import { useUser } from "@/hooks/useUser";
 import { useTicketAttachments } from "@/hooks/useTicketAttachments";
+import { useUser } from "@/hooks/useUser";
 import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import * as SecureStore from 'expo-secure-store';
 import { router, useLocalSearchParams } from "expo-router";
-import * as WebBrowser from 'expo-web-browser';
 import React, {
   useCallback,
   useEffect,
@@ -158,13 +156,13 @@ export default function ChatScreen() {
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const messageIdRef = useRef(1000);
-  
+
   // Attachment management
-  const { 
-    attachments, 
-    isLoading: attachmentsLoading, 
-    fetchAttachments, 
-    deleteAttachment 
+  const {
+    attachments,
+    isLoading: attachmentsLoading,
+    fetchAttachments,
+    deleteAttachment,
   } = useTicketAttachments();
 
   const getUniqueId = () => {
@@ -207,7 +205,9 @@ export default function ChatScreen() {
   ) => {
     const message = {
       id: getUniqueId(),
-      text: `File berhasil dikirim ke tiket #${currentTicketId?.slice(-6) || 'unknown'}`,
+      text: `File berhasil dikirim ke tiket #${
+        currentTicketId?.slice(-6) || "unknown"
+      }`,
       isBot: false,
       timestamp: new Date().toLocaleTimeString("id-ID", {
         hour: "2-digit",
@@ -219,9 +219,7 @@ export default function ChatScreen() {
       downloadUrl,
     };
     setMessages((prev) => [...prev, message]);
-    
 
-    
     // Refresh attachments after successful upload
     if (currentTicketId) {
       setTimeout(() => {
@@ -232,7 +230,7 @@ export default function ChatScreen() {
 
   const handleDeleteFile = async (attachmentId: number) => {
     if (!currentTicketId) return;
-    
+
     const success = await deleteAttachment(currentTicketId, attachmentId);
     if (success) {
       // Add message to chat about file deletion
@@ -253,13 +251,15 @@ export default function ChatScreen() {
     const initializeTicket = async () => {
       if (fromConfirmation === "true") {
         // Try to get ticket ID from URL params first
-        if (ticketId && typeof ticketId === 'string') {
+        if (ticketId && typeof ticketId === "string") {
           setCurrentTicketId(ticketId);
-          await AsyncStorage.setItem('currentTicketId', ticketId);
+          await AsyncStorage.setItem("currentTicketId", ticketId);
         } else {
           // Fallback to AsyncStorage
           try {
-            const storedTicketId = await AsyncStorage.getItem('currentTicketId');
+            const storedTicketId = await AsyncStorage.getItem(
+              "currentTicketId"
+            );
             if (storedTicketId) {
               setCurrentTicketId(storedTicketId);
             }
@@ -267,7 +267,7 @@ export default function ChatScreen() {
             // Error reading from storage
           }
         }
-        
+
         const ticketCreatedMessage = {
           id: getUniqueId(),
           text: "Terima kasih, tiket Anda telah berhasil dibuat!",
@@ -280,7 +280,9 @@ export default function ChatScreen() {
         };
         setMessages((prev) => {
           // Avoid duplicate messages
-          const exists = prev.find(m => m.hasTicketButton && m.text.includes('berhasil dibuat'));
+          const exists = prev.find(
+            (m) => m.hasTicketButton && m.text.includes("berhasil dibuat")
+          );
           if (exists) return prev;
           return [...prev, ticketCreatedMessage];
         });
@@ -299,16 +301,16 @@ export default function ChatScreen() {
           };
           setMessages((prev) => {
             // Avoid duplicate validation messages
-            const exists = prev.find(m => m.hasValidationButtons);
+            const exists = prev.find((m) => m.hasValidationButtons);
             if (exists) return prev;
             return [...prev, validationMessage];
           });
         }, 3000);
-        
+
         return () => clearTimeout(timeoutId);
       }
     };
-    
+
     initializeTicket();
   }, [fromConfirmation, ticketId]);
 
@@ -787,37 +789,39 @@ export default function ChatScreen() {
                   >
                     {message.text}
                   </Text>
-                  
+
                   {/* Show download button if it's a file message */}
                   {(message.isFile || message.isImage) && message.fileName && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.downloadButton}
                       onPress={async () => {
                         if (message.downloadUrl) {
                           try {
                             await Linking.openURL(message.downloadUrl);
                           } catch (error) {
-                            Alert.alert('Error', 'Gagal membuka download link');
+                            Alert.alert("Error", "Gagal membuka download link");
                           }
                         } else {
-                          Alert.alert('Info', 'Download link tidak tersedia');
+                          Alert.alert("Info", "Download link tidak tersedia");
                         }
                       }}
                     >
-                      <MaterialIcons 
-                        name="download" 
-                        size={16} 
-                        color={message.isBot ? "#52B5AB" : "#FFF"} 
+                      <MaterialIcons
+                        name="download"
+                        size={16}
+                        color={message.isBot ? "#52B5AB" : "#FFF"}
                       />
-                      <Text style={[
-                        styles.downloadButtonText,
-                        message.isBot ? styles.botText : styles.userText,
-                      ]}>
+                      <Text
+                        style={[
+                          styles.downloadButtonText,
+                          message.isBot ? styles.botText : styles.userText,
+                        ]}
+                      >
                         Download {message.fileName}
                       </Text>
                     </TouchableOpacity>
                   )}
-                  
+
                   <Text style={styles.timestamp}>{message.timestamp}</Text>
                 </View>
                 {/* Call icon only for bot messages when live chat is active */}
@@ -915,7 +919,7 @@ export default function ChatScreen() {
             onPress={() => {
               if (!currentTicketId) {
                 Alert.alert(
-                  "Tidak ada tiket aktif", 
+                  "Tidak ada tiket aktif",
                   "Silakan buat tiket terlebih dahulu untuk mengirim attachment."
                 );
                 return;
