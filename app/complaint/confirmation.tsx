@@ -1,6 +1,8 @@
 import BottomSheet from "@/components/modals/BottomSheet";
+import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
 import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
+import { api } from "@/lib/api";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
@@ -33,6 +35,7 @@ type TicketPayload = {
   description: string;
   issue_channel_id: number;
   complaint_id: number;
+  amount?: number;
 };
 
 
@@ -108,6 +111,7 @@ export default function ConfirmationScreen() {
   const [channel, setChannel] = useState<any>(null);
   const [category, setCategory] = useState<any>(null);
   const [description, setdescription] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
 
   // UI
   const [isChecked, setIsChecked] = useState(false);
@@ -119,6 +123,47 @@ export default function ConfirmationScreen() {
 
   // Get filtered categories based on selected channel
   const filteredCategories = getFilteredCategories(channel);
+  
+  // Categories that require amount field (transaction-related)
+  const transactionCategories = [
+    'PEMBAYARAN_KARTU_KREDIT_BNI',
+    'PEMBAYARAN_KARTU_KREDIT_BANK_LAIN',
+    'PEMBAYARAN_PLN_VIA_ATM_BANK_LAIN',
+    'PEMBAYARAN_SAMSAT',
+    'PEMBAYARAN_TELKOM_TELKOMSEL_INDOSAT_PROVIDER_LAINNYA',
+    'TOP_UP_DANA',
+    'TOP_UP_GOPAY',
+    'TOP_UP_OVO',
+    'TOP_UP_PULSA',
+    'TOP_UP_PULSA_VIA_ATM_BANK_LAIN',
+    'TOP_UP_SHOPEE_PAY',
+    'TOP_UP_LINKAJA',
+    'TOP_UP_E_MONEY',
+    'TRANSFER_ATM_ALTO_DANA_TDK_MASUK',
+    'TRANSFER_ATM_BERSAMA_DANA_TDK_MASUK',
+    'TRANSFER_ATM_LINK_DANA_TDK_MASUK',
+    'TRANSFER_ATM_PRIMA_DANA_TDK_MASUK',
+    'TRANSFER_ANTAR_REKENING_BNI',
+    'TRANSFER_ATM_ALTO_BILATERAL',
+    'TRANSFER_ATM_BERSAMA_BILATERAL',
+    'TRANSFER_ATM_ALTO_LINK_BILATERAL',
+    'TRANSFER_ATM_PRIMA_BILATERAL',
+    'BI_FAST_DANA_TIDAK_MASUK',
+    'BI_FAST_BILATERAL',
+    'MOBILE_TUNAI_ALFAMIDI',
+    'MOBILE_TUNAI_INDOMARET',
+    'MOBILE_TUNAI',
+    'MOBILE_TUNAI_ALFAMART',
+    'SETOR_TUNAI_DI_MESIN_ATM_CRM',
+    'TARIK_TUNAI_DI_MESIN_ATM_BNI',
+    'TARIK_TUNAI_DI_ATM_LINK',
+    'TARIK_TUNAI_DI_JARINGAN_ALTO',
+    'TARIK_TUNAI_DI_JARINGAN_BERSAMA',
+    'TARIK_TUNAI_DI_ATM_CIRRUS'
+  ];
+  
+  // Check if current category requires amount
+  const requiresAmount = category && transactionCategories.includes(category.complaint_code);
 
   // Update state when API data loads
   useEffect(() => {
@@ -130,6 +175,7 @@ export default function ConfirmationScreen() {
   useEffect(() => {
     if (categories.length > 0 && !category) {
       setCategory(categories[0]);
+      setAmount(''); // Reset amount when initial category is set
     }
   }, [categories]);
 
@@ -139,9 +185,15 @@ export default function ConfirmationScreen() {
       // If current category is not in filtered list, select first filtered category
       if (!filteredCategories.find(c => c.complaint_id === category?.complaint_id)) {
         setCategory(filteredCategories[0]);
+        setAmount(''); // Reset amount when category changes
       }
     }
   }, [channel, filteredCategories, category?.complaint_id]);
+  
+  // Reset amount when category changes
+  useEffect(() => {
+    setAmount('');
+  }, [category?.complaint_id]);
 
   const isValid =
     isChecked && 
@@ -152,12 +204,14 @@ export default function ConfirmationScreen() {
     channels.length > 0 && 
     filteredCategories.length > 0 &&
     channel?.channel_id &&
-    category?.complaint_id;
+    category?.complaint_id &&
+    (!requiresAmount || (requiresAmount && amount.trim() && parseInt(amount) > 0));
 
   const payload: TicketPayload = {
     description: description.trim(),
     issue_channel_id: channel?.channel_id || 0,
     complaint_id: category?.complaint_id || 0,
+    ...(requiresAmount && amount.trim() && { amount: parseInt(amount) }),
   };
 
   const handleSubmit = async () => {
@@ -337,6 +391,29 @@ export default function ConfirmationScreen() {
                     if (selectedCategory) setCategory(selectedCategory);
                   }}
                 />
+              )}
+
+              {/* Amount - only show for transaction categories */}
+              {requiresAmount && (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Nominal Transaksi</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={amount}
+                    onChangeText={(text) => {
+                      // Only allow numbers
+                      const numericText = text.replace(/[^0-9]/g, '');
+                      setAmount(numericText);
+                    }}
+                    placeholder="Masukkan nominal transaksi"
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                  />
+                  <Text style={styles.helper}>
+                    {amount && `Rp ${parseInt(amount).toLocaleString('id-ID')}`}
+                    {!amount && 'Masukkan nominal dalam Rupiah (contoh: 100000)'}
+                  </Text>
+                </View>
               )}
 
               {/* Deskripsi */}
