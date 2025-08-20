@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,61 +14,18 @@ import { Fonts } from "@/constants/Fonts";
 import { Ionicons } from "@expo/vector-icons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
+import { useFaq } from "@/hooks/useFaq";
 
-const faqData = [
-  {
-    id: 1,
-    question: "Bagaimana cara membuka rekening BNI?",
-    answer:
-      "Anda dapat membuka rekening BNI dengan datang langsung ke kantor cabang terdekat dengan membawa KTP, NPWP, dan setoran awal minimal sesuai jenis rekening yang dipilih.",
-  },
-  {
-    id: 2,
-    question: "Berapa biaya administrasi bulanan rekening tabungan?",
-    answer:
-      "Biaya administrasi bulanan bervariasi tergantung jenis rekening. BNI Taplus Rp 12.000/bulan, BNI Taplus Muda Rp 5.000/bulan, dan BNI Emerald bebas biaya admin.",
-  },
-  {
-    id: 3,
-    question: "Bagaimana cara mengaktifkan mobile banking BNI?",
-    answer:
-      "Kunjungi ATM BNI, pilih menu Registrasi, pilih Mobile Banking, masukkan nomor HP, buat PIN 6 digit, lalu download aplikasi BNI Mobile Banking dan login dengan user ID dan PIN yang telah dibuat.",
-  },
-  {
-    id: 4,
-    question: "Apa yang harus dilakukan jika kartu ATM tertelan?",
-    answer:
-      "Segera hubungi BNI Call 1500046 atau datang ke kantor cabang terdekat dengan membawa identitas diri untuk proses pemblokiran dan penggantian kartu.",
-  },
-  {
-    id: 5,
-    question: "Bagaimana cara mengajukan kartu kredit BNI?",
-    answer:
-      "Anda dapat mengajukan melalui website BNI, datang ke kantor cabang, atau melalui sales BNI. Syarat: WNI berusia 21-65 tahun, penghasilan minimal Rp 3 juta/bulan, dan dokumen pendukung.",
-  },
-  {
-    id: 6,
-    question: "Berapa limit transfer harian BNI?",
-    answer:
-      "Limit transfer bervariasi: ATM Rp 20 juta/hari, Mobile Banking Rp 25 juta/hari, Internet Banking Rp 100 juta/hari. Limit dapat disesuaikan sesuai kebutuhan nasabah.",
-  },
-  {
-    id: 7,
-    question: "Bagaimana cara mengganti PIN ATM yang lupa?",
-    answer:
-      "Datang ke kantor cabang BNI dengan membawa kartu ATM dan identitas diri, atau hubungi BNI Call 1500046 untuk bantuan reset PIN.",
-  },
-  {
-    id: 8,
-    question: "Apa itu BNI Reward dan bagaimana cara menggunakannya?",
-    answer:
-      "BNI Reward adalah program loyalitas untuk nasabah kartu kredit BNI. Poin dapat ditukar dengan berbagai hadiah melalui website BNI Reward atau aplikasi mobile banking.",
-  },
-];
+
 
 export default function FAQScreen() {
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
   const [searchText, setSearchText] = useState("");
+  const { faqs, isLoading, error, fetchFaqs } = useFaq();
+
+  useEffect(() => {
+    fetchFaqs();
+  }, [fetchFaqs]);
 
   const toggleExpand = (id: number) => {
     setExpandedItems((prev) =>
@@ -75,7 +33,7 @@ export default function FAQScreen() {
     );
   };
 
-  const filteredData = faqData.filter((item) =>
+  const filteredData = faqs.filter((item) =>
     item.question.toLowerCase().includes(searchText.toLowerCase())
   );
 
@@ -116,28 +74,35 @@ export default function FAQScreen() {
               style={styles.searchInput}
               placeholder="Cari pertanyaan..."
               placeholderTextColor="#999"
-              // value={searchQuery}
-              // onChangeText={setSearchQuery}
+              value={searchText}
+              onChangeText={setSearchText}
             />
           </View>
         </View>
 
         {/* Card FAQ menyatu */}
         <View style={styles.card}>
-          {filteredData.length === 0 ? (
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#FF8636" />
+              <Text style={styles.loadingText}>Memuat FAQ...</Text>
+            </View>
+          ) : error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : filteredData.length === 0 ? (
             <Text style={styles.noResult}>Tidak ada hasil ditemukan</Text>
           ) : (
             filteredData.map((item, index) => {
-              const isExpanded = expandedItems.includes(item.id);
+              const isExpanded = expandedItems.includes(item.faq_id);
               return (
-                <View key={item.id}>
+                <View key={item.faq_id}>
                   <TouchableOpacity
                     style={[
                       styles.faqItem,
                       index === 0 && styles.firstItem,
                       index === filteredData.length - 1 && styles.lastItem,
                     ]}
-                    onPress={() => toggleExpand(item.id)}
+                    onPress={() => toggleExpand(item.faq_id)}
                     activeOpacity={0.8}
                   >
                     <View style={styles.questionContainer}>
@@ -265,7 +230,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   answerContainer: {
-    paddingBottom: 14,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#e9ecef",
   },
@@ -273,6 +238,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.regular,
     color: "#333",
-    // lineHeight: 20,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    padding: 32,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: "#666",
+    marginTop: 8,
+  },
+  errorText: {
+    textAlign: "center",
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: "#FF6B6B",
+    padding: 16,
   },
 });
