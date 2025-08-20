@@ -1,12 +1,13 @@
 import BottomSheet from "@/components/modals/BottomSheet";
 import { useAuth } from "@/hooks/useAuth";
+import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
 import { useUser } from "@/hooks/useUser";
 import { api } from "@/lib/api";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActionSheetIOS,
   Alert,
@@ -36,62 +37,7 @@ type TicketPayload = {
   complaint_id: number;
 };
 
-const CHANNELS = [
-  { id: 1, name: "Mobile Banking" },
-  { id: 2, name: "Internet Banking" },
-  { id: 3, name: "ATM" },
-  { id: 4, name: "Kantor Cabang" },
-  { id: 5, name: "Call Center" },
-  { id: 6, name: "SMS Banking" },
-] as const;
 
-type Channel = typeof CHANNELS[number];
-
-const CATEGORY_MAP: Record<string, Array<{id: number, name: string}>> = {
-  "Mobile Banking": [
-    { id: 1, name: "Top Up Gopay" },
-    { id: 2, name: "Transfer Antar Bank" },
-    { id: 3, name: "Pembayaran Tagihan" },
-    { id: 4, name: "Biometric/Login Error" },
-    { id: 5, name: "Saldo/Mutasi" },
-    { id: 6, name: "Lainnya" },
-  ],
-  "Internet Banking": [
-    { id: 7, name: "Transfer" },
-    { id: 8, name: "Pembayaran" },
-    { id: 9, name: "Aktivasi/Token" },
-    { id: 10, name: "Reset Password" },
-    { id: 11, name: "Lainnya" },
-  ],
-  ATM: [
-    { id: 12, name: "Kartu Tertelan" },
-    { id: 13, name: "Tarik Tunai Gagal" },
-    { id: 14, name: "Setor Tunai Gagal" },
-    { id: 15, name: "Saldo Tidak Sesuai" },
-    { id: 16, name: "Lainnya" },
-  ],
-  "Kantor Cabang": [
-    { id: 17, name: "Layanan Teller" },
-    { id: 18, name: "Layanan Customer Service" },
-    { id: 19, name: "Antrian" },
-    { id: 20, name: "Fasilitas Cabang" },
-    { id: 21, name: "Lainnya" },
-  ],
-  "Call Center": [
-    { id: 22, name: "Informasi Produk" },
-    { id: 23, name: "Blokir Kartu" },
-    { id: 24, name: "Pengaduan Transaksi" },
-    { id: 25, name: "Follow-up Laporan" },
-    { id: 26, name: "Lainnya" },
-  ],
-  "SMS Banking": [
-    { id: 27, name: "Registrasi" },
-    { id: 28, name: "Transaksi Gagal" },
-    { id: 29, name: "Format Perintah" },
-    { id: 30, name: "Pulsa/Top Up" },
-    { id: 31, name: "Lainnya" },
-  ],
-};
 
 /** SelectField: iOS pakai ActionSheet, Android/Web pakai Picker dropdown */
 function SelectField({
@@ -156,14 +102,13 @@ export default function ConfirmationScreen() {
   const insets = useSafeAreaInsets();
   const { user, selectAccount, account_number, accounts } = useUser();
   const { token, isAuthenticated } = useAuth();
+  const { channels, categories, getFilteredCategories, isLoading: dataLoading, error: dataError } = useChannelsAndCategories();
 
   const full_nameauto = (user?.full_name || "").trim() || "User Complain";
 
   // Editable
-  const [channel, setChannel] = useState<Channel>(CHANNELS[0]);
-  const [category, setCategory] = useState<{id: number, name: string}>(
-    CATEGORY_MAP["Mobile Banking"][0]
-  );
+  const [channel, setChannel] = useState<any>(null);
+  const [category, setCategory] = useState<any>(null);
   const [description, setdescription] = useState<string>("");
 
   // UI
@@ -174,25 +119,47 @@ export default function ConfirmationScreen() {
   // ====== PENTING: tinggi footer aktual agar ScrollView bisa scroll di atas keyboard ======
   const [footerHeight, setFooterHeight] = useState(120); // perkiraan awal; nanti diganti oleh onLayout
 
-  const categoriesForChannel = useMemo(
-    () => CATEGORY_MAP[channel.name] || [],
-    [channel]
-  );
-  
+  // Get filtered categories based on selected channel
+  const filteredCategories = getFilteredCategories(channel);
+
+  // Update state when API data loads
   useEffect(() => {
-    const categories = CATEGORY_MAP[channel.name] || [];
-    if (categories.length > 0 && !categories.find(c => c.id === category.id)) {
+    if (channels.length > 0 && !channel) {
+      setChannel(channels[0]);
+    }
+  }, [channels]);
+
+  useEffect(() => {
+    if (categories.length > 0 && !category) {
       setCategory(categories[0]);
     }
-  }, [channel, category.id]);
+  }, [categories]);
+
+  // Update category when channel changes
+  useEffect(() => {
+    if (channel && filteredCategories.length > 0) {
+      // If current category is not in filtered list, select first filtered category
+      if (!filteredCategories.find(c => c.complaint_id === category?.complaint_id)) {
+        setCategory(filteredCategories[0]);
+      }
+    }
+  }, [channel, filteredCategories, category?.complaint_id]);
 
   const isValid =
-    isChecked && !!channel && !!category && description.trim().length >= 8;
+    isChecked && 
+    !!channel && 
+    !!category && 
+    description.trim().length >= 8 && 
+    !dataLoading && 
+    channels.length > 0 && 
+    filteredCategories.length > 0 &&
+    channel?.channel_id &&
+    category?.complaint_id;
 
   const payload: TicketPayload = {
     description: description.trim(),
-    issue_channel_id: channel.id,
-    complaint_id: category.id,
+    issue_channel_id: channel?.channel_id || 0,
+    complaint_id: category?.complaint_id || 0,
   };
 
   const handleSubmit = async () => {
@@ -321,26 +288,58 @@ export default function ConfirmationScreen() {
               )}
 
               {/* Channel */}
-              <SelectField
-                label="Channel"
-                value={channel.name}
-                options={CHANNELS.map(c => c.name)}
-                onChange={(v) => {
-                  const selectedChannel = CHANNELS.find(c => c.name === v);
-                  if (selectedChannel) setChannel(selectedChannel);
-                }}
-              />
+              {dataLoading ? (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Channel</Text>
+                  <View style={[styles.textInput, styles.loadingField]}>
+                    <Text style={styles.loadingText}>Memuat data...</Text>
+                  </View>
+                </View>
+              ) : dataError ? (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Channel</Text>
+                  <View style={[styles.textInput, styles.errorField]}>
+                    <Text style={styles.errorText}>Gagal memuat data channel</Text>
+                  </View>
+                </View>
+              ) : (
+                <SelectField
+                  label="Channel"
+                  value={channel?.channel_name || (channels.length > 0 ? channels[0].channel_name : "")}
+                  options={channels.map(c => c.channel_name)}
+                  onChange={(v) => {
+                    const selectedChannel = channels.find(c => c.channel_name === v);
+                    if (selectedChannel) setChannel(selectedChannel);
+                  }}
+                />
+              )}
 
-              {/* Category (dinamis) */}
-              <SelectField
-                label="Category"
-                value={category.name}
-                options={categoriesForChannel.map(c => c.name)}
-                onChange={(v) => {
-                  const selectedCategory = categoriesForChannel.find(c => c.name === v);
-                  if (selectedCategory) setCategory(selectedCategory);
-                }}
-              />
+              {/* Category */}
+              {dataLoading ? (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Category</Text>
+                  <View style={[styles.textInput, styles.loadingField]}>
+                    <Text style={styles.loadingText}>Memuat data...</Text>
+                  </View>
+                </View>
+              ) : dataError ? (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Category</Text>
+                  <View style={[styles.textInput, styles.errorField]}>
+                    <Text style={styles.errorText}>Gagal memuat data kategori</Text>
+                  </View>
+                </View>
+              ) : (
+                <SelectField
+                  label="Category"
+                  value={category?.complaint_name || (filteredCategories.length > 0 ? filteredCategories[0].complaint_name : "")}
+                  options={filteredCategories.map(c => c.complaint_name)}
+                  onChange={(v) => {
+                    const selectedCategory = filteredCategories.find(c => c.complaint_name === v);
+                    if (selectedCategory) setCategory(selectedCategory);
+                  }}
+                />
+              )}
 
               {/* Deskripsi */}
               <View style={styles.fieldContainer}>
@@ -560,4 +559,26 @@ const styles = StyleSheet.create({
   submitText: { fontSize: 16, fontWeight: "bold", fontFamily: "Poppins" },
   enabledText: { color: "#FFF" },
   disabledText: { color: "#999" },
+  
+  loadingField: {
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 44,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "#666",
+    fontFamily: "Poppins",
+  },
+  errorField: {
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 44,
+    backgroundColor: "#FFE5E5",
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#D32F2F",
+    fontFamily: "Poppins",
+  },
 });
