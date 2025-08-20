@@ -1,4 +1,5 @@
 import { Fonts } from "@/constants/Fonts";
+import { useAuth } from "@/hooks/useAuth";
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
@@ -14,7 +15,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -25,9 +25,7 @@ export default function LoginScreen() {
   const isValidEmail = (val: string) => /\S+@\S+\.\S+/.test(val);
 
   const canSubmit = useMemo(() => {
-    return (
-      isValidEmail(email.trim()) && password.trim().length > 0 && !isLoading
-    );
+    return isValidEmail(email.trim()) && password.trim().length > 0 && !isLoading;
   }, [email, password, isLoading]);
 
   const handleLogin = () => {
@@ -49,13 +47,11 @@ export default function LoginScreen() {
           <View style={styles.content}>
             {/* Logo Section */}
             <View style={styles.logoSection}>
-              <View style={styles.logoContainer}>
-                <Image
-                  source={require("@/assets/images/logo_only.png")}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
+              <Image
+                source={require("@/assets/images/logo_only.png")}
+                style={styles.logo}
+                resizeMode="contain"
+              />
               <Text style={styles.title}>Welcome to B-Care</Text>
               <Text style={styles.subtitle}>
                 Please enter your email and password to access your account.
@@ -85,9 +81,6 @@ export default function LoginScreen() {
                     autoCorrect={false}
                     textContentType="emailAddress"
                     returnKeyType="next"
-                    onSubmitEditing={() => {
-                      // fokus ke password (opsional: pakai ref jika mau)
-                    }}
                   />
                 </View>
               </View>
@@ -118,12 +111,6 @@ export default function LoginScreen() {
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
                     style={styles.toggleIcon}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      showPassword
-                        ? "Sembunyikan password"
-                        : "Tampilkan password"
-                    }
                   >
                     <MaterialIcons
                       name={showPassword ? "visibility" : "visibility-off"}
@@ -167,76 +154,21 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1 },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: "center",
-    minHeight: "100%",
-  },
+  content: { flex: 1, paddingHorizontal: 24, justifyContent: "center", minHeight: "100%" },
   logoSection: { alignItems: "center", marginBottom: 24 },
-  logoContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  logo: { width: 70, height: 70 },
-  title: {
-    fontSize: 24,
-    fontFamily: Fonts.bold,
-    color: "#1f2937",
-    marginBottom: 4,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: Fonts.regular,
-    color: "#6b7280",
-    textAlign: "center",
-  },
+  logo: { width: 70, height: 70, marginBottom: 12 },
+  title: { fontSize: 24, fontFamily: Fonts.bold, color: "#1f2937", marginBottom: 4, textAlign: "center" },
+  subtitle: { fontSize: 14, fontFamily: Fonts.regular, color: "#6b7280", textAlign: "center" },
   formSection: { paddingBottom: 40 },
   inputGroup: { marginBottom: 20 },
-  label: {
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-    color: "#374151",
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 5,
-    backgroundColor: "white",
-    paddingHorizontal: 12,
-  },
+  label: { fontSize: 14, fontFamily: Fonts.medium, color: "#374151", marginBottom: 8 },
+  inputWrapper: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#d1d5db", borderRadius: 5, backgroundColor: "white", paddingHorizontal: 12 },
   inputIcon: { marginRight: 12 },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: Fonts.regular,
-    paddingVertical: 14,
-    color: "#374151",
-  },
+  input: { flex: 1, fontSize: 14, fontFamily: Fonts.regular, paddingVertical: 14, color: "#374151" },
   toggleIcon: { padding: 4 },
-  loginButton: {
-    backgroundColor: "#52B5AB",
-    paddingVertical: 14,
-    borderRadius: 5,
-    alignItems: "center",
-  },
+  loginButton: { backgroundColor: "#52B5AB", paddingVertical: 14, borderRadius: 5, alignItems: "center" },
   loginButtonDisabled: { backgroundColor: "#A0A0A0" },
   loginText: { color: "white", fontSize: 14, fontFamily: Fonts.semiBold },
-  disclaimer: {
-    position: "absolute",
-    paddingHorizontal: 24,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    textAlign: "center",
-    fontSize: 12,
-    fontFamily: Fonts.regular,
-    color: "#6b7280",
-  },
+  disclaimer: { position: "absolute", paddingHorizontal: 24, bottom: 0, left: 0, right: 0, textAlign: "center", fontSize: 12, fontFamily: Fonts.regular, color: "#6b7280" },
   linkTextBold: { color: "#3b82f6", fontFamily: Fonts.semiBold },
 });
