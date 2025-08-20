@@ -84,17 +84,32 @@ export function useTickets() {
     setError(null);
 
     try {
-      // Fetch fresh data dari API with cache busting
-      const cacheBuster = `?_t=${Date.now()}`;
-      const response = await api<TicketsResponse>(
-        `${TICKETS_PATH}${cacheBuster}`
-      );
+      let allTickets: Ticket[] = [];
+      let offset = 0;
+      const limit = 10; // Default limit from API
+      let hasMore = true;
 
-      if (response.success && response.data) {
-        setTickets(response.data);
-      } else {
-        setTickets([]);
+      // Fetch all pages
+      while (hasMore) {
+        const cacheBuster = `?_t=${Date.now()}`;
+        const queryParams = `limit=${limit}&offset=${offset}`;
+        const response = await api<TicketsResponse>(
+          `${TICKETS_PATH}${cacheBuster}&${queryParams}`
+        );
+
+        if (response.success && response.data) {
+          allTickets = [...allTickets, ...response.data];
+          
+          // Check if there are more pages
+          const totalFetched = offset + response.data.length;
+          hasMore = totalFetched < response.pagination.total;
+          offset += limit;
+        } else {
+          hasMore = false;
+        }
       }
+
+      setTickets(allTickets);
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to fetch tickets";
       setError(errorMessage);

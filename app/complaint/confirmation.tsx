@@ -226,7 +226,7 @@ export default function ConfirmationScreen() {
           <View style={{ flex: 1 }}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>Formulir Pengaduan</Text>
+              <Text style={styles.headerTitle}>Form Complain</Text>
             </View>
 
             <ScrollView
@@ -343,7 +343,7 @@ export default function ConfirmationScreen() {
 
               {/* Deskripsi */}
               <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Deskripsi</Text>
+                <Text style={styles.label}>Description</Text>
                 <TextInput
                   style={[styles.textInput, styles.textArea]}
                   value={description}
