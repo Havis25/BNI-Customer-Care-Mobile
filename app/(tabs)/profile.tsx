@@ -6,6 +6,9 @@ import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
+import { useUser } from "@/hooks/useUser";
+import { useTickets } from "@/hooks/useTickets";
+import LogoutModal from "@/components/modals/LogOut";
 import {
   ActivityIndicator,
   Alert,
