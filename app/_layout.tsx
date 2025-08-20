@@ -7,6 +7,8 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect } from "react";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 
@@ -19,6 +21,27 @@ export default function RootLayout() {
     "Poppins-SemiBold": require("../assets/fonts/Poppins-SemiBold.ttf"),
     "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
   });
+
+  // Clear storage on app restart
+  useEffect(() => {
+    const clearStorageOnRestart = async () => {
+      try {
+        const allKeys = await AsyncStorage.getAllKeys();
+        const sessionKeys = allKeys.filter(key => 
+          key.includes('currentTicketId') || 
+          key.includes('msgs:') ||
+          key.includes('shouldRefresh')
+        );
+        if (sessionKeys.length > 0) {
+          await AsyncStorage.multiRemove(sessionKeys);
+        }
+      } catch (error) {
+        console.error('Error clearing storage on restart:', error);
+      }
+    };
+    
+    clearStorageOnRestart();
+  }, []);
 
   if (!loaded) {
     // Async font loading only occurs in development.

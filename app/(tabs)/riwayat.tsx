@@ -182,12 +182,12 @@ export default function RiwayatScreen() {
 
   const hasFilters = sortBy !== "" || selectedStatus.length > 0;
 
-  const getFilteredData = useCallback(() => {
-    let filteredData = [...ticketData];
+  const filteredData = useMemo(() => {
+    let result = [...ticketData];
 
     // search
     if (searchQuery.trim() !== "") {
-      filteredData = filteredData.filter((item) =>
+      result = result.filter((item) =>
         String(item.channel || "")
           .toLowerCase()
           .includes(searchQuery.toLowerCase())
@@ -196,27 +196,27 @@ export default function RiwayatScreen() {
 
     // filter status
     if (appliedStatus.length > 0) {
-      filteredData = filteredData.filter((item) =>
+      result = result.filter((item) =>
         appliedStatus.includes(item.customer_status)
       );
     }
 
     // sort tanggal
     if (appliedSortBy === "tanggal-terbaru") {
-      filteredData.sort(
+      result.sort(
         (a, b) =>
           new Date(b.created_time).getTime() -
           new Date(a.created_time).getTime()
       );
     } else if (appliedSortBy === "tanggal-terlama") {
-      filteredData.sort(
+      result.sort(
         (a, b) =>
           new Date(a.created_time).getTime() -
           new Date(b.created_time).getTime()
       );
     }
 
-    return filteredData;
+    return result;
   }, [ticketData, searchQuery, appliedStatus, appliedSortBy]);
 
   const formatDate = (dateString: string) => {
@@ -260,10 +260,11 @@ export default function RiwayatScreen() {
             await AsyncStorage.removeItem('shouldRefreshRiwayat');
             setShowNewTicketNotification(true);
             setTimeout(() => setShowNewTicketNotification(false), 3000);
+            await refetch();
           }
-          await refetch();
+          // Only refetch if there's a refresh flag, not on every focus
         } catch (error) {
-          await refetch();
+          // Don't auto-refetch on error
         }
       };
       
@@ -322,9 +323,8 @@ export default function RiwayatScreen() {
         ) : (
           <>
             <FlatList
-              data={getFilteredData()}
+              data={filteredData}
               keyExtractor={(item) => item.ticket_number}
-              extraData={tickets}
               renderItem={({ item }) => (
               <TouchableOpacity
                 style={[

@@ -12,15 +12,13 @@ import { useLocalSearchParams, router } from "expo-router";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
-import { useTickets } from "@/hooks/useTickets";
 import FeedbackModal from "@/components/FeedbackModal";
 
 export default function RiwayatDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { tickets, refetch } = useTickets();
+
   const [showFeedback, setShowFeedback] = useState(false);
-  const { ticketDetail, isLoading, error, fetchTicketDetail, progressData } =
-    useTicketDetail();
+  const { ticketDetail, isLoading, error, fetchTicketDetail, progressData } = useTicketDetail();
 
   useEffect(() => {
     if (id) {

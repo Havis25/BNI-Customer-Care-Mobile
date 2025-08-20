@@ -152,12 +152,14 @@ export default function ChatScreen() {
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [currentTicketId, setCurrentTicketId] = useState<string | null>(null);
+  
+
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const messageIdRef = useRef(1000);
 
-  // Attachment management
+  // Attachment management - initialize without auto-fetch
   const {
     attachments,
     isLoading: attachmentsLoading,
@@ -252,18 +254,26 @@ export default function ChatScreen() {
       // Always try to get ticket ID from storage first
       try {
         const storedTicketId = await AsyncStorage.getItem("currentTicketId");
-        if (storedTicketId) {
+        if (storedTicketId && storedTicketId.trim() !== '' && storedTicketId !== 'null' && storedTicketId !== 'undefined') {
           setCurrentTicketId(storedTicketId);
+        } else {
+          setCurrentTicketId(null);
         }
       } catch (error) {
-        // Error reading from storage
+        setCurrentTicketId(null);
       }
       
       if (fromConfirmation === "true") {
         // Try to get ticket ID from URL params
-        if (ticketId && typeof ticketId === "string") {
+        if (ticketId && typeof ticketId === "string" && ticketId.trim() !== '' && ticketId !== 'null' && ticketId !== 'undefined') {
           setCurrentTicketId(ticketId);
           await AsyncStorage.setItem("currentTicketId", ticketId);
+        } else {
+          // If no URL param, check storage again
+          const storedId = await AsyncStorage.getItem("currentTicketId");
+          if (storedId && storedId.trim() !== '' && storedId !== 'null' && storedId !== 'undefined') {
+            setCurrentTicketId(storedId);
+          }
         }
 
         const ticketCreatedMessage = {
@@ -290,7 +300,6 @@ export default function ChatScreen() {
               newMessages.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
             )
           );
-          console.log('[DEBUG] Saved ticket created message to storage');
           return newMessages;
         });
 
@@ -318,7 +327,6 @@ export default function ChatScreen() {
                 newMessages.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
               )
             );
-            console.log('[DEBUG] Saved validation message to storage');
             return newMessages;
           });
         }, 3000);
@@ -330,9 +338,9 @@ export default function ChatScreen() {
     initializeTicket();
   }, [fromConfirmation, ticketId]);
 
-  // Fetch attachments when ticket ID is available
+  // Fetch attachments only when ticket ID is available and valid
   useEffect(() => {
-    if (currentTicketId) {
+    if (currentTicketId && currentTicketId.trim() !== '') {
       fetchAttachments(currentTicketId);
     }
   }, [currentTicketId, fetchAttachments]);
@@ -934,11 +942,15 @@ export default function ChatScreen() {
         {/* Input Area */}
         <View style={styles.inputContainer}>
           <TouchableOpacity
-            style={styles.addFileButton}
+            style={[
+              styles.addFileButton,
+              (!currentTicketId || currentTicketId.trim() === '' || currentTicketId === 'undefined' || currentTicketId === 'null') && styles.addFileButtonDisabled
+            ]}
+            disabled={!currentTicketId || currentTicketId.trim() === '' || currentTicketId === 'undefined' || currentTicketId === 'null'}
             onPress={() => {
-              if (!currentTicketId) {
+              if (!currentTicketId || currentTicketId.trim() === '' || currentTicketId === 'undefined' || currentTicketId === 'null') {
                 Alert.alert(
-                  "Tidak ada tiket aktif",
+                  "Tiket Tidak Tersedia",
                   "Silakan buat tiket terlebih dahulu untuk mengirim attachment."
                 );
                 return;
@@ -946,7 +958,11 @@ export default function ChatScreen() {
               setShowUploadModal(true);
             }}
           >
-            <MaterialIcons name="add" size={24} color="#FFF" />
+            <MaterialIcons 
+              name="add" 
+              size={24} 
+              color={(!currentTicketId || currentTicketId.trim() === '' || currentTicketId === 'undefined' || currentTicketId === 'null') ? "#999" : "#FFF"} 
+            />
           </TouchableOpacity>
           <TextInput
             style={styles.textInput}
@@ -1173,6 +1189,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+  },
+  addFileButtonDisabled: {
+    backgroundColor: "#E0E0E0",
   },
   sendButton: {
     width: 40,

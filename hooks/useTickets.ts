@@ -72,50 +72,51 @@ export function useTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<number>(0);
+  const [isFetching, setIsFetching] = useState(false);
   const { user, isAuthenticated } = useAuth();
 
-  const fetchTickets = useCallback(async () => {
+  const fetchTickets = useCallback(async (force = false) => {
     if (!isAuthenticated) {
       setError("User not authenticated");
       return;
     }
 
+    // Prevent concurrent requests
+    if (isFetching) {
+      return;
+    }
+
+    // Debounce: prevent multiple calls within 5 seconds
+    const now = Date.now();
+    if (!force && now - lastFetch < 5000) {
+      return;
+    }
+
+    setIsFetching(true);
     setIsLoading(true);
     setError(null);
+    setLastFetch(now);
 
     try {
-      let allTickets: Ticket[] = [];
-      let offset = 0;
-      const limit = 10; // Default limit from API
-      let hasMore = true;
+      // Single request with reasonable limit instead of pagination loop
+      const response = await api<TicketsResponse>(
+        `${TICKETS_PATH}?limit=50&offset=0`
+      );
 
-      // Fetch all pages
-      while (hasMore) {
-        const cacheBuster = `?_t=${Date.now()}`;
-        const queryParams = `limit=${limit}&offset=${offset}`;
-        const response = await api<TicketsResponse>(
-          `${TICKETS_PATH}${cacheBuster}&${queryParams}`
-        );
-
-        if (response.success && response.data) {
-          allTickets = [...allTickets, ...response.data];
-          
-          // Check if there are more pages
-          const totalFetched = offset + response.data.length;
-          hasMore = totalFetched < response.pagination.total;
-          offset += limit;
-        } else {
-          hasMore = false;
-        }
+      if (response.success && response.data) {
+        setTickets(response.data);
+        setLastFetch(Date.now());
+      } else {
+        setTickets([]);
       }
-
-      setTickets(allTickets);
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to fetch tickets";
       setError(errorMessage);
       setTickets([]);
     } finally {
       setIsLoading(false);
+      setIsFetching(false);
     }
   }, [isAuthenticated]);
 
@@ -123,28 +124,12 @@ export function useTickets() {
     fetchTickets();
   }, [fetchTickets]);
 
-  // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      fetchTickets();
-    }, [fetchTickets])
-  );
-
-  // Auto-refresh every 30 seconds when authenticated
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const interval = setInterval(() => {
-      fetchTickets();
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [isAuthenticated, fetchTickets]);
+  // Remove auto-refresh on focus and interval to prevent excessive requests
 
   return {
     tickets,
     isLoading,
     error,
-    refetch: fetchTickets,
+    refetch: () => fetchTickets(true),
   };
 }

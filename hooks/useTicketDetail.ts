@@ -99,24 +99,33 @@ export function useTicketDetail() {
   const [ticketDetail, setTicketDetail] = useState<TicketDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, token, getValidToken } = useAuth();
+  const [lastFetch, setLastFetch] = useState<number>(0);
+  const { isAuthenticated } = useAuth();
 
 
 
-  const fetchTicketDetail = useCallback(async (ticketId: string | number) => {
+  const fetchTicketDetail = useCallback(async (ticketId: string | number, force = false) => {
     if (!isAuthenticated) {
       setError('User not authenticated');
       return;
     }
 
+    // Debounce: prevent multiple calls within 3 seconds for same ticket
+    const now = Date.now();
+    if (!force && now - lastFetch < 3000) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+    setLastFetch(now);
 
     try {
       const response = await api<TicketDetailResponse>(`/v1/tickets/${ticketId}`);
       
       if (response.success) {
         setTicketDetail(response.data);
+        setLastFetch(Date.now());
       } else {
         setError(response.message || 'Failed to fetch ticket detail');
       }
@@ -212,6 +221,6 @@ export function useTicketDetail() {
     error,
     fetchTicketDetail,
     progressData: buildProgressData(),
-    refetch: () => ticketDetail && fetchTicketDetail(ticketDetail.ticket_number),
+    refetch: () => ticketDetail && fetchTicketDetail(ticketDetail.ticket_number, true),
   };
 }
