@@ -86,9 +86,17 @@ export default function UploadModal({
   const handleUpload = async () => {
     if (!selectedFile || !fileType) return;
     
-    // Validate ticketId exists
-    if (!ticketId) {
-      Alert.alert('Error', 'Tidak ada tiket aktif untuk mengirim attachment.');
+
+    
+    // Validate ticketId exists and is valid
+    if (!ticketId || 
+        ticketId.trim() === '' || 
+        ticketId === 'undefined' || 
+        ticketId === 'null') {
+      Alert.alert(
+        'Tiket Tidak Tersedia', 
+        'Silakan buat tiket terlebih dahulu sebelum mengirim attachment.'
+      );
       return;
     }
     
@@ -133,6 +141,13 @@ export default function UploadModal({
       };
       
       formData.append('file', fileObject as any);
+      
+      // Final validation before server request
+      if (!ticketId || ticketId.toString().trim() === '' || ticketId === 'undefined' || ticketId === 'null') {
+        throw new Error('Invalid ticket ID - cannot upload without valid ticket');
+      }
+      
+
       
       // Use ticket attachment endpoint
       const endpoint = `/v1/tickets/${ticketId}/attachments`;

@@ -58,7 +58,6 @@ export function useAuth() {
     }
 
     if (isLoginInProgress) {
-      console.log("[DEBUG] Login blocked, request already in progress");
       return;
     }
 
@@ -66,7 +65,6 @@ export function useAuth() {
     setIsLoading(true);
 
     try {
-      console.log("[DEBUG] Sending login request...");
       const res = await api<LoginResponse>(LOGIN_PATH, {
         method: "POST",
         body: JSON.stringify({ email, password }),
@@ -84,6 +82,17 @@ export function useAuth() {
 
       const fullUserData = { ...userDetail.data, customer_id: userDetail.data.id };
 
+      // Clear any existing session data before setting new user data
+      const allKeys = await AsyncStorage.getAllKeys();
+      const sessionKeys = allKeys.filter(key => 
+        key.includes('currentTicketId') || 
+        key.includes('msgs:') ||
+        key.includes('shouldRefresh')
+      );
+      if (sessionKeys.length > 0) {
+        await AsyncStorage.multiRemove(sessionKeys);
+      }
+
       await AsyncStorage.multiSet([
         ["customer", JSON.stringify(fullUserData)],
         ["isLoggedIn", "true"],
@@ -91,8 +100,6 @@ export function useAuth() {
 
       setUser(fullUserData);
       router.replace("/(tabs)");
-
-      console.log("[DEBUG] User state updated, navigation done");
     } catch (error: any) {
       const msg =
         typeof error?.message === "string" &&
@@ -103,13 +110,24 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
       setIsLoginInProgress(false);
-      console.log("[DEBUG] isLoading set to false");
     }
   }, [isLoginInProgress]);
 
   const logout = useCallback(async () => {
     try {
       await clearTokens();
+      // Clear all user-related storage
+      const allKeys = await AsyncStorage.getAllKeys();
+      const userKeys = allKeys.filter(key => 
+        key.includes('customer') || 
+        key.includes('ticket') || 
+        key.includes('msgs:') ||
+        key.includes('currentTicketId') ||
+        key.includes('shouldRefresh')
+      );
+      if (userKeys.length > 0) {
+        await AsyncStorage.multiRemove(userKeys);
+      }
       await AsyncStorage.multiRemove(["customer", "isLoggedIn"]);
       setUser(null);
       router.replace("/login");

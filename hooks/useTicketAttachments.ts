@@ -23,37 +23,60 @@ export function useTicketAttachments() {
   const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<number>(0);
+  const [isFetching, setIsFetching] = useState(false);
   const { isAuthenticated } = useAuth();
 
-  const fetchAttachments = useCallback(async (ticketId: string | number) => {
-    if (!isAuthenticated || !ticketId) {
+  const fetchAttachments = useCallback(async (ticketId: string | number, force = false) => {
+    if (!isAuthenticated || !ticketId || String(ticketId).trim() === '') {
       setAttachments([]);
       return;
     }
 
+    // Prevent concurrent requests
+    if (isFetching) {
+      return;
+    }
+
+    // Debounce: prevent multiple calls within 3 seconds
+    const now = Date.now();
+    if (!force && now - lastFetch < 3000) {
+      return;
+    }
+
+    setIsFetching(true);
     setIsLoading(true);
     setError(null);
+    setLastFetch(now);
 
     try {
       const response = await api<AttachmentsResponse>(`/v1/tickets/${ticketId}/attachments`);
       
       if (response.success) {
         setAttachments(response.data || []);
+        setLastFetch(Date.now());
       } else {
         setAttachments([]);
-        setError(response.message || 'Failed to fetch attachments');
+        // Don't set error for access denied - it's expected for some tickets
+        if (!response.message?.includes('Access denied')) {
+          setError(response.message || 'Failed to fetch attachments');
+        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setAttachments([]);
       
-      // Don't show error for 404 ticket not found - it's expected for new tickets
-      if (!errorMessage.includes('404') && !errorMessage.includes('Ticket not found')) {
+      // Don't show error for 404, 403, or ticket not found - it's expected for some tickets
+      if (!errorMessage.includes('404') && 
+          !errorMessage.includes('403') && 
+          !errorMessage.includes('Ticket not found') &&
+          !errorMessage.includes('Access denied')) {
         setError(errorMessage);
         console.error('Error fetching attachments:', err);
       }
     } finally {
       setIsLoading(false);
+      setIsFetching(false);
     }
   }, [isAuthenticated]);
 
@@ -86,6 +109,6 @@ export function useTicketAttachments() {
     error,
     fetchAttachments,
     deleteAttachment,
-    refetch: (ticketId: string | number) => fetchAttachments(ticketId),
+    refetch: (ticketId: string | number) => fetchAttachments(ticketId, true),
   };
 }

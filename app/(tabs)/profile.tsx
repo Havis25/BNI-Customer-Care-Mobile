@@ -1,6 +1,6 @@
 import LogoutModal from "@/components/modals/LogOut";
 import TabTransition from "@/components/TabTransition";
-import { useTickets } from "@/hooks/useTickets";
+import { useTicketStats } from "@/hooks/useTicketStats";
 import { useUser } from "@/hooks/useUser";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -26,44 +26,15 @@ import { Fonts } from "@/constants/Fonts";
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, loading: userLoading, accounts } = useUser();
-  const { tickets, refetch } = useTickets();
-  const [totalReports, setTotalReports] = useState(0);
-  const [completedReports, setCompletedReports] = useState(0);
-  const [statsLoading, setStatsLoading] = useState(true);
+  const { stats, isLoading: statsLoading } = useTicketStats();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  useEffect(() => {
-    if (tickets) {
-      fetchTicketStats();
-    }
-  }, [tickets]);
 
-  // Auto-refresh saat halaman di-focus
-  useFocusEffect(
-    useCallback(() => {
-      refetch();
-    }, [refetch])
-  );
 
-  const fetchTicketStats = async () => {
-    setStatsLoading(true);
-    try {
-      // Gunakan data fresh dari useTickets
-      const ticketList = tickets || [];
+  // Remove auto-refresh on focus to prevent excessive API calls
+  // Profile page doesn't need real-time ticket updates
 
-      setTotalReports(ticketList.length);
-      const selesaiCount = ticketList.filter(
-        (t: any) => t.customer_status?.customer_status_code?.toUpperCase() === "CLOSED"
-      ).length;
-      setCompletedReports(selesaiCount);
-    } catch (error) {
-      console.error("Error processing ticket stats:", error);
-      setTotalReports(0);
-      setCompletedReports(0);
-    } finally {
-      setStatsLoading(false);
-    }
-  };
+
 
   const handlePress = async (url: string) => {
     try {
@@ -129,12 +100,12 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{totalReports}</Text>
+              <Text style={styles.statNumber}>{stats.total}</Text>
               <Text style={styles.statLabel}>Total Laporan</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{completedReports}</Text>
+              <Text style={styles.statNumber}>{stats.completed}</Text>
               <Text style={styles.statLabel}>Laporan Selesai</Text>
             </View>
           </View>
