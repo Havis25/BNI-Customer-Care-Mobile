@@ -5,6 +5,7 @@ import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { useUser } from "@/hooks/useUser";
 import { useTickets } from "@/hooks/useTickets";
+import LogoutModal from "@/components/modals/LogOut";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +31,7 @@ export default function ProfileScreen() {
   const [totalReports, setTotalReports] = useState(0);
   const [completedReports, setCompletedReports] = useState(0);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     if (tickets) {
@@ -78,17 +80,13 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Kamu yakin ingin keluar?", [
-      { text: "Batal", style: "cancel" },
-      {
-        text: "Ya",
-        onPress: async () => {
-          await AsyncStorage.removeItem("customer");
-          await AsyncStorage.removeItem("isLoggedIn");
-          router.replace("/login");
-        },
-      },
-    ]);
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = async () => {
+    await AsyncStorage.removeItem("customer");
+    await AsyncStorage.removeItem("isLoggedIn");
+    router.replace("/login");
   };
 
   if (userLoading) {
@@ -229,6 +227,18 @@ export default function ProfileScreen() {
             <Text style={styles.logoutText}>Keluar</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        <LogoutModal
+          visible={showLogoutModal}
+          onCancel={() => setShowLogoutModal(false)}
+          onConfirm={() => {
+            setShowLogoutModal(false);
+            confirmLogout();
+          }}
+          message="Yakin ingin keluar dari akun?"
+          cancelText="Batal"
+          confirmText="Keluar"
+        />
       </SafeAreaView>
     </TabTransition>
   );
