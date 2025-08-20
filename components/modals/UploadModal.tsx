@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api } from "@/lib/api";
+import { api, API_BASE } from "@/lib/api";
 
 interface UploadModalProps {
   visible: boolean;
@@ -89,17 +89,48 @@ export default function UploadModal({
     setUploading(true);
     
     try {
+      console.log('Starting upload process...');
+      console.log('Selected file:', selectedFile);
+      console.log('File type:', fileType);
+      console.log('Ticket ID:', ticketId);
+      console.log('API_BASE:', API_BASE);
+      
       const formData = new FormData();
       
-      // Append file with proper format
-      formData.append('file', {
+      // Determine proper MIME type
+      let mimeType = selectedFile.mimeType || 'application/octet-stream';
+      if (fileType === 'image' && !mimeType.startsWith('image/')) {
+        mimeType = 'image/jpeg';
+      }
+      
+      const fileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
+      
+      console.log('File details:', {
         uri: selectedFile.uri,
-        type: fileType === 'image' ? 'image/jpeg' : (selectedFile.mimeType || 'application/octet-stream'),
-        name: selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf'),
-      } as any);
+        type: mimeType,
+        name: fileName,
+        size: selectedFile.size
+      });
+      
+      // Append file with proper format for React Native
+      const fileObject = {
+        uri: selectedFile.uri,
+        type: mimeType,
+        name: fileName,
+      };
+      
+      console.log('Appending file to FormData:', fileObject);
+      formData.append('file', fileObject as any);
+      
+      // Log FormData contents (for debugging)
+      console.log('FormData created successfully');
       
       // Use ticket attachment endpoint
       const endpoint = `/v1/tickets/${ticketId}/attachments`;
+      const fullUrl = `${API_BASE}${endpoint}`;
+      
+      console.log('Upload URL:', fullUrl);
+      console.log('Environment API URL:', process.env.EXPO_PUBLIC_API_URL);
       
       // Get authorization token from SecureStore
       const token = await SecureStore.getItemAsync('access_token');
@@ -109,58 +140,127 @@ export default function UploadModal({
       }
       
       const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      console.log('Auth header prepared:', authHeader.substring(0, 20) + '...');
       
       // Use fetch directly for FormData with authorization
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}${endpoint}`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Authorization': authHeader,
-          'ngrok-skip-browser-warning': 'true',
-          // Don't set Content-Type for FormData
-        },
+      const requestHeaders = {
+        'Authorization': authHeader,
+        'ngrok-skip-browser-warning': 'true',
+        'Accept': 'application/json',
+        // Don't set Content-Type for FormData - browser will set it automatically with boundary
+      };
+      
+      console.log('Making request with headers:', {
+        'Authorization': authHeader.substring(0, 20) + '...',
+        'ngrok-skip-browser-warning': 'true',
+        'Accept': 'application/json'
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
-      }
+      console.log('Making POST request to:', fullUrl);
       
-      const result = await response.json();
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
-      // Use the actual filename that will be saved on server
-      const actualFileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        body: formData,
+        headers: requestHeaders,
+        signal: controller.signal,
+      });
       
-      // Get attachment ID from upload response
-      const attachmentId = result.data?.attachments?.[0]?.attachment_id;
+      clearTimeout(timeoutId);
       
-      // Get download URL for later use in chat
-      let downloadUrl = null;
-      if (attachmentId) {
-        try {
-          const attachmentEndpoint = `/v1/attachments/${attachmentId}`;
-          const attachmentResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}${attachmentEndpoint}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': authHeader,
-              'ngrok-skip-browser-warning': 'true',
-            },
-          });
-          
-          if (attachmentResponse.ok) {
-            const attachmentData = await attachmentResponse.json();
-            downloadUrl = attachmentData.data?.download_url;
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      let result;
+      let errorText = '';
+      
+      try {
+        const responseText = await response.text();
+        console.log('Raw response:', responseText);
+        
+        if (responseText) {
+          try {
+            result = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse JSON response:', parseError);
+            errorText = responseText;
           }
-        } catch (error) {
-          // Failed to get download URL, continue without it
         }
+      } catch (textError) {
+        console.error('Failed to read response text:', textError);
+        errorText = 'Failed to read response';
       }
       
-      onUploadSuccess(actualFileName, fileType, downloadUrl);
-      handleClose();
+      if (!response.ok) {
+        console.error('Upload failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText || result?.message || 'Unknown error'
+        });
+        throw new Error(`Upload failed: ${response.status} - ${errorText || result?.message || response.statusText}`);
+      }
+      
+      console.log('Upload result:', result);
+      
+      if (result) {
+        // Use the actual filename that will be saved on server
+        const actualFileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
+        
+        // Get attachment ID from upload response
+        const attachmentId = result.data?.attachments?.[0]?.attachment_id || result.data?.attachment_id;
+        
+        console.log('Attachment ID from response:', attachmentId);
+        
+        // Get download URL for later use in chat
+        let downloadUrl = null;
+        if (attachmentId) {
+          try {
+            const attachmentEndpoint = `/v1/attachments/${attachmentId}`;
+            const attachmentResponse = await fetch(`${API_BASE}${attachmentEndpoint}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': authHeader,
+                'ngrok-skip-browser-warning': 'true',
+                'Accept': 'application/json',
+              },
+            });
+            
+            if (attachmentResponse.ok) {
+              const attachmentData = await attachmentResponse.json();
+              downloadUrl = attachmentData.data?.download_url;
+              console.log('Download URL obtained:', downloadUrl);
+            }
+          } catch (error) {
+            console.error('Failed to get download URL:', error);
+            // Failed to get download URL, continue without it
+          }
+        }
+        
+        onUploadSuccess(actualFileName, fileType, downloadUrl);
+        handleClose();
+      } else {
+        throw new Error('No response data received from server');
+      }
       
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Terjadi kesalahan saat upload');
+      console.error('Upload error:', error);
+      
+      let errorMessage = 'Terjadi kesalahan saat upload';
+      
+      if (error.name === 'AbortError') {
+        errorMessage = 'Upload timeout. Silakan coba lagi.';
+      } else if (error.message?.includes('Network request failed')) {
+        errorMessage = 'Koneksi internet bermasalah. Silakan cek koneksi Anda.';
+      } else if (error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Tidak dapat terhubung ke server. Silakan coba lagi.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error Upload', errorMessage);
     } finally {
       setUploading(false);
     }
@@ -174,7 +274,7 @@ export default function UploadModal({
 
   const handleViewFile = (file: any) => {
     const isImage = file.file_type.startsWith('image/');
-    const fileUrl = `${process.env.EXPO_PUBLIC_API_URL}${file.file_path}`;
+    const fileUrl = `${API_BASE}${file.file_path}`;
     
     Alert.alert(
       isImage ? 'Preview Gambar' : 'File Dokumen',
