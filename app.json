@@ -8,7 +8,6 @@
     "scheme": "bnicustomercare",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -17,7 +16,6 @@
         }
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -31,13 +29,11 @@
       "edgeToEdgeEnabled": true,
       "usesCleartextTraffic": true
     },
-
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       "expo-router",
       [
@@ -48,9 +44,9 @@
           "resizeMode": "contain",
           "backgroundColor": "#52B5AB"
         }
-      ]
+      ],
+      "expo-font"
     ],
-
     "experiments": {
       "typedRoutes": true
     }
