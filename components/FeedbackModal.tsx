@@ -16,6 +16,7 @@ import {
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFeedback } from "@/hooks/useFeedback";
+import { router } from "expo-router";
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -42,14 +43,11 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
     const success = await submitFeedback(ticketId, { score, comment });
     
     if (success) {
-      Alert.alert("Terima Kasih", "Feedback Anda telah terkirim", [
-        { text: "OK", onPress: () => {
-          setScore(0);
-          setComment("");
-          onSuccess?.();
-          onClose();
-        }}
-      ]);
+      setScore(0);
+      setComment("");
+      onSuccess?.();
+      onClose();
+      router.push("/feedbacksuccess");
     } else {
       Alert.alert("Error", "Gagal mengirim feedback. Silakan coba lagi.");
     }
