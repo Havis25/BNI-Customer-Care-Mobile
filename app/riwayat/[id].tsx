@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from "react";
+import FeedbackModal from "@/components/FeedbackModal";
+import { Fonts } from "@/constants/Fonts";
+import { useTicketDetail } from "@/hooks/useTicketDetail";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
-import { Fonts } from "@/constants/Fonts";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useTicketDetail } from "@/hooks/useTicketDetail";
-import FeedbackModal from "@/components/FeedbackModal";
 
 export default function RiwayatDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -308,6 +308,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: Fonts.medium,
     color: "black",
+    paddingTop: 16,
   },
   content: {
     flex: 1,
