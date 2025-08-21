@@ -30,10 +30,10 @@ const refreshToken = async (): Promise<string | null> => {
       if (data.refresh_token) {
         await SecureStore.setItemAsync("refresh_token", data.refresh_token);
       }
-      console.log('✅ Token refreshed successfully');
+      console.log("✅ Token refreshed successfully");
       return data.access_token;
     }
-    
+
     throw new Error(data.message || "Token refresh failed");
   } catch (error) {
     console.error("Token refresh error:", error);
@@ -80,7 +80,7 @@ export async function api<T = JSONValue>(
 
   // Handle 419 expired token
   if (res.status === 419 && !path.includes("/auth/")) {
-    console.log('🔄 Token expired (419), attempting refresh...');
+    console.log("🔄 Token expired (419), attempting refresh...");
     const newToken = await refreshToken();
     if (newToken) {
       // Retry with new token
@@ -91,7 +91,7 @@ export async function api<T = JSONValue>(
         signal,
       });
     } else {
-      console.log('❌ Token refresh failed');
+      console.log("❌ Token refresh failed");
     }
   }
 

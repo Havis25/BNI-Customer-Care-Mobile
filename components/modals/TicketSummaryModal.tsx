@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
+import { useUser } from "@/hooks/useUser";
 
 type TicketSummaryModalProps = {
   visible: boolean;
@@ -18,9 +19,11 @@ type TicketSummaryModalProps = {
 
 export default function TicketSummaryModal({ visible, onClose, ticketId }: TicketSummaryModalProps) {
   const { ticketDetail, isLoading, error, fetchTicketDetail } = useTicketDetail();
+  const { user } = useUser();
   
   useEffect(() => {
     if (visible && ticketId) {
+      console.log('Fetching ticket detail for ID:', ticketId);
       fetchTicketDetail(ticketId);
     }
   }, [visible, ticketId, fetchTicketDetail]);
@@ -65,33 +68,55 @@ export default function TicketSummaryModal({ visible, onClose, ticketId }: Ticke
             <View style={styles.ticketSummary}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Nomor Tiket:</Text>
-                <Text style={styles.summaryValue}>{ticketDetail.ticket_number}</Text>
+                <Text style={[styles.summaryValue, styles.ticketNumberValue]}>
+                  {ticketDetail.ticket_number || ticketDetail.id || 'Tidak tersedia'}
+                </Text>
               </View>
+              {ticketDetail.customer?.full_name && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Nama:</Text>
+                  <Text style={[styles.summaryValue, styles.nameValue]}>
+                    {ticketDetail.customer.full_name}
+                  </Text>
+                </View>
+              )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>No Rekening:</Text>
-                <Text style={styles.summaryValue} numberOfLines={1}>{ticketDetail.related_account?.account_number || '-'}</Text>
+                <Text style={[styles.summaryValue, styles.accountValue]}>
+                  {user?.selectedAccount?.account_number ? 
+                   String(user.selectedAccount.account_number) : 
+                   (ticketDetail.related_account?.account_number ? 
+                    String(ticketDetail.related_account.account_number) : 
+                    'Tidak tersedia')}
+                </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Channel:</Text>
-                <Text style={styles.summaryValue} numberOfLines={1}>{ticketDetail.issue_channel?.channel_name || '-'}</Text>
+                <Text style={[styles.summaryValue, styles.channelValue]}>
+                  {ticketDetail.issue_channel?.channel_name || 'Tidak tersedia'}
+                </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Category:</Text>
-                <Text style={[styles.summaryValue, styles.categoryValue]} numberOfLines={2}>{ticketDetail.complaint?.complaint_name || '-'}</Text>
+                <Text style={[styles.summaryValue, styles.categoryValue]}>
+                  {ticketDetail.complaint?.complaint_name || 'Tidak tersedia'}
+                </Text>
               </View>
               {ticketDetail.amount && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Nominal:</Text>
-                  <Text style={styles.summaryValue} numberOfLines={1}>{formatAmount(ticketDetail.amount)}</Text>
+                  <Text style={styles.summaryValue}>{formatAmount(ticketDetail.amount)}</Text>
                 </View>
               )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Status:</Text>
-                <Text style={[styles.summaryValue, styles.statusPending]} numberOfLines={1}>{ticketDetail.customer_status?.customer_status_name || 'Menunggu Validasi'}</Text>
+                <Text style={[styles.summaryValue, styles.statusPending]}>
+                  {ticketDetail.customer_status?.customer_status_name || 'Menunggu Validasi'}
+                </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Tanggal:</Text>
-                <Text style={styles.summaryValue} numberOfLines={1}>{formatDate(ticketDetail.created_time)}</Text>
+                <Text style={styles.summaryValue}>{formatDate(ticketDetail.created_time)}</Text>
               </View>
               {ticketDetail.description && (
                 <View style={styles.descriptionContainer}>
@@ -153,7 +178,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 12,
     minHeight: 20,
   },
   summaryLabel: {
@@ -161,7 +186,8 @@ const styles = StyleSheet.create({
     color: "#666",
     fontFamily: "Poppins",
     minWidth: "35%",
-    maxWidth: "40%",
+    maxWidth: "35%",
+    flexShrink: 0,
   },
   summaryValue: {
     fontSize: 14,
@@ -170,12 +196,41 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins",
     flex: 1,
     textAlign: "right",
+    flexWrap: "wrap",
+  },
+  accountValue: {
+    textAlign: "right",
+    flexWrap: "wrap",
+    maxWidth: "65%",
+    lineHeight: 18,
+    fontSize: 13,
+  },
+  channelValue: {
+    textAlign: "right",
+    flexWrap: "wrap",
+    maxWidth: "65%",
+    lineHeight: 18,
+    fontSize: 13,
   },
   categoryValue: {
     textAlign: "right",
     flexWrap: "wrap",
-    maxWidth: "60%",
+    maxWidth: "65%",
     lineHeight: 18,
+    fontSize: 13,
+  },
+  ticketNumberValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FF8636",
+  },
+  nameValue: {
+    textAlign: "right",
+    flexWrap: "wrap",
+    maxWidth: "65%",
+    lineHeight: 18,
+    fontSize: 13,
+    textTransform: "capitalize",
   },
   statusPending: {
     color: "#FF8636",
