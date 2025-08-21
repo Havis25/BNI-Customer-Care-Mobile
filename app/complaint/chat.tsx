@@ -47,6 +47,7 @@ type MessageType = {
   hasLiveChatButtons?: boolean;
   hasCallConfirmButtons?: boolean;
   hasTicketButton?: boolean;
+  hasEditButtons?: boolean;
   isCallLog?: boolean;
   isFile?: boolean;
   isImage?: boolean;
@@ -68,7 +69,7 @@ const MAX_MSG = 200;
 // Initial welcome message from bot
 const initialBotMessage: MessageType = {
   id: 1,
-  text: "Halo! Saya BNI Assistant. Saya siap membantu Anda dengan keluhan atau masalah perbankan. Bisa ceritakan masalah yang Anda alami?",
+  text: "Halo! Saya BNI Assistant. Saya siap membantu Anda dengan keluhan atau masalah perbankan. Ceritakan masalah yang Anda alami, dan saya akan membantu membuat summary tiket untuk Anda.",
   isBot: true,
   timestamp: new Date().toLocaleTimeString("id-ID", {
     hour: "2-digit",
@@ -82,8 +83,11 @@ export default function ChatScreen() {
   const { user: authUser } = useAuth();
   const urlRoom = typeof room === "string" && room.trim() ? room : "general";
   const fallbackCallRoom = `call:${urlRoom}`;
-  const isFromTicketDetail =
-    room && typeof room === "string" && room.startsWith("ticket-");
+  const isFromTicketDetail = useMemo(() => {
+    // Check if room starts with "ticket-" or if we have ticketId without fromConfirmation
+    return (room && typeof room === "string" && room.startsWith("ticket-")) ||
+           (ticketId && typeof ticketId === "string" && fromConfirmation !== "true");
+  }, [room, ticketId, fromConfirmation]);
 
   const socket = getSocket();
   const temp_uid = String(
@@ -141,6 +145,8 @@ export default function ChatScreen() {
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [currentTicketId, setCurrentTicketId] = useState<string | null>(null);
+  const [summaryShown, setSummaryShown] = useState(false);
+  const [ticketCreatedInSession, setTicketCreatedInSession] = useState(false);
 
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
@@ -236,6 +242,10 @@ export default function ChatScreen() {
           body: JSON.stringify({
             message: userMessage,
             session_id: sessionId,
+            user_context: {
+              full_name: user?.full_name || authUser?.full_name || "User",
+              account_number: user?.selectedAccount?.account_number || "N/A"
+            }
           }),
         });
 
@@ -259,9 +269,17 @@ export default function ChatScreen() {
         // Save session ID if new one is provided
         if (response.session_id && response.session_id !== sessionId) {
           setSessionId(response.session_id);
+          // Save session state
+          await AsyncStorage.setItem('chatSession', JSON.stringify({
+            sessionId: response.session_id,
+            summaryShown,
+            ticketCreatedInSession
+          }));
         }
 
         console.log("Bot response text:", botResponseText);
+        console.log("Bot next_step:", response.next_step);
+        console.log("Bot action:", response.action);
 
         // Add bot response to messages
         const botMessage: MessageType = {
@@ -273,12 +291,41 @@ export default function ChatScreen() {
             minute: "2-digit",
           }),
           hasButtons:
-            response.next_step === "ready_for_confirmation" ||
-            response.action === "ready_for_confirmation",
+            response.next_step === "summary_complete" ||
+            response.action === "summary_complete" ||
+            response.action === "ready_for_confirmation" ||
+            response.message.toLowerCase().includes("summary") ||
+            response.message.toLowerCase().includes("ringkasan") ||
+            response.message.toLowerCase().includes("kategori:") ||
+            response.message.toLowerCase().includes("deskripsi:"),
           hasValidationButtons: response.is_complete === true,
         };
 
-        setMessages((prev) => [...prev, botMessage]);
+        setMessages((prev) => {
+          const newMessages = [...prev, botMessage];
+          // Save messages to storage
+          AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+          return newMessages;
+        });
+
+        // Add buttons directly to summary message (no separate follow-up)
+        if (!summaryShown && (response.next_step === "summary_complete" || 
+            response.action === "summary_complete" ||
+            response.action === "ready_for_confirmation" ||
+            response.message.toLowerCase().includes("summary") ||
+            response.message.toLowerCase().includes("ringkasan") ||
+            response.message.toLowerCase().includes("kategori:") ||
+            response.message.toLowerCase().includes("deskripsi:"))) {
+          setSummaryShown(true);
+          // Update the bot message to include buttons
+          botMessage.hasButtons = true;
+          // Save updated session state
+          await AsyncStorage.setItem('chatSession', JSON.stringify({
+            sessionId,
+            summaryShown: true,
+            ticketCreatedInSession
+          }));
+        }
 
         // Add suggestions as quick reply buttons if available
         if (response.suggestions && response.suggestions.length > 0) {
@@ -292,7 +339,11 @@ export default function ChatScreen() {
             }),
             hasLiveChatButtons: true, // Reuse this for suggestion buttons
           };
-          setMessages((prev) => [...prev, suggestionMessage]);
+          setMessages((prev) => {
+            const newMessages = [...prev, suggestionMessage];
+            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+            return newMessages;
+          });
         }
       } catch (error) {
         console.error("Error sending to chatbot:", error);
@@ -306,12 +357,16 @@ export default function ChatScreen() {
             minute: "2-digit",
           }),
         };
-        setMessages((prev) => [...prev, errorMessage]);
+        setMessages((prev) => {
+          const newMessages = [...prev, errorMessage];
+          AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+          return newMessages;
+        });
       } finally {
         setIsTyping(false);
       }
     },
-    [sessionId]
+    [sessionId, summaryShown, user, authUser, ticketCreatedInSession, storageKey]
   );
 
   // Test function to send a simple message
@@ -398,6 +453,7 @@ export default function ChatScreen() {
           ticketId !== "undefined"
         ) {
           setCurrentTicketId(ticketId);
+          setTicketCreatedInSession(true);
           await AsyncStorage.setItem("currentTicketId", ticketId);
         } else {
           // If no URL param, check storage again
@@ -409,6 +465,7 @@ export default function ChatScreen() {
             storedId !== "undefined"
           ) {
             setCurrentTicketId(storedId);
+            setTicketCreatedInSession(true);
           }
         }
 
@@ -482,6 +539,8 @@ export default function ChatScreen() {
       fetchAttachments(currentTicketId);
     }
   }, [currentTicketId, fetchAttachments]);
+
+
 
   // Send ticket info when from ticket detail
   useEffect(() => {
@@ -571,39 +630,82 @@ export default function ChatScreen() {
   // Load local messages per room
   useEffect(() => {
     (async () => {
-      const raw = await AsyncStorage.getItem(storageKey);
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as MessageType[];
-          const uniq = Array.from(
-            new Map(parsed.map((m) => [m.id, m])).values()
-          );
+      try {
+        // Load session state first
+        const [sessionData, ticketData, messagesData] = await Promise.all([
+          AsyncStorage.getItem('chatSession'),
+          AsyncStorage.getItem('currentTicketId'),
+          AsyncStorage.getItem(storageKey)
+        ]);
 
-          // If coming from ticket detail and has existing messages, load them directly
-          if (isFromTicketDetail && uniq.length > 0) {
-            setMessages(uniq);
-          } else {
-            // Merge with initial chatMessages for new chats
-            const merged = [
-              initialBotMessage,
-              ...uniq.filter((m: MessageType) => m.id !== initialBotMessage.id),
-            ];
-            setMessages(merged);
+        // Restore session state if available
+        if (sessionData) {
+          try {
+            const session = JSON.parse(sessionData);
+            if (session.sessionId) {
+              setSessionId(session.sessionId);
+            }
+            if (session.summaryShown !== undefined) {
+              setSummaryShown(session.summaryShown);
+            }
+            // Only restore ticketCreatedInSession if not coming from ticket detail
+            if (session.ticketCreatedInSession !== undefined && !isFromTicketDetail) {
+              setTicketCreatedInSession(session.ticketCreatedInSession);
+            }
+          } catch (error) {
+            console.log('Error parsing session data:', error);
           }
-        } catch (error) {
-          setMessages([initialBotMessage]);
         }
-      } else {
-        // No existing messages
+
+        // Clear ticketCreatedInSession when coming from ticket detail
         if (isFromTicketDetail) {
-          // For ticket detail, start with minimal messages
-          setMessages([]);
-        } else {
-          setMessages([initialBotMessage]);
+          setTicketCreatedInSession(false);
+          // Also clear from storage to prevent restoration
+          await AsyncStorage.setItem('chatSession', JSON.stringify({
+            sessionId: sessionData ? JSON.parse(sessionData).sessionId : null,
+            summaryShown: sessionData ? JSON.parse(sessionData).summaryShown : false,
+            ticketCreatedInSession: false
+          }));
         }
+
+        // Restore ticket ID
+        if (ticketData && ticketData !== 'null' && ticketData !== 'undefined') {
+          setCurrentTicketId(ticketData);
+        }
+
+        // Load messages
+        if (messagesData) {
+          try {
+            const parsed = JSON.parse(messagesData) as MessageType[];
+            const uniq = Array.from(
+              new Map(parsed.map((m) => [m.id, m])).values()
+            );
+
+            if (isFromTicketDetail && uniq.length > 0) {
+              setMessages(uniq);
+            } else if (uniq.length > 0) {
+              // Has existing messages - restore them
+              setMessages(uniq);
+            } else {
+              // No messages - start fresh
+              setMessages([initialBotMessage]);
+            }
+          } catch (error) {
+            setMessages([initialBotMessage]);
+          }
+        } else {
+          if (isFromTicketDetail) {
+            setMessages([]);
+          } else {
+            setMessages([initialBotMessage]);
+          }
+        }
+      } catch (error) {
+        console.log('Error loading chat data:', error);
+        setMessages([initialBotMessage]);
       }
     })();
-  }, [storageKey, isFromTicketDetail]);
+  }, [storageKey, isFromTicketDetail, fromConfirmation]);
 
   // DM and chat handlers
   useEffect(() => {
@@ -773,6 +875,11 @@ export default function ChatScreen() {
         await AsyncStorage.multiRemove(chatKeys);
       }
 
+      // Clear session and ticket data
+      await AsyncStorage.multiRemove(['currentTicketId', 'chatSession']);
+      setCurrentTicketId(null);
+      setSessionId(null);
+
       // Reset to initial message only (hard reset)
       setMessages([initialBotMessage]);
 
@@ -785,6 +892,8 @@ export default function ChatScreen() {
       setRemoteFrame(null);
       setShowCallModal(false);
       setCallStartTime(null);
+      setSummaryShown(false);
+      setTicketCreatedInSession(false);
 
       // Disconnect from socket properly
       if (socket.connected) {
@@ -1168,13 +1277,147 @@ export default function ChatScreen() {
               {message.hasButtons && (
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
-                    style={styles.yesButton}
+                    style={styles.editButton}
                     onPress={() => router.push("/complaint/confirmation")}
                   >
-                    <Text style={styles.buttonText}>Iya</Text>
+                    <MaterialIcons name="edit" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>Edit Form</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.noButton}>
-                    <Text style={styles.buttonText}>Tidak</Text>
+                  <TouchableOpacity 
+                    style={styles.createButton}
+                    onPress={async () => {
+                      try {
+                        // Get session info to extract collected data
+                        const sessionResponse = await api(`/chat/${sessionId}`);
+                        const collectedInfo = sessionResponse?.collected_info || {};
+                        
+                        // Get channels and categories from API
+                        const [channelsResponse, categoriesResponse] = await Promise.all([
+                          api("/v1/channel"),
+                          api("/v1/complaint_category")
+                        ]);
+                        
+                        const channels = Array.isArray(channelsResponse) ? channelsResponse : [];
+                        const categories = Array.isArray(categoriesResponse) ? categoriesResponse : [];
+                        
+                        // Map bot channel to actual channel ID
+                        let channelId = 1; // Default
+                        if (collectedInfo.channel) {
+                          const channelMap = {
+                            'mobile_banking': 'MBANK',
+                            'internet_banking': 'IBANK', 
+                            'atm': 'ATM',
+                            'call_center': 'CALL_CENTER'
+                          };
+                          const channelCode = channelMap[collectedInfo.channel.toLowerCase() as keyof typeof channelMap];
+                          const foundChannel = channels.find(c => c.channel_code === channelCode);
+                          if (foundChannel) {
+                            channelId = foundChannel.channel_id;
+                          }
+                        }
+                        
+                        // Map bot category to actual complaint ID
+                        let complaintId = 1; // Default
+                        if (collectedInfo.category) {
+                          // Try to find matching category by name or code
+                          const categoryLower = collectedInfo.category.toLowerCase();
+                          let foundCategory = categories.find(c => 
+                            c.complaint_name.toLowerCase().includes(categoryLower) ||
+                            c.complaint_code.toLowerCase().includes(categoryLower)
+                          );
+                          
+                          // If not found, try common mappings
+                          if (!foundCategory) {
+                            const categoryMap = {
+                              'complaint': 'COMPLAINT',
+                              'inquiry': 'INQUIRY', 
+                              'kartu_kredit': 'KARTU_KREDIT',
+                              'transfer': 'TRANSFER',
+                              'atm': 'ATM'
+                            };
+                            const mappedCode = categoryMap[categoryLower as keyof typeof categoryMap];
+                            if (mappedCode) {
+                              foundCategory = categories.find(c => c.complaint_code.includes(mappedCode));
+                            }
+                          }
+                          
+                          if (foundCategory) {
+                            complaintId = foundCategory.complaint_id;
+                          }
+                        }
+                        
+                        // Create ticket payload matching the confirmation endpoint structure
+                        const ticketPayload = {
+                          description: collectedInfo.description || "Keluhan dari chat bot",
+                          issue_channel_id: channelId,
+                          complaint_id: complaintId,
+                          // Add amount if it exists in collected info
+                          ...(collectedInfo.amount && { amount: parseInt(collectedInfo.amount) })
+                        };
+                        
+                        console.log('Creating ticket with payload:', ticketPayload);
+                        console.log('Collected info from bot:', collectedInfo);
+                        
+                        const response = await api("/v1/tickets", {
+                          method: "POST",
+                          body: JSON.stringify(ticketPayload),
+                        });
+                        
+                        let ticketId = null;
+                        if (response?.success && response?.data) {
+                          ticketId = response.data.id || response.data.ticket_id;
+                        } else if (response?.id) {
+                          ticketId = response.id;
+                        } else if (response?.ticket_id) {
+                          ticketId = response.ticket_id;
+                        }
+                        
+                        if (ticketId) {
+                          await AsyncStorage.setItem('currentTicketId', String(ticketId));
+                          await AsyncStorage.setItem('shouldRefreshRiwayat', 'true');
+                          setCurrentTicketId(String(ticketId));
+                          setTicketCreatedInSession(true);
+                          
+                          console.log('Ticket created - ID:', ticketId);
+                          console.log('Setting ticketCreatedInSession to true');
+                          console.log('Setting currentTicketId to:', String(ticketId));
+                          
+                          // Save session state with ticket creation
+                          await AsyncStorage.setItem('chatSession', JSON.stringify({
+                            sessionId,
+                            summaryShown,
+                            ticketCreatedInSession: true
+                          }));
+                          
+                          // Use setTimeout to ensure state updates are processed
+                          setTimeout(() => {
+                            const ticketCreatedMessage = {
+                              id: getUniqueId(),
+                              text: "Tiket berhasil dibuat! Upload file sekarang tersedia.",
+                              isBot: true,
+                              timestamp: new Date().toLocaleTimeString("id-ID", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }),
+                              hasTicketButton: true,
+                            };
+                            setMessages((prev) => {
+                              const newMessages = [...prev, ticketCreatedMessage];
+                              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                              return newMessages;
+                            });
+                          }, 100);
+                        } else {
+                          Alert.alert("Error", "Tiket berhasil dibuat tapi ID tidak ditemukan.");
+                        }
+                      } catch (error) {
+                        console.error('Error creating ticket:', error);
+                        Alert.alert("Error", "Gagal membuat tiket. Silakan coba lagi.");
+                      }
+                    }}
+                  >
+                    <MaterialIcons name="check" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>Buat Tiket</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1212,6 +1455,7 @@ export default function ChatScreen() {
                   </TouchableOpacity>
                 </View>
               )}
+
             </View>
           ))}
 
@@ -1245,25 +1489,28 @@ export default function ChatScreen() {
           <TouchableOpacity
             style={[
               styles.addFileButton,
-              (!isFromTicketDetail ||
-                !currentTicketId ||
-                currentTicketId.trim() === "" ||
-                currentTicketId === "undefined" ||
-                currentTicketId === "null") &&
-                styles.addFileButtonDisabled,
+              (() => {
+                const hasValidTicket = currentTicketId && 
+                  currentTicketId.trim() !== "" && 
+                  currentTicketId !== "undefined" && 
+                  currentTicketId !== "null";
+                const canUpload = (isFromTicketDetail || ticketCreatedInSession || fromConfirmation === "true") && hasValidTicket;
+                return !canUpload ? styles.addFileButtonDisabled : null;
+              })()
             ]}
-            disabled={
-              !isFromTicketDetail ||
-              !currentTicketId ||
-              currentTicketId.trim() === "" ||
-              currentTicketId === "undefined" ||
-              currentTicketId === "null"
-            }
+            disabled={(() => {
+              const hasValidTicket = currentTicketId && 
+                currentTicketId.trim() !== "" && 
+                currentTicketId !== "undefined" && 
+                currentTicketId !== "null";
+              const canUpload = (isFromTicketDetail || ticketCreatedInSession || fromConfirmation === "true") && hasValidTicket;
+              return !canUpload;
+            })()}
             onPress={() => {
-              if (!isFromTicketDetail) {
+              if (!isFromTicketDetail && !ticketCreatedInSession && fromConfirmation !== "true") {
                 Alert.alert(
                   "Upload Tidak Tersedia",
-                  "Upload file hanya tersedia dari detail tiket yang sudah ada."
+                  "Silakan buat tiket terlebih dahulu untuk mengirim attachment."
                 );
                 return;
               }
@@ -1285,15 +1532,14 @@ export default function ChatScreen() {
             <MaterialIcons
               name="add"
               size={24}
-              color={
-                !isFromTicketDetail ||
-                !currentTicketId ||
-                currentTicketId.trim() === "" ||
-                currentTicketId === "undefined" ||
-                currentTicketId === "null"
-                  ? "#999"
-                  : "#FFF"
-              }
+              color={(() => {
+                const hasValidTicket = currentTicketId && 
+                  currentTicketId.trim() !== "" && 
+                  currentTicketId !== "undefined" && 
+                  currentTicketId !== "null";
+                const canUpload = (isFromTicketDetail || ticketCreatedInSession || fromConfirmation === "true") && hasValidTicket;
+                return canUpload ? "#FFF" : "#999";
+              })()}
             />
           </TouchableOpacity>
           <TextInput
@@ -1384,7 +1630,7 @@ export default function ChatScreen() {
         <TicketSummaryModal
           visible={showTicketModal}
           onClose={() => setShowTicketModal(false)}
-          ticketId={currentTicketId ?? undefined}
+          ticketId={currentTicketId || undefined}
         />
 
         <BottomSheet
@@ -1583,22 +1829,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 8,
   },
-  yesButton: {
-    backgroundColor: "#FFF3EB",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
-  noButton: {
-    backgroundColor: "#FFF3EB",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
+
   buttonText: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#000",
+    color: "#FFF",
     fontFamily: "Poppins",
   },
   messageRow: {
@@ -1813,5 +2048,23 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 16,
     backgroundColor: "#FFF3EB",
+  },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF8636",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 4,
+  },
+  createButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#52B5AB",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 4,
   },
 });
