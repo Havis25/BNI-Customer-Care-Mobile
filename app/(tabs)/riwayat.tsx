@@ -22,11 +22,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import TabTransition from "@/components/TabTransition";
 import { useTickets } from "@/hooks/useTickets";
 
-// ==================== Helpers Warna Status ====================
+
 const getStatusColorBackground = (status: string) => {
   switch (status) {
     case "Diterima":
@@ -92,34 +91,6 @@ const getShadowColor = (status: string) => {
   }
 };
 
-// (opsional) parser tanggal versi ID
-const parseIndonesianDate = (tanggal: string, jam: string) => {
-  const monthMap: { [key: string]: number } = {
-    Jan: 0,
-    Feb: 1,
-    Mar: 2,
-    Apr: 3,
-    Mei: 4,
-    Jun: 5,
-    Jul: 6,
-    Agu: 7,
-    Sep: 8,
-    Okt: 9,
-    Nov: 10,
-    Des: 11,
-  };
-  const [day, month, year] = tanggal.split(" ");
-  const [hour, minute] = jam.split(":");
-  return new Date(
-    parseInt(year),
-    monthMap[month],
-    parseInt(day),
-    parseInt(hour),
-    parseInt(minute)
-  );
-};
-
-// ==================== Komponen ====================
 export default function RiwayatScreen() {
   const [showFilter, setShowFilter] = useState(false);
   const [sortBy, setSortBy] = useState("");
@@ -130,11 +101,9 @@ export default function RiwayatScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showNewTicketNotification, setShowNewTicketNotification] = useState(false);
 
-  // animasi bottom sheet
   const slideAnim = useRef(new Animated.Value(300)).current;
 
   const { tickets, isLoading: loading, error, refetch } = useTickets();
-
   const toIndoStatus = useCallback((statusCode?: string) => {
     switch ((statusCode || "").toUpperCase()) {
       case "ACC":
@@ -168,8 +137,6 @@ export default function RiwayatScreen() {
     
     return mappedData;
   }, [tickets, toIndoStatus]);
-
-
 
   // animasi open/close filter sheet
   useEffect(() => {
@@ -250,7 +217,6 @@ export default function RiwayatScreen() {
     }
   }, [refetch]);
 
-  // Auto-refresh saat halaman di-focus (kembali dari complaint)
   useFocusEffect(
     useCallback(() => {
       const checkRefreshFlag = async () => {
@@ -262,9 +228,7 @@ export default function RiwayatScreen() {
             setTimeout(() => setShowNewTicketNotification(false), 3000);
             await refetch();
           }
-          // Only refetch if there's a refresh flag, not on every focus
         } catch (error) {
-          // Don't auto-refetch on error
         }
       };
       
@@ -312,7 +276,13 @@ export default function RiwayatScreen() {
         </View>
 
         {loading ? (
-          <Text style={styles.loadingText}>Loading...</Text>
+          <FlatList
+            data={[1, 2, 3, 4, 5]}
+            keyExtractor={(item) => item.toString()}
+            renderItem={() => <SkeletonCard />}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
         ) : error ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
@@ -388,7 +358,6 @@ export default function RiwayatScreen() {
           </>
         )}
 
-        {/* Bottom Sheet Filter */}
         <Modal visible={showFilter} transparent animationType="fade">
           <TouchableOpacity
             style={styles.modalOverlay}
@@ -403,29 +372,25 @@ export default function RiwayatScreen() {
               onStartShouldSetResponder={() => true}
             >
               <View style={styles.sheetHeader}>
-                <Text style={styles.sheetTitle}>Filter & Sort</Text>
-                <TouchableOpacity onPress={() => setShowFilter(false)}>
+                <Text style={styles.sheetTitle}>Filter & Urutkan</Text>
+                {/* <TouchableOpacity onPress={() => setShowFilter(false)}>
                   <MaterialIcons name="close" size={24} color="#333" />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
 
               <View className="section" style={styles.section}>
-                <Text style={styles.sectionTitle}>Sort By</Text>
+                <Text style={styles.sectionTitle}>Urutkan Berdasarkan</Text>
 
                 <TouchableOpacity
                   style={styles.sortOption}
-                  onPress={() =>
-                    setSortBy(
-                      sortBy === "tanggal-terbaru" ? "" : "tanggal-terbaru"
-                    )
-                  }
+                  onPress={() => setSortBy("tanggal-terbaru")}
                 >
                   <MaterialIcons
                     name="calendar-today"
                     size={20}
                     color="#1F72F1"
                   />
-                  <Text style={styles.optionText}>Tanggal Terbaru</Text>
+                  <Text style={styles.optionText}>Terbaru</Text>
                   <MaterialIcons
                     name={
                       sortBy === "tanggal-terbaru"
@@ -439,20 +404,16 @@ export default function RiwayatScreen() {
 
                 <TouchableOpacity
                   style={styles.sortOption}
-                  onPress={() =>
-                    setSortBy(
-                      sortBy === "tanggal-terlama" ? "" : "tanggal-terlama"
-                    )
-                  }
+                  onPress={() => setSortBy("tanggal-terlama")}
                 >
                   <MaterialIcons
                     name="calendar-today"
                     size={20}
                     color="#1F72F1"
                   />
-                  <Text style={styles.optionText}>Tanggal Terlama</Text>
+                  <Text style={styles.optionText}>Terlama</Text>
                   <MaterialIcons
-                    name={
+                    name={ 
                       sortBy === "tanggal-terlama"
                         ? "radio-button-checked"
                         : "radio-button-unchecked"
@@ -464,7 +425,7 @@ export default function RiwayatScreen() {
               </View>
 
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Status Ticket</Text>
+                <Text style={styles.sectionTitle}>Status Tiket</Text>
 
                 <TouchableOpacity
                   style={styles.statusOption}
@@ -631,7 +592,6 @@ export default function RiwayatScreen() {
   );
 }
 
-// helper kecil untuk toggle checkbox status
 function toggleStatus(
   status: string,
   selected: string[],
@@ -746,8 +706,8 @@ const styles = StyleSheet.create({
   },
   sheetHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "center",
     marginBottom: 20,
   },
   sheetTitle: {
@@ -864,4 +824,61 @@ const styles = StyleSheet.create({
     color: "#2E7D32",
     flex: 1,
   },
+  skeletonCard: {
+    marginTop: 12,
+    marginBottom: 18,
+    padding: 18,
+    borderRadius: 14,
+    borderLeftWidth: 5,
+    borderLeftColor: "#E5E5E5",
+    backgroundColor: "#F8F9FA",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  skeletonHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  skeletonId: {
+    width: 80,
+    height: 12,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonBadge: {
+    width: 60,
+    height: 20,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonTitle: {
+    width: "70%",
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  skeletonDateTime: {
+    width: "50%",
+    height: 12,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
 });
+
+function SkeletonCard() {
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonHeader}>
+        <View style={styles.skeletonId} />
+        <View style={styles.skeletonBadge} />
+      </View>
+      <View style={styles.skeletonTitle} />
+      <View style={styles.skeletonDateTime} />
+    </View>
+  );
+}

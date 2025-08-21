@@ -29,13 +29,6 @@ export default function ProfileScreen() {
   const { stats, isLoading: statsLoading } = useTicketStats();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-
-
-  // Remove auto-refresh on focus to prevent excessive API calls
-  // Profile page doesn't need real-time ticket updates
-
-
-
   const handlePress = async (url: string) => {
     try {
       const supported = await Linking.canOpenURL(url);
@@ -61,16 +54,14 @@ export default function ProfileScreen() {
 
   if (userLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <ActivityIndicator size="large" color="#FF6600" />
-          <Text style={{ marginTop: 12, fontFamily: Fonts.regular }}>
-            Memuat data...
-          </Text>
-        </View>
-      </SafeAreaView>
+      <TabTransition>
+        <SafeAreaView style={styles.safeArea}>
+          <Text style={styles.headerTitle}>Profil</Text>
+          <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+            <ProfileSkeleton />
+          </ScrollView>
+        </SafeAreaView>
+      </TabTransition>
     );
   }
 
@@ -353,4 +344,176 @@ const styles = StyleSheet.create({
     color: "red",
     fontFamily: Fonts.semiBold,
   },
+  profileSkeleton: {
+    paddingHorizontal: 16,
+  },
+  skeletonAvatar: {
+    alignSelf: "center",
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: "#E5E5E5",
+    marginTop: 20,
+  },
+  skeletonUserName: {
+    alignSelf: "center",
+    width: "40%",
+    height: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  skeletonUserEmail: {
+    alignSelf: "center",
+    width: "60%",
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  skeletonStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  skeletonStatBox: {
+    flex: 1,
+    alignItems: "center",
+  },
+  skeletonStatNumber: {
+    width: 30,
+    height: 18,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  skeletonStatLabel: {
+    width: 80,
+    height: 12,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonInfoItem: {
+    marginTop: 12,
+  },
+  skeletonInfoLabel: {
+    width: "40%",
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  skeletonInfoValue: {
+    width: "70%",
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonSocialRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  skeletonSocialLeft: {
+    flex: 1,
+  },
+  skeletonSocialTitle: {
+    width: "30%",
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  skeletonSocialIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  skeletonSocialIcon: {
+    width: 45,
+    height: 45,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  skeletonSocialSubtitle: {
+    width: "50%",
+    height: 13,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonLogoutButton: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 12,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    height: 48,
+  },
 });
+
+function ProfileSkeleton() {
+  return (
+    <View style={styles.profileSkeleton}>
+      {/* Avatar Skeleton */}
+      <View style={styles.skeletonAvatar} />
+      
+      {/* Name & Email Skeleton */}
+      <View style={styles.skeletonUserName} />
+      <View style={styles.skeletonUserEmail} />
+      
+      {/* Stats Section */}
+      <View style={styles.sectionHeader}>
+        <View style={{ width: "50%", height: 14, backgroundColor: "#E5E5E5", borderRadius: 6 }} />
+      </View>
+      <View style={styles.skeletonStatsRow}>
+        <View style={styles.skeletonStatBox}>
+          <View style={styles.skeletonStatNumber} />
+          <View style={styles.skeletonStatLabel} />
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.skeletonStatBox}>
+          <View style={styles.skeletonStatNumber} />
+          <View style={styles.skeletonStatLabel} />
+        </View>
+      </View>
+      
+      {/* Info Section */}
+      <View style={styles.sectionHeader}>
+        <View style={{ width: "60%", height: 14, backgroundColor: "#E5E5E5", borderRadius: 6 }} />
+      </View>
+      <View style={styles.infoContainer}>
+        {[1, 2, 3].map((item) => (
+          <View key={item} style={styles.skeletonInfoItem}>
+            <View style={styles.skeletonInfoLabel} />
+            <View style={styles.skeletonInfoValue} />
+          </View>
+        ))}
+      </View>
+      
+      {/* Social Section */}
+      <View style={styles.sectionHeader}>
+        <View style={{ width: "40%", height: 14, backgroundColor: "#E5E5E5", borderRadius: 6 }} />
+      </View>
+      {[1, 2, 3].map((item) => (
+        <View key={item} style={styles.skeletonSocialRow}>
+          <View style={styles.skeletonSocialLeft}>
+            <View style={styles.skeletonSocialTitle} />
+            <View style={styles.skeletonSocialIconRow}>
+              <View style={styles.skeletonSocialIcon} />
+              <View style={styles.skeletonSocialSubtitle} />
+            </View>
+          </View>
+          <View style={{ width: 24, height: 24, backgroundColor: "#E5E5E5", borderRadius: 12 }} />
+        </View>
+      ))}
+      
+      {/* Logout Button Skeleton */}
+      <View style={styles.skeletonLogoutButton} />
+    </View>
+  );
+}

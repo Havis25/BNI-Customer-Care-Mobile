@@ -1,13 +1,58 @@
 import LayananKami from "@/components/home/LayananKami";
 import ServicesCard from "@/components/home/ServicesCard";
 import WelcomeCard from "@/components/home/WelcomeCard";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FlatList, Platform, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import TabTransition from "@/components/TabTransition";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function HomeScreen() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const initializeHome = async () => {
+      const startTime = Date.now();
+      
+      try {
+        // Check if user data exists
+        await AsyncStorage.getItem("customer");
+        
+        // Minimum 1 second skeleton display
+        const elapsed = Date.now() - startTime;
+        const minDelay = 1000;
+        
+        if (elapsed < minDelay) {
+          setTimeout(() => setIsLoading(false), minDelay - elapsed);
+        } else {
+          setIsLoading(false);
+        }
+      } catch {
+        setIsLoading(false);
+      }
+    };
+
+    initializeHome();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <TabTransition>
+        <SafeAreaView style={styles.safeArea}>
+          <LinearGradient
+            colors={["#DEEF5A", "#FCFDEE"]}
+            locations={[0.23, 0.37]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.backgroundSection}>
+            <HomeSkeleton />
+          </View>
+        </SafeAreaView>
+      </TabTransition>
+    );
+  }
+
   return (
     <TabTransition>
       <SafeAreaView style={styles.safeArea}>
@@ -39,6 +84,47 @@ export default function HomeScreen() {
   );
 }
 
+function HomeSkeleton() {
+  return (
+    <View>
+      {/* Welcome Card Skeleton */}
+      <View style={styles.welcomeSkeleton}>
+        <View style={styles.welcomeTextSkeleton}>
+          <View style={styles.skeletonGreeting} />
+          <View style={styles.skeletonQuestion} />
+        </View>
+        <View style={styles.skeletonProfile} />
+      </View>
+      
+      {/* Layanan Kami Skeleton */}
+      <View style={styles.layananKamiSkeleton}>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.layananItemSkeleton}>
+          <View style={styles.skeletonLayananIcon} />
+          <View style={styles.skeletonLayananText} />
+        </View>
+        <View style={styles.layananItemSkeleton}>
+          <View style={styles.skeletonLayananIcon} />
+          <View style={styles.skeletonLayananText} />
+        </View>
+      </View>
+      
+      {/* Layanan BNI Skeleton */}
+      <View style={styles.servicesSkeleton}>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.servicesGridSkeleton}>
+          {[1, 2, 3, 4, 5, 6].map((item) => (
+            <View key={item} style={styles.serviceItemSkeleton}>
+              <View style={styles.skeletonServiceIcon} />
+              <View style={styles.skeletonServiceName} />
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -53,5 +139,96 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: Platform.OS === "ios" ? 50 : 0,
+  },
+  welcomeSkeleton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 5,
+    marginBottom: 20,
+  },
+  welcomeTextSkeleton: {
+    flex: 1,
+  },
+  skeletonGreeting: {
+    width: "60%",
+    height: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  skeletonQuestion: {
+    width: "80%",
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+  },
+  skeletonProfile: {
+    width: 55,
+    height: 55,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 27.5,
+    marginLeft: 15,
+  },
+  layananKamiSkeleton: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: -8,
+    marginBottom: 14,
+  },
+  layananItemSkeleton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  skeletonLayananIcon: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  skeletonLayananText: {
+    flex: 1,
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  servicesSkeleton: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: -8,
+  },
+  skeletonTitle: {
+    width: "40%",
+    height: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  servicesGridSkeleton: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  serviceItemSkeleton: {
+    width: "30%",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  skeletonServiceIcon: {
+    width: 50,
+    height: 50,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  skeletonServiceName: {
+    width: "80%",
+    height: 12,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
   },
 });
