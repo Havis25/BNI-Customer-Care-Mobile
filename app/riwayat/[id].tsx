@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: Fonts.medium,
     color: "black",
-    paddingTop: 16,
+    // paddingTop: 16,
   },
   content: {
     flex: 1,
