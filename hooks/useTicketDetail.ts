@@ -119,6 +119,7 @@ export function useTicketDetail() {
     setIsLoading(true);
     setError(null);
     setLastFetch(now);
+    const startTime = Date.now();
 
     try {
       const response = await api<TicketDetailResponse>(`/v1/tickets/${ticketId}`);
@@ -133,7 +134,15 @@ export function useTicketDetail() {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);
     } finally {
-      setIsLoading(false);
+      // Minimum 1.5 second skeleton display
+      const elapsed = Date.now() - startTime;
+      const minDelay = 1500;
+      
+      if (elapsed < minDelay) {
+        setTimeout(() => setIsLoading(false), minDelay - elapsed);
+      } else {
+        setIsLoading(false);
+      }
     }
   }, [isAuthenticated]);
 
