@@ -271,8 +271,7 @@ export default function ConfirmationScreen() {
       {/* Jangan pakai behavior 'padding/height' agar layout TIDAK terdorong saat keyboard muncul */}
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={undefined}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={{ flex: 1 }}>
@@ -597,24 +596,26 @@ const styles = StyleSheet.create({
 
   // Footer fixed
   footerWrapper: {
+    marginBottom: -32,
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0, // tetap di bawah, tidak ikut keyboard
   },
   footerCard: {
-    backgroundColor: "white",
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 12,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: "#fff",
+    paddingVertical: 24,
     paddingTop: 16,
+    paddingBottom: 42,
+    paddingHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
   },
 
-  buttonContainer: { flexDirection: "row", gap: 12, paddingHorizontal: 16 },
+  buttonContainer: { flexDirection: "row", gap: 12, paddingHorizontal: 0 },
   backButton: {
     flex: 1,
     padding: 16,
