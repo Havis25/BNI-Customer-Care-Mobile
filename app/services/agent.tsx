@@ -5,10 +5,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   FlatList,
-  Image,
-  Platform,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -170,73 +167,99 @@ interface AgenItem {
 
 export default function AgentScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedAgents, setExpandedAgents] = useState<string[]>([]);
 
   const filteredAgens = agenData.filter(agen => 
     agen.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
     agen.alamat.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const renderStat = (stat: any, index: number) => (
-    <View key={index} style={styles.statCard}>
-      <MaterialCommunityIcons name={stat.icon} size={24} color="#FF6600" />
-      <Text style={styles.statValue}>{stat.value}</Text>
-      <Text style={styles.statLabel}>{stat.label}</Text>
-    </View>
-  );
+  const toggleExpand = (id: string) => {
+    setExpandedAgents(prev => 
+      prev.includes(id) 
+        ? prev.filter(agentId => agentId !== id)
+        : [...prev, id]
+    );
+  };
 
   const renderService = ({ item }: { item: any }) => (
-    <View style={styles.serviceCard}>
-      <View style={styles.serviceHeader}>
-        <View style={[styles.serviceIcon, { backgroundColor: item.color }]}>
-          <MaterialCommunityIcons name={item.icon} size={20} color="white" />
+    <View style={[styles.serviceCard, { borderLeftColor: item.color }]}>
+      <View style={styles.serviceContent}>
+        <View style={styles.serviceTop}>
+          <View style={styles.serviceHeader}>
+            <View style={[styles.iconContainer, { backgroundColor: item.color }]}>
+              <MaterialCommunityIcons name={item.icon} size={20} color="white" />
+            </View>
+            <Text style={styles.serviceName}>{item.title}</Text>
+          </View>
         </View>
-        <View style={styles.serviceInfo}>
-          <Text style={styles.serviceTitle}>{item.title}</Text>
-          <Text style={styles.serviceDescription}>{item.description}</Text>
-          <Text style={styles.serviceLimit}>{item.limit}</Text>
+        <Text style={styles.serviceDescription}>{item.description}</Text>
+        <View style={[styles.limitBadge, { backgroundColor: `${item.color}15` }]}>
+          <Text style={[styles.limitText, { color: item.color }]}>{item.limit}</Text>
         </View>
       </View>
     </View>
   );
 
-  const renderAgen = ({ item }: { item: AgenItem }) => (
-    <TouchableOpacity style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.nameContainer}>
-          <Text style={styles.cardTitle}>{item.nama}</Text>
-          <View style={styles.metaContainer}>
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={14} color="#FFD700" />
-              <Text style={styles.ratingText}>{item.rating}</Text>
-            </View>
-            <View style={styles.distanceContainer}>
-              <Ionicons name="location-outline" size={14} color="#666" />
-              <Text style={styles.distanceText}>{item.jarak}</Text>
+  const renderAgen = ({ item }: { item: AgenItem }) => {
+    const isExpanded = expandedAgents.includes(item.id);
+    const visibleServices = isExpanded ? item.layanan : item.layanan.slice(0, 3);
+    
+    return (
+      <View style={styles.agenCard}>
+        <View style={styles.agenHeader}>
+          <View style={styles.agenInfo}>
+            <Text style={styles.agenName}>{item.nama}</Text>
+            <View style={styles.agenMeta}>
+              <View style={styles.ratingContainer}>
+                <Ionicons name="star" size={12} color="#FFD700" />
+                <Text style={styles.ratingText}>{item.rating}</Text>
+              </View>
+              <View style={styles.distanceContainer}>
+                <Ionicons name="location-outline" size={12} color="#666" />
+                <Text style={styles.distanceText}>{item.jarak}</Text>
+              </View>
             </View>
           </View>
         </View>
-
-      </View>
-      
-      <View style={styles.cardContent}>
-        <View style={styles.infoRow}>
-          <Ionicons name="location" size={16} color="#FF6600" />
-          <Text style={styles.infoText}>{item.alamat}</Text>
-        </View>
         
-        <View style={styles.infoRow}>
-          <Ionicons name="call" size={16} color="#FF6600" />
-          <Text style={styles.infoText}>{item.telepon}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Ionicons name="time" size={16} color="#FF6600" />
-          <Text style={styles.infoText}>{item.jamBuka}</Text>
-        </View>
+        <View style={styles.agenDetails}>
+          <View style={styles.detailRow}>
+            <Ionicons name="location" size={14} color="#FF6600" />
+            <Text style={styles.detailText}>{item.alamat}</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Ionicons name="call" size={14} color="#FF6600" />
+            <Text style={styles.detailText}>{item.telepon}</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Ionicons name="time" size={14} color="#FF6600" />
+            <Text style={styles.detailText}>{item.jamBuka}</Text>
+          </View>
 
+          <View style={styles.servicesContainer}>
+            {visibleServices.map((layanan, index) => (
+              <View key={index} style={styles.serviceBadge}>
+                <Text style={styles.serviceText}>{layanan}</Text>
+              </View>
+            ))}
+            {item.layanan.length > 3 && (
+              <TouchableOpacity 
+                style={[styles.moreButton, { backgroundColor: isExpanded ? '#FF660015' : '#f0f0f0' }]}
+                onPress={() => toggleExpand(item.id)}
+              >
+                <Text style={[styles.moreText, { color: isExpanded ? '#FF6600' : '#666' }]}>
+                  {isExpanded ? 'Tutup' : `+${item.layanan.length - 3}`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
       </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -251,101 +274,70 @@ export default function AgentScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="black" />
           </TouchableOpacity>
-          <Text style={styles.header}>Agen BNI Terdekat</Text>
+          <Text style={styles.header}>Agen46</Text>
         </View>
       </View>
 
-      <ScrollView style={styles.container}>
-        {/* Hook Card */}
-        <View style={styles.hookCard}>
-          <LinearGradient
-            colors={['#FFF5E6', '#FFFFFF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.hookGradient}
-          >
-            <View style={styles.hookHeader}>
-              <Image 
-                source={require('@/assets/images/logo_agen46.png')} 
-                style={styles.agen46Logo}
-                resizeMode="contain"
-              />
-            </View>
-            
-            <View style={styles.hookContent}>
-              <Text style={styles.hookTitle}>Agen46 Dekat dengan Kamu!</Text>
-              <Text style={styles.hookSubtitle}>
-                Butuh bantuan perbankan? Agen46 siap membantu dengan layanan lengkap di sekitar kamu.
-              </Text>
-              
-              <View style={styles.hookFeatures}>
-                <View style={styles.hookFeature}>
-                  <View style={styles.checkIcon}>
-                    <Ionicons name="checkmark" size={12} color="white" />
+      <FlatList
+        data={agen46Services}
+        renderItem={renderService}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={() => (
+          <View>
+            <View style={styles.headerContent}>
+              <View style={styles.heroSection}>
+                <Text style={styles.heroSubtitle}>
+                  Temukan agen BNI terdekat untuk layanan perbankan lengkap kapan saja, dimana saja
+                </Text>
+                <View style={styles.heroFeatures}>
+                  <View style={styles.heroFeature}>
+                    <MaterialCommunityIcons name="store" size={16} color="#4CAF50" />
+                    <Text style={styles.heroFeatureText}>25.000+ Agen</Text>
                   </View>
-                  <Text style={styles.hookFeatureText}>Buka rekening mudah</Text>
-                </View>
-                <View style={styles.hookFeature}>
-                  <View style={styles.checkIcon}>
-                    <Ionicons name="checkmark" size={12} color="white" />
+                  <View style={styles.heroFeature}>
+                    <MaterialCommunityIcons name="clock-outline" size={16} color="#4CAF50" />
+                    <Text style={styles.heroFeatureText}>Buka 24/7</Text>
                   </View>
-                  <Text style={styles.hookFeatureText}>Bayar tagihan lengkap</Text>
-                </View>
-                <View style={styles.hookFeature}>
-                  <View style={styles.checkIcon}>
-                    <Ionicons name="checkmark" size={12} color="white" />
-                  </View>
-                  <Text style={styles.hookFeatureText}>Setor tarik tunai</Text>
                 </View>
               </View>
-              
-
             </View>
-          </LinearGradient>
-        </View>
-
-        {/* Layanan yang Tersedia */}
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>Layanan yang Tersedia di Agen46</Text>
-          <FlatList
-            data={agen46Services}
-            renderItem={renderService}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={false}
-          />
-        </View>
-
-        {/* Search & Agen Terdekat */}
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>Cari Agen46 Terdekat</Text>
-          <Text style={styles.sectionDesc}>
-            Temukan lokasi Agen46 terdekat untuk melakukan transaksi perbankan dan pembayaran
-          </Text>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#666" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Cari agen BNI terdekat..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+            
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Layanan Tersedia</Text>
+            </View>
           </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.subHeader}>
-            {filteredAgens.length} Agen BNI Ditemukan
-          </Text>
-          <FlatList
-            data={filteredAgens}
-            renderItem={renderAgen}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={false}
-          />
-        </View>
-      </ScrollView>
+        )}
+        ListFooterComponent={() => (
+          <View>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Cari Agen Terdekat</Text>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={18} color="#666" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Cari agen BNI terdekat..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+            </View>
+            
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsCount}>
+                {filteredAgens.length} Agen Ditemukan
+              </Text>
+            </View>
+            
+            {filteredAgens.map((item) => (
+              <View key={item.id}>
+                {renderAgen({ item })}
+              </View>
+            ))}
+          </View>
+        )}
+        contentContainerStyle={styles.container}
+      />
     </SafeAreaView>
   );
 }
@@ -355,9 +347,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerSection: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -367,161 +359,115 @@ const styles = StyleSheet.create({
     marginRight: 16,
     padding: 4,
   },
-  container: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
   header: {
     fontSize: 24,
     fontFamily: Fonts.bold,
     color: 'black',
     flex: 1,
   },
-  section: {
+  container: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  headerContent: {
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  subHeader: {
-    fontSize: 16,
-    fontFamily: Fonts.semiBold,
-    color: 'black',
-    marginBottom: 8,
-  },
-  sectionDesc: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: '#666',
-    lineHeight: 16,
-    marginBottom: 16,
-  },
-  hookCard: {
-    marginBottom: 16,
     borderRadius: 20,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#FF6600',
-        shadowOpacity: 0.15,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  hookGradient: {
-    padding: 20,
-  },
-  hookHeader: {
     marginBottom: 16,
+    overflow: 'hidden',
   },
-  agen46Logo: {
-    width: 120,
-    height: 60,
+  heroSection: {
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
   },
-  hookContent: {
-    gap: 12,
-  },
-  hookTitle: {
+  heroTitle: {
     fontSize: 20,
     fontFamily: Fonts.bold,
     color: '#1a1a1a',
+    marginBottom: 8,
   },
-  hookSubtitle: {
+  heroSubtitle: {
     fontSize: 14,
-    fontFamily: Fonts.medium,
+    fontFamily: Fonts.regular,
     color: '#666',
     lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  hookFeatures: {
-    gap: 10,
+  heroFeatures: {
+    flexDirection: 'row',
+    gap: 24,
   },
-  hookFeature: {
+  heroFeature: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
-  checkIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  hookFeatureText: {
-    fontSize: 13,
+  heroFeatureText: {
+    fontSize: 12,
     fontFamily: Fonts.medium,
-    color: '#333',
+    color: '#4CAF50',
   },
-
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  sectionHeader: {
+    marginBottom: 16,
   },
-  statCard: {
-    width: '48%',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.semiBold,
+    color: '#1a1a1a',
     marginBottom: 12,
   },
-  statValue: {
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-    color: 'black',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontFamily: Fonts.medium,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 4,
-  },
   serviceCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  serviceContent: {
+    padding: 16,
+  },
+  serviceTop: {
     marginBottom: 8,
   },
   serviceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  serviceIcon: {
-    width: 36,
-    height: 36,
+  iconContainer: {
+    width: 32,
+    height: 32,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
-  serviceInfo: {
+  serviceName: {
+    fontSize: 15,
+    fontFamily: Fonts.semiBold,
+    color: '#1a1a1a',
     flex: 1,
   },
-  serviceTitle: {
-    fontSize: 14,
-    fontFamily: Fonts.semiBold,
-    color: 'black',
-    marginBottom: 2,
-  },
   serviceDescription: {
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    color: '#666',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  limitBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  limitText: {
     fontSize: 11,
     fontFamily: Fonts.medium,
-    color: '#666',
-    marginBottom: 2,
-  },
-  serviceLimit: {
-    fontSize: 10,
-    fontFamily: Fonts.medium,
-    color: '#FF6600',
-    fontStyle: 'italic',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -530,38 +476,47 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    marginTop: 8,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
-    fontFamily: Fonts.medium,
+    fontFamily: Fonts.regular,
     color: 'black',
   },
-  card: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  resultsHeader: {
     marginBottom: 12,
   },
-  nameContainer: {
-    flex: 1,
-  },
-  cardTitle: {
+  resultsCount: {
     fontSize: 16,
     fontFamily: Fonts.semiBold,
-    color: 'black',
+    color: '#1a1a1a',
+  },
+  agenCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  agenHeader: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  agenInfo: {
+    flex: 1,
+  },
+  agenName: {
+    fontSize: 15,
+    fontFamily: Fonts.semiBold,
+    color: '#1a1a1a',
     marginBottom: 4,
   },
-  metaContainer: {
+  agenMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -571,70 +526,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ratingText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: Fonts.medium,
     color: '#666',
-    marginLeft: 4,
+    marginLeft: 2,
   },
   distanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   distanceText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: Fonts.medium,
     color: '#666',
-    marginLeft: 4,
+    marginLeft: 2,
   },
-  categoryBadge: {
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  agenDetails: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  categoryText: {
-    fontSize: 10,
-    fontFamily: Fonts.medium,
-    color: '#1976d2',
-  },
-  cardContent: {
-    gap: 8,
-  },
-  infoRow: {
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 6,
   },
-  infoText: {
+  detailText: {
     fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: '#333',
+    fontFamily: Fonts.regular,
+    color: '#666',
     marginLeft: 8,
     flex: 1,
   },
-  layananContainer: {
-    marginTop: 8,
-  },
-  layananLabel: {
-    fontSize: 12,
-    fontFamily: Fonts.semiBold,
-    color: '#333',
-    marginBottom: 6,
-  },
-  layananList: {
+  servicesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+    marginTop: 8,
   },
-  layananBadge: {
-    backgroundColor: '#fff3e0',
+  serviceBadge: {
+    backgroundColor: '#FF660015',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 12,
   },
-  layananText: {
+  serviceText: {
     fontSize: 10,
     fontFamily: Fonts.medium,
-    color: '#f57c00',
+    color: '#FF6600',
   },
-
+  moreButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  moreText: {
+    fontSize: 10,
+    fontFamily: Fonts.medium,
+  },
 });
