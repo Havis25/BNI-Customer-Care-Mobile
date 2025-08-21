@@ -585,13 +585,13 @@ export default function ChatScreen() {
           } else {
             // Merge with initial chatMessages for new chats
             const merged = [
-              ...chatMessages,
-              ...uniq.filter((m) => !chatMessages.find((cm) => cm.id === m.id)),
+              initialBotMessage,
+              ...uniq.filter((m: MessageType) => m.id !== initialBotMessage.id),
             ];
             setMessages(merged);
           }
         } catch (error) {
-          setMessages(chatMessages);
+          setMessages([initialBotMessage]);
         }
       } else {
         // No existing messages
@@ -599,7 +599,7 @@ export default function ChatScreen() {
           // For ticket detail, start with minimal messages
           setMessages([]);
         } else {
-          setMessages(chatMessages);
+          setMessages([initialBotMessage]);
         }
       }
     })();
@@ -1245,19 +1245,28 @@ export default function ChatScreen() {
           <TouchableOpacity
             style={[
               styles.addFileButton,
-              (!currentTicketId ||
+              (!isFromTicketDetail ||
+                !currentTicketId ||
                 currentTicketId.trim() === "" ||
                 currentTicketId === "undefined" ||
                 currentTicketId === "null") &&
                 styles.addFileButtonDisabled,
             ]}
             disabled={
+              !isFromTicketDetail ||
               !currentTicketId ||
               currentTicketId.trim() === "" ||
               currentTicketId === "undefined" ||
               currentTicketId === "null"
             }
             onPress={() => {
+              if (!isFromTicketDetail) {
+                Alert.alert(
+                  "Upload Tidak Tersedia",
+                  "Upload file hanya tersedia dari detail tiket yang sudah ada."
+                );
+                return;
+              }
               if (
                 !currentTicketId ||
                 currentTicketId.trim() === "" ||
@@ -1277,6 +1286,7 @@ export default function ChatScreen() {
               name="add"
               size={24}
               color={
+                !isFromTicketDetail ||
                 !currentTicketId ||
                 currentTicketId.trim() === "" ||
                 currentTicketId === "undefined" ||
@@ -1788,5 +1798,20 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins",
     color: "#FF8636",
     fontWeight: "500",
+  },
+  debugInfo: {
+    backgroundColor: "#F0F0F0",
+    padding: 8,
+    marginHorizontal: 16,
+  },
+  debugText: {
+    fontSize: 10,
+    color: "#666",
+    fontFamily: "Poppins",
+  },
+  debugButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "#FFF3EB",
   },
 });
