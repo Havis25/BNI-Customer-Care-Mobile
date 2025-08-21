@@ -7,6 +7,40 @@ export const API_BASE = (
 
 type JSONValue = any;
 
+// Refresh token function using new endpoint
+const refreshToken = async (): Promise<string | null> => {
+  try {
+    const storedRefreshToken = await SecureStore.getItemAsync("refresh_token");
+    if (!storedRefreshToken) {
+      throw new Error("No refresh token available");
+    }
+
+    const response = await fetch(`${API_BASE}/v1/auth/refresh-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${storedRefreshToken}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.access_token) {
+      await SecureStore.setItemAsync("access_token", data.access_token);
+      if (data.refresh_token) {
+        await SecureStore.setItemAsync("refresh_token", data.refresh_token);
+      }
+      console.log('✅ Token refreshed successfully');
+      return data.access_token;
+    }
+    
+    throw new Error(data.message || "Token refresh failed");
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    return null;
+  }
+};
+
 export async function api<T = JSONValue>(
   path: string,
   init: RequestInit = {},
@@ -38,11 +72,28 @@ export async function api<T = JSONValue>(
     }
   }
 
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     ...init,
     headers,
     signal,
   });
+
+  // Handle 419 expired token
+  if (res.status === 419 && !path.includes("/auth/")) {
+    console.log('🔄 Token expired (419), attempting refresh...');
+    const newToken = await refreshToken();
+    if (newToken) {
+      // Retry with new token
+      headers.Authorization = `Bearer ${newToken}`;
+      res = await fetch(url, {
+        ...init,
+        headers,
+        signal,
+      });
+    } else {
+      console.log('❌ Token refresh failed');
+    }
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
