@@ -84,8 +84,10 @@ export default function ChatScreen() {
   const urlRoom = typeof room === "string" && room.trim() ? room : "general";
   const fallbackCallRoom = `call:${urlRoom}`;
   const isFromTicketDetail = useMemo(() => {
-    return room && typeof room === "string" && room.startsWith("ticket-");
-  }, [room]);
+    // Check if room starts with "ticket-" or if we have ticketId without fromConfirmation
+    return (room && typeof room === "string" && room.startsWith("ticket-")) ||
+           (ticketId && typeof ticketId === "string" && fromConfirmation !== "true");
+  }, [room, ticketId, fromConfirmation]);
 
   const socket = getSocket();
   const temp_uid = String(
@@ -364,7 +366,7 @@ export default function ChatScreen() {
         setIsTyping(false);
       }
     },
-    [sessionId, summaryShown, user, authUser]
+    [sessionId, summaryShown, user, authUser, ticketCreatedInSession, storageKey]
   );
 
   // Test function to send a simple message
@@ -538,22 +540,7 @@ export default function ChatScreen() {
     }
   }, [currentTicketId, fetchAttachments]);
 
-  // Debug: Monitor state changes
-  useEffect(() => {
-    console.log('State changed:');
-    console.log('- room:', room);
-    console.log('- isFromTicketDetail:', isFromTicketDetail);
-    console.log('- ticketCreatedInSession:', ticketCreatedInSession);
-    console.log('- currentTicketId:', currentTicketId);
-    const hasValidTicket = currentTicketId && 
-      currentTicketId.trim() !== "" && 
-      currentTicketId !== "undefined" && 
-      currentTicketId !== "null";
-    const canUpload = (isFromTicketDetail || ticketCreatedInSession) && hasValidTicket;
-    const canUpload = (isFromTicketDetail || ticketCreatedInSession || fromConfirmation === "true") && hasValidTicket;
-    console.log('- fromConfirmation:', fromConfirmation);
-    console.log('- Upload button should be enabled:', canUpload);
-  }, [room, isFromTicketDetail, ticketCreatedInSession, currentTicketId]);
+
 
   // Send ticket info when from ticket detail
   useEffect(() => {
@@ -661,12 +648,24 @@ export default function ChatScreen() {
             if (session.summaryShown !== undefined) {
               setSummaryShown(session.summaryShown);
             }
-            if (session.ticketCreatedInSession !== undefined) {
+            // Only restore ticketCreatedInSession if not coming from ticket detail
+            if (session.ticketCreatedInSession !== undefined && !isFromTicketDetail) {
               setTicketCreatedInSession(session.ticketCreatedInSession);
             }
           } catch (error) {
             console.log('Error parsing session data:', error);
           }
+        }
+
+        // Clear ticketCreatedInSession when coming from ticket detail
+        if (isFromTicketDetail) {
+          setTicketCreatedInSession(false);
+          // Also clear from storage to prevent restoration
+          await AsyncStorage.setItem('chatSession', JSON.stringify({
+            sessionId: sessionData ? JSON.parse(sessionData).sessionId : null,
+            summaryShown: sessionData ? JSON.parse(sessionData).summaryShown : false,
+            ticketCreatedInSession: false
+          }));
         }
 
         // Restore ticket ID
@@ -1310,7 +1309,7 @@ export default function ChatScreen() {
                             'atm': 'ATM',
                             'call_center': 'CALL_CENTER'
                           };
-                          const channelCode = channelMap[collectedInfo.channel.toLowerCase()];
+                          const channelCode = channelMap[collectedInfo.channel.toLowerCase() as keyof typeof channelMap];
                           const foundChannel = channels.find(c => c.channel_code === channelCode);
                           if (foundChannel) {
                             channelId = foundChannel.channel_id;
@@ -1336,7 +1335,7 @@ export default function ChatScreen() {
                               'transfer': 'TRANSFER',
                               'atm': 'ATM'
                             };
-                            const mappedCode = categoryMap[categoryLower];
+                            const mappedCode = categoryMap[categoryLower as keyof typeof categoryMap];
                             if (mappedCode) {
                               foundCategory = categories.find(c => c.complaint_code.includes(mappedCode));
                             }
@@ -1508,11 +1507,6 @@ export default function ChatScreen() {
               return !canUpload;
             })()}
             onPress={() => {
-              console.log('Upload button pressed');
-              console.log('isFromTicketDetail:', isFromTicketDetail);
-              console.log('ticketCreatedInSession:', ticketCreatedInSession);
-              console.log('currentTicketId:', currentTicketId);
-              
               if (!isFromTicketDetail && !ticketCreatedInSession && fromConfirmation !== "true") {
                 Alert.alert(
                   "Upload Tidak Tersedia",
