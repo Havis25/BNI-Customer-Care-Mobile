@@ -58,7 +58,14 @@ export default function RiwayatDetailScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <MaterialIcons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detail Laporan</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <DetailSkeleton />
       </SafeAreaView>
     );
   }
@@ -282,6 +289,46 @@ export default function RiwayatDetailScreen() {
         }}
       />
     </SafeAreaView>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Complaint Container Skeleton */}
+      <View style={styles.complaintContainer}>
+        <View style={styles.detailHeader}>
+          <View style={styles.skeletonTicketId} />
+          <View style={styles.skeletonDateTime} />
+        </View>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.descriptionSection}>
+          <View style={styles.skeletonSectionTitle} />
+          <View style={styles.skeletonDescription} />
+          <View style={[styles.skeletonDescription, { width: '60%' }]} />
+        </View>
+      </View>
+      
+      {/* Progress Section Skeleton */}
+      <View style={styles.progressSection}>
+        <View style={styles.skeletonProgressTitle} />
+        <View style={styles.skeletonProgressCard}>
+          {[1, 2, 3, 4].map((item) => (
+            <View key={item} style={styles.progressStep}>
+              <View style={styles.progressStepLeft}>
+                <View style={styles.skeletonProgressDot} />
+                {item < 4 && <View style={styles.skeletonProgressLine} />}
+              </View>
+              <View style={styles.progressStepContent}>
+                <View style={styles.skeletonProgressStatus} />
+                <View style={styles.skeletonProgressDesc} />
+                <View style={styles.skeletonProgressDate} />
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -577,5 +624,88 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts.regular,
     color: "#999",
+  },
+  
+  // Skeleton styles
+  skeletonTicketId: {
+    width: 120,
+    height: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+  },
+  skeletonDateTime: {
+    width: 100,
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonTitle: {
+    width: "70%",
+    height: 18,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  skeletonSectionTitle: {
+    width: 80,
+    height: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+    marginBottom: 2,
+  },
+  skeletonDescription: {
+    width: "100%",
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  skeletonProgressTitle: {
+    width: 120,
+    height: 18,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  skeletonProgressDot: {
+    width: 16,
+    height: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+  },
+  skeletonProgressStatus: {
+    width: 100,
+    height: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  skeletonProgressDesc: {
+    width: "80%",
+    height: 13,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  skeletonProgressDate: {
+    width: 80,
+    height: 12,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonProgressCard: {
+    backgroundColor: "#F5F5F5",
+    borderLeftWidth: 4,
+    borderLeftColor: "#E5E5E5",
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  skeletonProgressLine: {
+    width: 2,
+    height: "100%",
+    backgroundColor: "#E5E5E5",
+    position: "absolute",
+    top: 18,
   },
 });
