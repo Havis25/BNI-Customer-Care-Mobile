@@ -18,7 +18,8 @@ export default function RiwayatDetailScreen() {
   const { id } = useLocalSearchParams();
 
   const [showFeedback, setShowFeedback] = useState(false);
-  const { ticketDetail, isLoading, error, fetchTicketDetail, progressData } = useTicketDetail();
+  const { ticketDetail, isLoading, error, fetchTicketDetail, progressData } =
+    useTicketDetail();
 
   useEffect(() => {
     if (id) {
@@ -28,7 +29,8 @@ export default function RiwayatDetailScreen() {
 
   useEffect(() => {
     if (ticketDetail) {
-      const isCompleted = ticketDetail.customer_status.customer_status_code === "CLOSED";
+      const isCompleted =
+        ticketDetail.customer_status.customer_status_code === "CLOSED";
       const hasFeedback = !!ticketDetail.feedback;
       if (isCompleted && !hasFeedback) {
         setShowFeedback(true);
@@ -51,23 +53,6 @@ export default function RiwayatDetailScreen() {
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const toIndoStatus = (statusCode?: string) => {
-    switch ((statusCode || "").toUpperCase()) {
-      case "ACC":
-        return "Diterima";
-      case "VERIF":
-        return "Verifikasi";
-      case "PROCESS":
-        return "Diproses";
-      case "CLOSED":
-        return "Selesai";
-      case "DECLINED":
-        return "Ditolak";
-      default:
-        return statusCode || "-";
-    }
   };
 
   if (isLoading) {
@@ -151,10 +136,13 @@ export default function RiwayatDetailScreen() {
           </View>
         )}
 
-        <View style={[
-          styles.complaintContainer,
-          ticketDetail.customer_status.customer_status_code === "DECLINED" && styles.complaintContainerDeclined
-        ]}>
+        <View
+          style={[
+            styles.complaintContainer,
+            ticketDetail.customer_status.customer_status_code === "DECLINED" &&
+              styles.complaintContainerDeclined,
+          ]}
+        >
           <View style={styles.detailHeader}>
             <Text style={styles.detailId}>{ticketDetail.ticket_number}</Text>
             <Text style={styles.detailDateTime}>
@@ -177,10 +165,13 @@ export default function RiwayatDetailScreen() {
 
         <View style={styles.progressSection}>
           <Text style={styles.progressTitle}>Status Progress</Text>
-          <View style={[
-            styles.progressCard,
-            ticketDetail.customer_status.customer_status_code === "DECLINED" && styles.progressCardDeclined
-          ]}>
+          <View
+            style={[
+              styles.progressCard,
+              ticketDetail.customer_status.customer_status_code ===
+                "DECLINED" && styles.progressCardDeclined,
+            ]}
+          >
             {progressData?.map((step: any, index: number) => {
               const isLast = index === progressData.length - 1;
 
@@ -190,7 +181,11 @@ export default function RiwayatDetailScreen() {
                     <View
                       style={[
                         styles.progressDot,
-                        step.completed && (ticketDetail.customer_status.customer_status_code === "DECLINED" ? styles.progressDotDeclined : styles.progressDotCompleted),
+                        step.completed &&
+                          (ticketDetail.customer_status.customer_status_code ===
+                          "DECLINED"
+                            ? styles.progressDotDeclined
+                            : styles.progressDotCompleted),
                       ]}
                     />
 
@@ -198,7 +193,11 @@ export default function RiwayatDetailScreen() {
                       <View
                         style={[
                           styles.progressLine,
-                          step.completed && (ticketDetail.customer_status.customer_status_code === "DECLINED" ? styles.progressLineDeclined : styles.progressLineCompleted),
+                          step.completed &&
+                            (ticketDetail.customer_status
+                              .customer_status_code === "DECLINED"
+                              ? styles.progressLineDeclined
+                              : styles.progressLineCompleted),
                         ]}
                       />
                     )}
@@ -249,7 +248,7 @@ export default function RiwayatDetailScreen() {
 
       {ticketDetail.customer_status.customer_status_code !== "DECLINED" && (
         <View style={styles.liveChatCard}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.liveChatButton}
             onPress={() => {
               router.push({
@@ -257,8 +256,8 @@ export default function RiwayatDetailScreen() {
                 params: {
                   fromConfirmation: "true",
                   ticketId: id,
-                  room: `ticket-${id}`
-                }
+                  room: `ticket-${id}`,
+                },
               });
             }}
           >
@@ -275,9 +274,7 @@ export default function RiwayatDetailScreen() {
 
       <FeedbackModal
         visible={showFeedback}
-        onClose={() => {
-          // Tidak bisa ditutup sampai feedback dikirim
-        }}
+        onClose={() => {}}
         ticketId={id as string}
         onSuccess={() => {
           fetchTicketDetail(id as string);
@@ -364,7 +361,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: Fonts.medium,
-    color: "#333",
+    color: "black",
     marginBottom: 2,
   },
   descriptionText: {
@@ -385,8 +382,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFF1F1",
-    borderWidth: 1,
-    borderColor: "#E24646",
     padding: 16,
     borderRadius: 8,
     marginBottom: 20,
