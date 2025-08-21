@@ -5,6 +5,7 @@ import UploadModal from "@/components/modals/UploadModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { useUser } from "@/hooks/useUser";
+import { api } from "@/lib/api";
 import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -60,42 +61,19 @@ type CallStatus = "idle" | "ringing" | "in-call";
 
 const MAX_MSG = 200;
 
-const chatMessages: MessageType[] = [
-  {
-    id: 1,
-    text: "Halo! Saya BNI Assistant. Saya siap membantu Anda dengan keluhan atau masalah perbankan. Bisa ceritakan masalah yang Anda alami?",
-    isBot: true,
-    timestamp: "10:30",
-  },
-  {
-    id: 2,
-    text: "Halo, saya mengalami masalah dengan kartu ATM saya",
-    isBot: false,
-    timestamp: "10:31",
-  },
-  {
-    id: 3,
-    text: "Baik, saya akan membantu Anda dengan masalah kartu ATM. Bisa dijelaskan lebih detail masalah apa yang Anda alami?",
-    isBot: true,
-    timestamp: "10:31",
-  },
-  {
-    id: 4,
-    text: "Kartu ATM saya tertelan di mesin ATM BNI Thamrin",
-    isBot: false,
-    timestamp: "10:32",
-  },
-  {
-    id: 5,
-    text: "Saya mengerti situasinya. Apakah Anda ingin saya buatkan tiket complaint untuk masalah ini?",
-    isBot: true,
-    timestamp: "10:32",
-    hasButtons: true,
-  },
-];
+// Initial welcome message from bot
+const initialBotMessage: MessageType = {
+  id: 1,
+  text: "Halo! Saya BNI Assistant. Saya siap membantu Anda dengan keluhan atau masalah perbankan. Bisa ceritakan masalah yang Anda alami?",
+  isBot: true,
+  timestamp: new Date().toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }),
+};
 
 export default function ChatScreen() {
-  const { callDeclined, fromConfirmation, callEnded, room, ticketId } =
+  const { fromConfirmation, room, ticketId } =
     useLocalSearchParams();
   const { user } = useUser();
   const { user: authUser } = useAuth();
@@ -117,9 +95,8 @@ export default function ChatScreen() {
   );
 
   const [messages, setMessages] = useState<MessageType[]>([]);
-  const [connected, setConnected] = useState(false);
-  const [authed, setAuthed] = useState(false);
-  const [socketId, setSocketId] = useState<string>("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
 
   // DM / pairing
   const [dmRoom, setDmRoom] = useState<string | null>(null);
@@ -157,12 +134,10 @@ export default function ChatScreen() {
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
-  const messageIdRef = useRef(1000);
 
   // Attachment management - initialize without auto-fetch
   const {
     attachments,
-    isLoading: attachmentsLoading,
     fetchAttachments,
     deleteAttachment,
   } = useTicketAttachments();
@@ -171,34 +146,156 @@ export default function ChatScreen() {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  const showAgentChatQuestion = () => {
-    const agentChatQuestion = {
-      id: getUniqueId(),
-      text: "Apakah Anda ingin melakukan chat dengan agent kami?",
-      isBot: true,
-      timestamp: new Date().toLocaleTimeString("id-ID", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      hasLiveChatButtons: true,
-    };
-    setMessages((prev) => [...prev, agentChatQuestion]);
-  };
-
-  const startTimeout = () => {
-    if (timeoutId) clearTimeout(timeoutId);
-    const id = setTimeout(() => {
-      showAgentChatQuestion();
-    }, 10000);
-    setTimeoutId(id);
-  };
-
-  const clearCurrentTimeout = () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      setTimeoutId(null);
+  // Function to check API health
+  const checkApiHealth = useCallback(async () => {
+    try {
+      console.log('Checking API health at:', `${process.env.EXPO_PUBLIC_API_URL || "https://bcare.my.id"}/healthz`);
+      
+      const response = await api<{
+        status: string;
+        model?: string;
+        time?: string;
+      }>('/healthz', {
+        method: 'GET'
+      });
+      
+      console.log('API Health Check Response:', response);
+      return response.status === 'ok';
+    } catch (error) {
+      console.error('Health check failed:', error);
+      return false;
     }
-  };
+  }, []);
+
+  // Initialize chat with health check
+  const initializeChat = useCallback(async () => {
+    const isHealthy = await checkApiHealth();
+    
+    if (!isHealthy) {
+      const errorMessage: MessageType = {
+        id: getUniqueId(),
+        text: "Sistem sedang bermasalah. Silakan coba lagi nanti.",
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages([errorMessage]);
+      return;
+    }
+
+    // Start with initial bot message
+    setMessages([initialBotMessage]);
+  }, [checkApiHealth]);
+
+  // Function to send message to chatbot API
+  const sendToChatbot = useCallback(async (userMessage: string) => {
+    try {
+      setIsTyping(true);
+      console.log('Sending message to chatbot:', userMessage);
+      console.log('Current sessionId:', sessionId);
+      console.log('API Base URL:', process.env.EXPO_PUBLIC_API_URL || "https://bcare.my.id");
+      
+      const response = await api<{
+        success: boolean;
+        message: string;
+        session_id: string;
+        collected_info?: {
+          full_name?: string;
+          account_number?: string;
+          channel?: string;
+          category?: string;
+          description?: string;
+        };
+        next_step?: string;
+        action?: string;
+        confidence?: number;
+        is_complete?: boolean;
+        suggestions?: string[];
+      }>('/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          message: userMessage,
+          session_id: sessionId
+        })
+      });
+
+      console.log('Chatbot API Response:', response);
+
+      // Check if API response is successful  
+      if (response.success === false) {
+        throw new Error('API returned unsuccessful response');
+      }
+
+      // Handle case where response doesn't have success field (older API format)
+      const isSuccess = response.success === undefined ? true : response.success;
+      const botResponseText = response.message || 'Tidak ada response dari server';
+
+      if (!isSuccess) {
+        throw new Error('API returned unsuccessful response');
+      }
+
+      // Save session ID if new one is provided
+      if (response.session_id && response.session_id !== sessionId) {
+        setSessionId(response.session_id);
+      }
+
+      console.log('Bot response text:', botResponseText);
+
+      // Add bot response to messages
+      const botMessage: MessageType = {
+        id: getUniqueId(),
+        text: response.message,
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        hasButtons: response.next_step === 'ready_for_confirmation' || response.action === 'ready_for_confirmation',
+        hasValidationButtons: response.is_complete === true,
+      };
+
+      setMessages((prev) => [...prev, botMessage]);
+
+      // Add suggestions as quick reply buttons if available
+      if (response.suggestions && response.suggestions.length > 0) {
+        const suggestionMessage: MessageType = {
+          id: getUniqueId(),
+          text: "Pilih salah satu:",
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          hasLiveChatButtons: true, // Reuse this for suggestion buttons
+        };
+        setMessages((prev) => [...prev, suggestionMessage]);
+      }
+
+    } catch (error) {
+      console.error('Error sending to chatbot:', error);
+      // Add error message
+      const errorMessage: MessageType = {
+        id: getUniqueId(),
+        text: "Maaf, terjadi kesalahan dalam sistem. Silakan coba lagi.",
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+    }
+  }, [sessionId]);
+
+  // Test function to send a simple message
+  const testChatbot = useCallback(async () => {
+    console.log('Testing chatbot with simple message...');
+    await sendToChatbot('Halo');
+  }, [sendToChatbot]);
 
   const handleUploadSuccess = (
     fileName: string,
@@ -296,9 +393,7 @@ export default function ChatScreen() {
           // Save to AsyncStorage
           AsyncStorage.setItem(
             storageKey,
-            JSON.stringify(
-              newMessages.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
-            )
+            JSON.stringify(newMessages)
           );
           return newMessages;
         });
@@ -323,9 +418,7 @@ export default function ChatScreen() {
             // Save to AsyncStorage
             AsyncStorage.setItem(
               storageKey,
-              JSON.stringify(
-                newMessages.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
-              )
+              JSON.stringify(newMessages)
             );
             return newMessages;
           });
@@ -336,7 +429,7 @@ export default function ChatScreen() {
     };
 
     initializeTicket();
-  }, [fromConfirmation, ticketId]);
+  }, [fromConfirmation, ticketId, storageKey]);
 
   // Fetch attachments only when ticket ID is available and valid
   useEffect(() => {
@@ -349,8 +442,6 @@ export default function ChatScreen() {
   useEffect(() => {
     const s = socket;
     const onConnect = () => {
-      setConnected(true);
-      setSocketId(s.id ?? "");
       if (uid) {
         s.emit("auth:register", { userId: uid });
         s.emit("join", { room: ACTIVE_ROOM, userId: uid });
@@ -358,10 +449,11 @@ export default function ChatScreen() {
       }
     };
     const onDisconnect = () => {
-      setConnected(false);
-      setAuthed(false);
+      // Connection lost - could show offline indicator here
     };
-    const onAuthOk = () => setAuthed(true);
+    const onAuthOk = () => {
+      // Authentication successful
+    };
 
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
@@ -383,20 +475,23 @@ export default function ChatScreen() {
         try {
           const parsed = JSON.parse(raw) as MessageType[];
           const uniq = Array.from(new Map(parsed.map((m) => [m.id, m])).values());
-          // Merge with initial chatMessages
-          const merged = [
-            ...chatMessages,
-            ...uniq.filter((m) => !chatMessages.find((cm) => cm.id === m.id)),
-          ];
-          setMessages(merged);
-        } catch (error) {
-          setMessages(chatMessages);
+          // If we have stored messages, use them
+          if (uniq.length > 0) {
+            setMessages(uniq);
+          } else {
+            // Initialize chat if no stored messages
+            await initializeChat();
+          }
+        } catch {
+          // If parsing fails, initialize chat
+          await initializeChat();
         }
       } else {
-        setMessages(chatMessages);
+        // No stored messages, initialize chat
+        await initializeChat();
       }
     })();
-  }, [storageKey]);
+  }, [storageKey, initializeChat]);
 
   // DM and chat handlers
   useEffect(() => {
@@ -461,9 +556,7 @@ export default function ChatScreen() {
             : [...prev, incoming].slice(-MAX_MSG);
         AsyncStorage.setItem(
           storageKey,
-          JSON.stringify(
-            next.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
-          )
+          JSON.stringify(next)
         );
         return next;
       });
@@ -543,6 +636,7 @@ export default function ChatScreen() {
       s.off("call:frame", onFrame);
       if (uid) s.emit("leave", { room: ACTIVE_ROOM, userId: uid });
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, uid, ACTIVE_ROOM, storageKey]);
 
   const clearChatHistory = useCallback(async () => {
@@ -554,8 +648,8 @@ export default function ChatScreen() {
         await AsyncStorage.multiRemove(chatKeys);
       }
 
-      // Reset to initial chat messages only (hard reset)
-      setMessages([...chatMessages]);
+      // Reset to initial message only (hard reset)
+      setMessages([initialBotMessage]);
 
       // Reset ALL live chat related state
       setIsLiveChat(false);
@@ -580,17 +674,20 @@ export default function ChatScreen() {
           newSocket.connect();
         }
       }, 500);
-    } catch (error) {
+    } catch {
       // Error clearing chat history
     }
   }, [ACTIVE_ROOM, uid, socket]);
 
   const handleSendMessage = useCallback(() => {
-    if (inputText.trim() && isLiveChat) {
+    if (inputText.trim()) {
+      const userMessage = inputText.trim();
       const now = Date.now();
+      
+      // Add user message to chat immediately
       const outgoing: MessageType = {
         id: `m_${now}`,
-        text: inputText.trim(),
+        text: userMessage,
         isBot: false,
         timestamp: new Date().toLocaleTimeString("id-ID", {
           hour: "2-digit",
@@ -601,20 +698,24 @@ export default function ChatScreen() {
         type: "text",
         room: ACTIVE_ROOM,
       };
+      
       setMessages((prev) => {
         const next = [...prev, outgoing].slice(-MAX_MSG);
-        AsyncStorage.setItem(
-          storageKey,
-          JSON.stringify(
-            next.filter((m) => !chatMessages.find((cm) => cm.id === m.id))
-          )
-        );
+        AsyncStorage.setItem(storageKey, JSON.stringify(next));
         return next;
       });
-      socket.emit("chat:send", outgoing);
+      
       setInputText("");
+      
+      // Send to chatbot API if not in live chat mode
+      if (!isLiveChat) {
+        sendToChatbot(userMessage);
+      } else {
+        // Send to socket for live chat
+        socket.emit("chat:send", outgoing);
+      }
     }
-  }, [inputText, isLiveChat, chatUser, ACTIVE_ROOM, storageKey, socket]);
+  }, [inputText, isLiveChat, chatUser, ACTIVE_ROOM, storageKey, socket, sendToChatbot]);
 
   const quickDM = useCallback(() => {
     const target = activePeers.find(
@@ -716,14 +817,6 @@ export default function ChatScreen() {
     }, 100);
   }, [messages]);
 
-  useEffect(() => {
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [timeoutId]);
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -783,8 +876,28 @@ export default function ChatScreen() {
             </TouchableOpacity>
           )}
 
-          {!isLiveChat && <View style={{ width: 24 }} />}
+          {!isLiveChat && (
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={testChatbot}
+            >
+              <MaterialIcons name="bug-report" size={16} color="#FF8636" />
+            </TouchableOpacity>
+          )}
+
+          {!isLiveChat && !testChatbot && <View style={{ width: 24 }} />}
         </View>
+
+        {/* Debug Info */}
+        {__DEV__ && (
+          <View style={styles.debugInfo}>
+            <Text style={styles.debugText}>
+              Session: {sessionId || 'None'} | 
+              API: {process.env.EXPO_PUBLIC_API_URL || "https://bcare.my.id"} |
+              Messages: {messages.length}
+            </Text>
+          </View>
+        )}
 
         {/* Chat Messages */}
         <ScrollView
@@ -825,7 +938,7 @@ export default function ChatScreen() {
                         if (message.downloadUrl) {
                           try {
                             await Linking.openURL(message.downloadUrl);
-                          } catch (error) {
+                          } catch {
                             Alert.alert("Error", "Gagal membuka download link");
                           }
                         } else {
@@ -924,6 +1037,17 @@ export default function ChatScreen() {
               )}
             </View>
           ))}
+
+          {/* Typing indicator */}
+          {isTyping && (
+            <View style={[styles.messageContainer, styles.botMessage]}>
+              <View style={[styles.messageBubble, styles.botBubble]}>
+                <Text style={[styles.messageText, styles.botText]}>
+                  Bot sedang mengetik...
+                </Text>
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         {/* Live Chat Status */}
@@ -966,19 +1090,17 @@ export default function ChatScreen() {
           </TouchableOpacity>
           <TextInput
             style={styles.textInput}
-            placeholder={
-              isLiveChat ? "Ketik pesan Anda..." : "Live chat tidak aktif"
-            }
+            placeholder="Ketik pesan Anda..."
             value={inputText}
             onChangeText={setInputText}
-            editable={isLiveChat}
+            editable={true}
             multiline
           />
-          <TouchableOpacity onPress={handleSendMessage} disabled={!isLiveChat}>
+          <TouchableOpacity onPress={handleSendMessage} disabled={!inputText.trim()}>
             <MaterialIcons
               name="send"
               size={20}
-              color={isLiveChat ? "#FF8636" : "#CCC"}
+              color={inputText.trim() ? "#FF8636" : "#CCC"}
             />
           </TouchableOpacity>
         </View>
@@ -1051,7 +1173,7 @@ export default function ChatScreen() {
         <TicketSummaryModal
           visible={showTicketModal}
           onClose={() => setShowTicketModal(false)}
-          ticketId={currentTicketId || undefined}
+          ticketId={currentTicketId ?? undefined}
         />
 
         <BottomSheet
@@ -1404,6 +1526,27 @@ const styles = StyleSheet.create({
   },
   downloadButtonText: {
     fontSize: 12,
+    fontFamily: "Poppins",
+  },
+  debugButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFF3EB",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  debugInfo: {
+    backgroundColor: "#F0F0F0",
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  debugText: {
+    fontSize: 10,
+    color: "#666",
     fontFamily: "Poppins",
   },
 });
