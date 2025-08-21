@@ -6,6 +6,7 @@ import {
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { StatusBar as RNStatusBar } from "react-native";
 import "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect } from "react";
@@ -21,6 +22,11 @@ export default function RootLayout() {
     "Poppins-SemiBold": require("../assets/fonts/Poppins-SemiBold.ttf"),
     "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
   });
+
+  // Set status bar style
+  useEffect(() => {
+    RNStatusBar.setBarStyle('dark-content', true);
+  }, []);
 
   // Clear storage on app restart
   useEffect(() => {
@@ -75,7 +81,7 @@ export default function RootLayout() {
 
         <Stack.Screen name="+not-found" options={{ headerShown: false }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
     </ThemeProvider>
   );
 }
