@@ -249,7 +249,19 @@ export default function RiwayatDetailScreen() {
 
       {ticketDetail.customer_status.customer_status_code !== "DECLINED" && (
         <View style={styles.liveChatCard}>
-          <TouchableOpacity style={styles.liveChatButton}>
+          <TouchableOpacity 
+            style={styles.liveChatButton}
+            onPress={() => {
+              router.push({
+                pathname: "/complaint/chat",
+                params: {
+                  fromConfirmation: "true",
+                  ticketId: id,
+                  room: `ticket-${id}`
+                }
+              });
+            }}
+          >
             <MaterialIcons
               name="message"
               size={20}
