@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { useUser } from "@/hooks/useUser";
 import { api } from "@/lib/api";
+
 import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
