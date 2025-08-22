@@ -113,7 +113,7 @@ export function useAuth() {
     }
   }, [isLoginInProgress]);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (showAlert = true) => {
     try {
       await clearTokens();
       // Clear all user-related storage
@@ -130,11 +130,21 @@ export function useAuth() {
       }
       await AsyncStorage.multiRemove(["customer", "isLoggedIn"]);
       setUser(null);
+      
+      if (showAlert) {
+        Alert.alert("Sesi Berakhir", "Silakan login kembali untuk melanjutkan.");
+      }
+      
       router.replace("/login");
     } catch (error) {
       console.error("Error during logout:", error);
     }
   }, [clearTokens]);
 
-  return { login, logout, isLoading, isAuthenticated, user, token, getValidToken };
+  const handleTokenExpiry = useCallback(async () => {
+    console.log("⚠️ Token expired, logging out user");
+    await logout(true);
+  }, [logout]);
+
+  return { login, logout, isLoading, isAuthenticated, user, token, getValidToken, handleTokenExpiry };
 }

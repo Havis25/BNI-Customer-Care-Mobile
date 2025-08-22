@@ -7,8 +7,28 @@ export const API_BASE = (
 
 type JSONValue = any;
 
-// Refresh token function using new endpoint
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+// Refresh token function with better error handling
 const refreshToken = async (): Promise<string | null> => {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = performTokenRefresh();
+  
+  try {
+    const result = await refreshPromise;
+    return result;
+  } finally {
+    isRefreshing = false;
+    refreshPromise = null;
+  }
+};
+
+const performTokenRefresh = async (): Promise<string | null> => {
   try {
     const storedRefreshToken = await SecureStore.getItemAsync("refresh_token");
     if (!storedRefreshToken) {
@@ -23,9 +43,13 @@ const refreshToken = async (): Promise<string | null> => {
       },
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
     const data = await response.json();
 
-    if (response.ok && data.access_token) {
+    if (data.access_token) {
       await SecureStore.setItemAsync("access_token", data.access_token);
       if (data.refresh_token) {
         await SecureStore.setItemAsync("refresh_token", data.refresh_token);
@@ -34,9 +58,12 @@ const refreshToken = async (): Promise<string | null> => {
       return data.access_token;
     }
 
-    throw new Error(data.message || "Token refresh failed");
+    throw new Error(data.message || "Invalid response format");
   } catch (error) {
     console.error("Token refresh error:", error);
+    // Clear invalid tokens
+    await SecureStore.deleteItemAsync("access_token").catch(() => {});
+    await SecureStore.deleteItemAsync("refresh_token").catch(() => {});
     return null;
   }
 };
@@ -78,9 +105,9 @@ export async function api<T = JSONValue>(
     signal,
   });
 
-  // Handle 419 expired token
-  if (res.status === 419 && !path.includes("/auth/")) {
-    console.log("🔄 Token expired (419), attempting refresh...");
+  // Handle 401/419 expired token
+  if ((res.status === 401 || res.status === 419) && !path.includes("/auth/")) {
+    console.log(`🔄 Token expired (${res.status}), attempting refresh...`);
     const newToken = await refreshToken();
     if (newToken) {
       // Retry with new token
@@ -90,8 +117,14 @@ export async function api<T = JSONValue>(
         headers,
         signal,
       });
+      console.log("✅ Request retried with new token");
     } else {
       console.log("❌ Token refresh failed");
+      // Redirect to login
+      import("expo-router").then(({ router }) => {
+        router.replace("/login");
+      });
+      throw new Error("Authentication failed - please login again");
     }
   }
 
