@@ -5,26 +5,25 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
 import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-    Animated,
-    FlatList,
-    Modal,
-    Platform,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Animated,
+  FlatList,
+  Modal,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 
 const getStatusColorBackground = (status: string) => {
   switch (status) {
@@ -99,7 +98,8 @@ export default function RiwayatScreen() {
   const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [showNewTicketNotification, setShowNewTicketNotification] = useState(false);
+  const [showNewTicketNotification, setShowNewTicketNotification] =
+    useState(false);
 
   const slideAnim = useRef(new Animated.Value(300)).current;
 
@@ -125,7 +125,7 @@ export default function RiwayatScreen() {
     if (!tickets) {
       return [];
     }
-    
+
     const mappedData = tickets.map((t) => ({
       ticket_id: t.ticket_id || t.ticket_number, // Use ticket_id if available, fallback to ticket_number
       ticket_number: t.ticket_number,
@@ -134,7 +134,7 @@ export default function RiwayatScreen() {
       created_time: t.created_time,
       description: t.description,
     }));
-    
+
     return mappedData;
   }, [tickets, toIndoStatus]);
 
@@ -221,17 +221,18 @@ export default function RiwayatScreen() {
     useCallback(() => {
       const checkRefreshFlag = async () => {
         try {
-          const shouldRefresh = await AsyncStorage.getItem('shouldRefreshRiwayat');
-          if (shouldRefresh === 'true') {
-            await AsyncStorage.removeItem('shouldRefreshRiwayat');
+          const shouldRefresh = await AsyncStorage.getItem(
+            "shouldRefreshRiwayat"
+          );
+          if (shouldRefresh === "true") {
+            await AsyncStorage.removeItem("shouldRefreshRiwayat");
             setShowNewTicketNotification(true);
             setTimeout(() => setShowNewTicketNotification(false), 3000);
             await refetch();
           }
-        } catch {
-        }
+        } catch {}
       };
-      
+
       checkRefreshFlag();
     }, [refetch])
   );
@@ -241,12 +242,14 @@ export default function RiwayatScreen() {
     <TabTransition>
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Riwayat Laporan</Text>
-        
+
         {/* New Ticket Notification */}
         {showNewTicketNotification && (
           <View style={styles.notificationContainer}>
             <MaterialIcons name="check-circle" size={20} color="#4CAF50" />
-            <Text style={styles.notificationText}>Tiket baru berhasil dibuat!</Text>
+            <Text style={styles.notificationText}>
+              Tiket baru berhasil dibuat!
+            </Text>
           </View>
         )}
 
@@ -300,65 +303,65 @@ export default function RiwayatScreen() {
               data={filteredData}
               keyExtractor={(item) => item.ticket_number}
               renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.card,
-                  {
-                    borderLeftColor: getStatusColorText(item.customer_status),
-                    backgroundColor: getStatusColorBackground(
-                      item.customer_status
-                    ),
-                    shadowColor: getShadowColor(item.customer_status),
-                  },
-                ]}
-                onPress={() => {
-                  router.push(`/riwayat/${item.ticket_id}` as any);
-                }}
-              >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardId}>{item.ticket_number}</Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {
-                        backgroundColor: getStatusColorBadge(
-                          item.customer_status
-                        ),
-                      },
-                    ]}
-                  >
-                    <Text
+                <TouchableOpacity
+                  style={[
+                    styles.card,
+                    {
+                      borderLeftColor: getStatusColorText(item.customer_status),
+                      backgroundColor: getStatusColorBackground(
+                        item.customer_status
+                      ),
+                      shadowColor: getShadowColor(item.customer_status),
+                    },
+                  ]}
+                  onPress={() => {
+                    router.push(`/riwayat/${item.ticket_id}` as any);
+                  }}
+                >
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardId}>{item.ticket_number}</Text>
+                    <View
                       style={[
-                        styles.statusText,
-                        { color: getStatusColorText(item.customer_status) },
+                        styles.statusBadge,
+                        {
+                          backgroundColor: getStatusColorBadge(
+                            item.customer_status
+                          ),
+                        },
                       ]}
                     >
-                      {item.customer_status}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.statusText,
+                          { color: getStatusColorText(item.customer_status) },
+                        ]}
+                      >
+                        {item.customer_status}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                <Text style={styles.cardTitle}>{item.channel}</Text>
-                <Text style={styles.cardDateTime}>
-                  {item.created_time
-                    ? `${formatDate(item.created_time)}, ${formatTime(
-                        item.created_time
-                      )}`
-                    : "-"}
-                </Text>
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#52B5AB']}
-                tintColor="#52B5AB"
-              />
-            }
-          />
+                  <Text style={styles.cardTitle}>{item.channel}</Text>
+                  <Text style={styles.cardDateTime}>
+                    {item.created_time
+                      ? `${formatDate(item.created_time)}, ${formatTime(
+                          item.created_time
+                        )}`
+                      : "-"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={["#52B5AB"]}
+                  tintColor="#52B5AB"
+                />
+              }
+            />
           </>
         )}
 
@@ -417,7 +420,7 @@ export default function RiwayatScreen() {
                   />
                   <Text style={styles.optionText}>Terlama</Text>
                   <MaterialIcons
-                    name={ 
+                    name={
                       sortBy === "tanggal-terlama"
                         ? "radio-button-checked"
                         : "radio-button-unchecked"
@@ -589,8 +592,6 @@ export default function RiwayatScreen() {
             </Animated.View>
           </TouchableOpacity>
         </Modal>
-
-
       </SafeAreaView>
     </TabTransition>
   );
