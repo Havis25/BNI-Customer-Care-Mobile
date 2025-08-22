@@ -1,8 +1,8 @@
 import LayananKami from "@/components/home/LayananKami";
 import ServicesCard from "@/components/home/ServicesCard";
 import WelcomeCard from "@/components/home/WelcomeCard";
-import React, { useState, useEffect } from "react";
-import { FlatList, Platform, StyleSheet, View } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { FlatList, Platform, StyleSheet, View, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import TabTransition from "@/components/TabTransition";
@@ -10,31 +10,43 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const initializeHome = async () => {
-      const startTime = Date.now();
+  const initializeHome = useCallback(async () => {
+    const startTime = Date.now();
+    
+    try {
+      // Check if user data exists
+      await AsyncStorage.getItem("customer");
       
-      try {
-        // Check if user data exists
-        await AsyncStorage.getItem("customer");
-        
-        // Minimum 1 second skeleton display
-        const elapsed = Date.now() - startTime;
-        const minDelay = 1000;
-        
-        if (elapsed < minDelay) {
-          setTimeout(() => setIsLoading(false), minDelay - elapsed);
-        } else {
-          setIsLoading(false);
-        }
-      } catch {
+      // Minimum 1 second skeleton display
+      const elapsed = Date.now() - startTime;
+      const minDelay = 1000;
+      
+      if (elapsed < minDelay) {
+        setTimeout(() => setIsLoading(false), minDelay - elapsed);
+      } else {
         setIsLoading(false);
       }
-    };
-
-    initializeHome();
+    } catch {
+      setIsLoading(false);
+    }
   }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setIsLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } finally {
+      setRefreshing(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    initializeHome();
+  }, [initializeHome]);
 
   if (isLoading) {
     return (
@@ -78,6 +90,14 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#52B5AB']}
+              tintColor="#52B5AB"
+            />
+          }
         />
       </SafeAreaView>
     </TabTransition>

@@ -290,6 +290,10 @@ export default function RiwayatScreen() {
               <Text style={styles.retryText}>Coba Lagi</Text>
             </TouchableOpacity>
           </View>
+        ) : filteredData.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Belum ada tiket</Text>
+          </View>
         ) : (
           <>
             <FlatList
@@ -867,6 +871,17 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: "#E5E5E5",
     borderRadius: 6,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: Fonts.medium,
+    color: "#666",
+    textAlign: "center",
   },
 });
 
