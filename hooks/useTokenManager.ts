@@ -57,6 +57,17 @@ export const useTokenManager = () => {
     }
   }, []);
 
+  // ✅ Hapus semua token
+  const clearTokens = async () => {
+    try {
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+      setToken(null);
+    } catch (error) {
+      console.error("Error clearing tokens:", error);
+    }
+  };
+
   // ✅ Refresh token otomatis
   const refreshToken = useCallback(async (): Promise<string | null> => {
     if (isRefreshing) {
@@ -107,17 +118,6 @@ export const useTokenManager = () => {
       setIsRefreshing(false);
     }
   }, [isRefreshing, getRefreshToken, getAccessToken, saveTokens, clearTokens]);
-
-  // ✅ Hapus semua token
-  const clearTokens = async () => {
-    try {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-      setToken(null);
-    } catch (error) {
-      console.error("Error clearing tokens:", error);
-    }
-  };
 
   // ✅ Ambil token valid tanpa refresh otomatis
   const getValidToken = useCallback(async (): Promise<string | null> => {

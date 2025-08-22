@@ -50,15 +50,14 @@ export default function UploadModal({
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.5, // Reduced quality for smaller file size
-        compress: 0.5, // Additional compression
       });
       
       if (!result.canceled && result.assets[0]) {
         const file = result.assets[0];
-        // For images, use fileSize property instead of size
+        // For images, use fileSize property
         const fileWithSize = {
           ...file,
-          size: file.fileSize || file.size
+          size: file.fileSize
         };
         setSelectedFile(fileWithSize);
         setFileType('image');

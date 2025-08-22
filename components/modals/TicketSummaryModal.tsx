@@ -69,7 +69,7 @@ export default function TicketSummaryModal({ visible, onClose, ticketId }: Ticke
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Nomor Tiket:</Text>
                 <Text style={[styles.summaryValue, styles.ticketNumberValue]}>
-                  {ticketDetail.ticket_number || ticketDetail.id || 'Tidak tersedia'}
+                  {ticketDetail.ticket_number || ticketDetail.ticket_id || 'Tidak tersedia'}
                 </Text>
               </View>
               {ticketDetail.customer?.full_name && (
@@ -105,7 +105,7 @@ export default function TicketSummaryModal({ visible, onClose, ticketId }: Ticke
               {ticketDetail.amount && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Nominal:</Text>
-                  <Text style={styles.summaryValue}>{formatAmount(ticketDetail.amount)}</Text>
+                  <Text style={[styles.summaryValue, styles.amountValue]}>{formatAmount(ticketDetail.amount)}</Text>
                 </View>
               )}
               <View style={styles.summaryRow}>
@@ -234,6 +234,11 @@ const styles = StyleSheet.create({
   },
   statusPending: {
     color: "#FF8636",
+  },
+  amountValue: {
+    fontWeight: "700",
+    color: "#4CAF50",
+    fontSize: 14,
   },
   closeTicketButton: {
     backgroundColor: "#52B5AB",
