@@ -1,3 +1,7 @@
+import { Fonts } from '@/constants/Fonts';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   FlatList,
@@ -10,10 +14,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Fonts } from '@/constants/Fonts';
 
 const cabangData = [
   {
@@ -185,8 +185,18 @@ export default function CabangScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('cabang');
 
+  const filteredCabangData = cabangData.filter(item => 
+    item.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.alamat.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredAtmData = atmData.filter(item => 
+    item.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.alamat.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const renderCabang = ({ item }: { item: CabangItem }) => (
-    <TouchableOpacity style={styles.card}>
+    <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.nameContainer}>
           <Text style={styles.cardTitle}>{item.nama}</Text>
@@ -221,11 +231,11 @@ export default function CabangScreen() {
           ))}
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   const renderATM = ({ item }: { item: ATMItem }) => (
-    <TouchableOpacity style={styles.atmCard}>
+    <View style={styles.atmCard}>
       <View style={styles.cardHeader}>
         <View style={styles.nameContainer}>
           <Text style={styles.atmTitle}>{item.nama}</Text>
@@ -245,7 +255,7 @@ export default function CabangScreen() {
           <Text style={styles.infoText}>{item.alamat}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -265,58 +275,52 @@ export default function CabangScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.container}>
-        <View style={styles.searchSection}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#666" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Cari cabang atau ATM BNI terdekat..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-        </View>
-
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'cabang' && styles.activeTab]}
-            onPress={() => setActiveTab('cabang')}
-          >
-            <Text style={[styles.tabText, activeTab === 'cabang' && styles.activeTabText]}>
-              Cabang
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'atm' && styles.activeTab]}
-            onPress={() => setActiveTab('atm')}
-          >
-            <Text style={[styles.tabText, activeTab === 'atm' && styles.activeTabText]}>
-              ATM
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          {activeTab === 'cabang' ? (
-            <FlatList
-              data={cabangData}
-              renderItem={renderCabang}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={false}
-            />
-          ) : (
-            <FlatList
-              data={atmData}
-              renderItem={renderATM}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={false}
-            />
-          )}
-        </View>
-      </ScrollView>
+      <FlatList
+        style={styles.container}
+        data={activeTab === 'cabang' ? filteredCabangData : filteredAtmData}
+        renderItem={activeTab === 'cabang' ? renderCabang : renderATM}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <>
+            <View style={styles.searchFilterContainer}>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Cari cabang atau ATM BNI terdekat..."
+                  placeholderTextColor="#999"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+            </View>
+            <View style={styles.combinedSectionHeader}>
+              <View style={styles.underlineTabs}>
+                <TouchableOpacity 
+                  style={styles.underlineTab} 
+                  onPress={() => setActiveTab('cabang')}
+                >
+                  <Text style={[styles.underlineText, activeTab === 'cabang' && styles.activeUnderlineText]}>
+                    Cabang
+                  </Text>
+                  {activeTab === 'cabang' && <View style={styles.underline} />}
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.underlineTab} 
+                  onPress={() => setActiveTab('atm')}
+                >
+                  <Text style={[styles.underlineText, activeTab === 'atm' && styles.activeUnderlineText]}>
+                    ATM
+                  </Text>
+                  {activeTab === 'atm' && <View style={styles.underline} />}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </>
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -348,65 +352,100 @@ const styles = StyleSheet.create({
     color: 'black',
     flex: 1,
   },
-  searchSection: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+  searchFilterContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
   },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: 'white',
+    borderRadius: 100,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
+    paddingVertical: 14,
+    fontFamily: Fonts.regular,
     fontSize: 14,
-    fontFamily: Fonts.medium,
-    color: 'black',
   },
-  tabContainer: {
-    flexDirection: 'row',
+  combinedSection: {
     backgroundColor: 'white',
     borderRadius: 16,
-    padding: 4,
     marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  tab: {
+  combinedSectionHeader: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    marginBottom: 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  underlineTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  underlineTab: {
     flex: 1,
-    paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 12,
+    paddingVertical: 16,
+    position: 'relative',
   },
-  activeTab: {
-    backgroundColor: '#FF6600',
-  },
-  tabText: {
-    fontSize: 14,
+  underlineText: {
+    fontSize: 16,
     fontFamily: Fonts.medium,
-    color: '#666',
+    color: '#999',
   },
-  activeTabText: {
-    color: 'white',
-    fontFamily: Fonts.semiBold,
+  activeUnderlineText: {
+    color: '#FF6600',
+    fontFamily: Fonts.bold,
+  },
+  underline: {
+    position: 'absolute',
+    bottom: 0,
+    left: '25%',
+    right: '25%',
+    height: 3,
+    backgroundColor: '#FF6600',
+    borderRadius: 2,
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
   },
   card: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+    backgroundColor: 'white',
     padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -465,12 +504,10 @@ const styles = StyleSheet.create({
     color: '#1976d2',
   },
   atmCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+    backgroundColor: 'white',
     padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
   },
   atmTitle: {
     fontSize: 14,
