@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useUser } from "@/hooks/useUser";
+import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
 import { api } from "@/lib/api";
 
 import { getSocket } from "@/src/realtime/socket";
@@ -50,7 +51,6 @@ type MessageType = {
   hasEditButtons?: boolean;
   hasChannelButtons?: boolean;
   hasCategoryButtons?: boolean;
-  hasCorrectionButtons?: boolean;
   isCallLog?: boolean;
   isFile?: boolean;
   isImage?: boolean;
@@ -62,6 +62,8 @@ type MessageType = {
   createdAt?: number;
   type?: string;
   room?: string;
+  buttonSelected?: 'edit' | 'create';
+  validationSelected?: 'call' | 'chat';
 };
 
 type Peer = { sid: string; userId: string };
@@ -150,6 +152,7 @@ export default function ChatScreen() {
   const [currentTicketId, setCurrentTicketId] = useState<string | null>(null);
   const [summaryShown, setSummaryShown] = useState(false);
   const [ticketCreatedInSession, setTicketCreatedInSession] = useState(false);
+  const [amountRequested, setAmountRequested] = useState(false);
 
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
@@ -161,6 +164,9 @@ export default function ChatScreen() {
 
   // Ticket detail for showing ticket info
   const { ticketDetail, fetchTicketDetail } = useTicketDetail();
+  
+  // Channels and categories data
+  const { channels, categories } = useChannelsAndCategories();
 
   const getUniqueId = () => {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -302,11 +308,12 @@ export default function ChatScreen() {
             response.message.toLowerCase().includes("kategori:") ||
             response.message.toLowerCase().includes("deskripsi:"),
           hasValidationButtons: response.is_complete === true,
-          // Add correction buttons detection
-          hasCorrectionButtons: response.action === "asking_correction",
           // Remove automatic button detection here to avoid duplicates
           hasChannelButtons: false,
           hasCategoryButtons: false,
+          // Initialize button selection states
+          buttonSelected: undefined,
+          validationSelected: undefined,
         };
 
         setMessages((prev) => {
@@ -325,8 +332,38 @@ export default function ChatScreen() {
             response.message.toLowerCase().includes("kategori:") ||
             response.message.toLowerCase().includes("deskripsi:"))) {
           setSummaryShown(true);
-          // Update the bot message to include buttons
-          botMessage.hasButtons = true;
+          
+          // Check if category requires amount - use more comprehensive detection
+          const needsAmount = response.collected_info?.category && 
+            ['PEMBAYARAN', 'TOP_UP', 'TRANSFER', 'TARIK_TUNAI', 'SETOR_TUNAI', 'MOBILE_TUNAI', 'BI_FAST', 'BI FAST', 'BIFAST'].some(cat => 
+              response.collected_info.category.toUpperCase().includes(cat)
+            );
+          
+          if (needsAmount && !amountRequested) {
+            // Ask for amount first
+            setTimeout(() => {
+              const amountMessage: MessageType = {
+                id: getUniqueId(),
+                text: "Untuk melengkapi tiket, mohon masukkan nominal transaksi (dalam Rupiah):",
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              };
+              setMessages((prev) => {
+                const newMessages = [...prev, amountMessage];
+                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                return newMessages;
+              });
+              setAmountRequested(true);
+            }, 1000);
+          } else {
+            // Show buttons directly
+            botMessage.hasButtons = true;
+            botMessage.buttonSelected = undefined;
+          }
+          
           // Save updated session state
           await AsyncStorage.setItem('chatSession', JSON.stringify({
             sessionId,
@@ -337,6 +374,16 @@ export default function ChatScreen() {
 
         // Handle direct channel/category detection from bot response
         const messageText = response.message?.toLowerCase() || "";
+        
+        // Check if bot is asking for amount (before summary)
+        if (messageText.includes("nominal") || 
+            messageText.includes("jumlah") ||
+            messageText.includes("berapa") ||
+            messageText.includes("amount") ||
+            (messageText.includes("transaksi") && (messageText.includes("berapa") || messageText.includes("nominal")))) {
+          // Don't add any buttons for amount input - let user type freely
+          return;
+        }
         
         // Special handling for "Pilih salah satu:" - check context
         if (response.message?.trim() === "Pilih salah satu:") {
@@ -440,31 +487,7 @@ export default function ChatScreen() {
           }, 500);
         }
 
-        // Direct detection for correction keywords
-        else if (messageText.includes("bagian mana yang perlu dikoreksi") ||
-                 messageText.includes("yang perlu diperbaiki") ||
-                 messageText.includes("koreksi") ||
-                 messageText.includes("perbaiki") ||
-                 messageText.includes("ubah data")) {
-          setTimeout(() => {
-            setMessages((prev) => {
-              const hasCorrectionButtons = prev.some(msg => msg.hasCorrectionButtons);
-              if (hasCorrectionButtons) return prev;
-              
-              const correctionButtonMessage: MessageType = {
-                id: getUniqueId(),
-                text: "Silakan pilih bagian yang ingin diperbaiki:",
-                isBot: true,
-                timestamp: new Date().toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                hasCorrectionButtons: true,
-              };
-              return [...prev, correctionButtonMessage];
-            });
-          }, 500);
-        }
+
 
         // Only add suggestions if they don't conflict with button logic
         if (response.suggestions && 
@@ -510,7 +533,7 @@ export default function ChatScreen() {
         setIsTyping(false);
       }
     },
-    [sessionId, summaryShown, user, authUser, ticketCreatedInSession, storageKey]
+    [sessionId, summaryShown, user, authUser, ticketCreatedInSession, storageKey, amountRequested]
   );
 
   // Handler for channel selection
@@ -567,79 +590,7 @@ export default function ChatScreen() {
     [sendToChatbot, storageKey]
   );
 
-  // Handler for correction selection (when user wants to fix data)
-  const handleCorrectionSelect = useCallback(
-    (correctionType: string) => {
-      console.log("Correction selected:", correctionType);
-      
-      // Add user message showing selected correction
-      const userMessage: MessageType = {
-        id: getUniqueId(),
-        text: correctionType,
-        isBot: false,
-        timestamp: new Date().toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
 
-      setMessages((prev) => {
-        const newMessages = [...prev, userMessage];
-        AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-        return newMessages;
-      });
-
-      // Add appropriate bot response and buttons based on correction type
-      setTimeout(() => {
-        let botResponse: MessageType;
-        
-        if (correctionType === "Channel salah") {
-          botResponse = {
-            id: getUniqueId(),
-            text: "Silakan pilih channel yang benar:",
-            isBot: true,
-            timestamp: new Date().toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            hasChannelButtons: true,
-          };
-        } else if (correctionType === "Kategori salah") {
-          botResponse = {
-            id: getUniqueId(),
-            text: "Silakan pilih kategori yang benar:",
-            isBot: true,
-            timestamp: new Date().toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            hasCategoryButtons: true,
-          };
-        } else {
-          // For "Deskripsi salah"
-          botResponse = {
-            id: getUniqueId(),
-            text: "Silakan ketik deskripsi yang benar pada kolom chat di bawah.",
-            isBot: true,
-            timestamp: new Date().toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          };
-        }
-
-        setMessages((prev) => {
-          const newMessages = [...prev, botResponse];
-          AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-          return newMessages;
-        });
-      }, 500);
-
-      // Also send to chatbot API for backend processing
-      sendToChatbot(correctionType);
-    },
-    [sendToChatbot, storageKey]
-  );
 
   const handleUploadSuccess = (
     fileName: string,
@@ -780,6 +731,7 @@ export default function ChatScreen() {
               minute: "2-digit",
             }),
             hasValidationButtons: true,
+            validationSelected: undefined, // Initialize validation selection state
           };
           setMessages((prev) => {
             // Avoid duplicate validation messages
@@ -918,6 +870,9 @@ export default function ChatScreen() {
             if (session.ticketCreatedInSession !== undefined && !isFromTicketDetail) {
               setTicketCreatedInSession(session.ticketCreatedInSession);
             }
+            if (session.amountRequested !== undefined) {
+              setAmountRequested(session.amountRequested);
+            }
           } catch {
             console.log('Error parsing session data');
           }
@@ -930,7 +885,8 @@ export default function ChatScreen() {
           await AsyncStorage.setItem('chatSession', JSON.stringify({
             sessionId: sessionData ? JSON.parse(sessionData).sessionId : null,
             summaryShown: sessionData ? JSON.parse(sessionData).summaryShown : false,
-            ticketCreatedInSession: false
+            ticketCreatedInSession: false,
+            amountRequested: false
           }));
         }
 
@@ -1207,15 +1163,61 @@ export default function ChatScreen() {
 
       setInputText("");
 
-      // Send to chatbot API if not in live chat mode
-      if (!isLiveChat) {
+      // Check if this is amount input after summary
+      if (amountRequested && summaryShown && !isLiveChat) {
+        // Validate amount input
+        const numericAmount = userMessage.replace(/[^0-9]/g, '');
+        if (numericAmount && parseInt(numericAmount) > 0) {
+          // Add amount to session and show buttons
+          setTimeout(() => {
+            const confirmMessage: MessageType = {
+              id: getUniqueId(),
+              text: `Terima kasih! Nominal transaksi: Rp ${parseInt(numericAmount).toLocaleString('id-ID')}\n\nSekarang Anda dapat melanjutkan:`,
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              hasButtons: true,
+              buttonSelected: undefined,
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, confirmMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+          }, 500);
+          
+          // Send amount to chatbot to update session
+          sendToChatbot(`Nominal transaksi: ${numericAmount}`);
+        } else {
+          // Invalid amount, ask again
+          setTimeout(() => {
+            const errorMessage: MessageType = {
+              id: getUniqueId(),
+              text: "Mohon masukkan nominal yang valid (hanya angka). Contoh: 100000",
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, errorMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+          }, 500);
+        }
+      } else if (!isLiveChat) {
+        // Normal chatbot flow
         sendToChatbot(userMessage);
       } else {
         // Send to socket for live chat
         socket.emit("chat:send", outgoing);
       }
     }
-  }, [inputText, isLiveChat, chatUser, ACTIVE_ROOM, storageKey, socket]);
+  }, [inputText, isLiveChat, chatUser, ACTIVE_ROOM, storageKey, socket, amountRequested, summaryShown, sendToChatbot]);
 
   const quickDM = useCallback(() => {
     const target = activePeers.find(
@@ -1530,86 +1532,190 @@ export default function ChatScreen() {
               {message.hasButtons && (
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => router.push("/complaint/confirmation")}
+                    style={[styles.editButton, message.buttonSelected === 'create' && styles.disabledButton]}
+                    disabled={message.buttonSelected === 'create'}
+                    onPress={() => {
+                      // Mark this message as having edit selected
+                      setMessages((prev) => {
+                        const updatedMessages = prev.map(msg => 
+                          msg.id === message.id ? { ...msg, buttonSelected: 'edit' } : msg
+                        );
+                        AsyncStorage.setItem(storageKey, JSON.stringify(updatedMessages));
+                        return updatedMessages;
+                      });
+                      router.push("/complaint/confirmation");
+                    }}
                   >
-                    <MaterialIcons name="edit" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>Edit Form</Text>
+                    <MaterialIcons name="edit" size={16} color={message.buttonSelected === 'create' ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, message.buttonSelected === 'create' && { color: "#999" }]}>Edit Form</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={styles.createButton}
+                    style={[styles.createButton, message.buttonSelected === 'edit' && styles.disabledButton]}
+                    disabled={message.buttonSelected === 'edit'}
                     onPress={async () => {
                       try {
+                        // Mark this message as having create selected
+                        setMessages((prev) => {
+                          const updatedMessages = prev.map(msg => 
+                            msg.id === message.id ? { ...msg, buttonSelected: 'create' } : msg
+                          );
+                          AsyncStorage.setItem(storageKey, JSON.stringify(updatedMessages));
+                          return updatedMessages;
+                        });
+
                         // Get session info to extract collected data
                         const sessionResponse = await api(`/chat/${sessionId}`);
                         const collectedInfo = sessionResponse?.collected_info || {};
                         
-                        // Get channels and categories from API
-                        const [channelsResponse, categoriesResponse] = await Promise.all([
-                          api("/v1/channel"),
-                          api("/v1/complaint_category")
-                        ]);
-                        
-                        const channels = Array.isArray(channelsResponse) ? channelsResponse : [];
-                        const categories = Array.isArray(categoriesResponse) ? categoriesResponse : [];
+                        console.log('Full session response:', sessionResponse);
+                        console.log('Raw collected info:', collectedInfo);
+                        console.log('Available channels from hook:', channels);
+                        console.log('Available categories from hook:', categories);
                         
                         // Map bot channel to actual channel ID
-                        let channelId = 1; // Default
+                        let channelId = 1; // Default to first channel
                         if (collectedInfo.channel) {
-                          const channelMap = {
-                            'mobile_banking': 'MBANK',
-                            'internet_banking': 'IBANK', 
-                            'atm': 'ATM',
-                            'call_center': 'CALL_CENTER'
+                          const channelInput = collectedInfo.channel.toUpperCase().replace(/\s+/g, '_');
+                          console.log('Available channels:', channels.map(c => ({id: c.channel_id, code: c.channel_code, name: c.channel_name})));
+                          
+                          // Direct mapping for bot channel names to actual codes
+                          const channelMappings: Record<string, string> = {
+                            'QRIS_DEBIT': 'QRIS_DEBIT',
+                            'MTUNAI_ALFAMART': 'MTUNAI_ALFAMART', 
+                            'DISPUTE_DEBIT': 'DISPUTE_DEBIT',
+                            'CRM': 'CRM',
+                            'ATM': 'ATM',
+                            'IBANK': 'IBANK',
+                            'MBANK': 'MBANK'
                           };
-                          const channelCode = channelMap[collectedInfo.channel.toLowerCase() as keyof typeof channelMap];
-                          const foundChannel = channels.find(c => c.channel_code === channelCode);
+                          
+                          const mappedChannelCode = channelMappings[channelInput] || channelInput;
+                          const foundChannel = channels.find(c => c.channel_code === mappedChannelCode);
+                          
                           if (foundChannel) {
                             channelId = foundChannel.channel_id;
-                          }
-                        }
-                        
-                        // Map bot category to actual complaint ID
-                        let complaintId = 1; // Default
-                        if (collectedInfo.category) {
-                          // Try to find matching category by name or code
-                          const categoryLower = collectedInfo.category.toLowerCase();
-                          let foundCategory = categories.find(c => 
-                            c.complaint_name.toLowerCase().includes(categoryLower) ||
-                            c.complaint_code.toLowerCase().includes(categoryLower)
-                          );
-                          
-                          // If not found, try common mappings
-                          if (!foundCategory) {
-                            const categoryMap = {
-                              'complaint': 'COMPLAINT',
-                              'inquiry': 'INQUIRY', 
-                              'kartu_kredit': 'KARTU_KREDIT',
-                              'transfer': 'TRANSFER',
-                              'atm': 'ATM'
-                            };
-                            const mappedCode = categoryMap[categoryLower as keyof typeof categoryMap];
-                            if (mappedCode) {
-                              foundCategory = categories.find(c => c.complaint_code.includes(mappedCode));
-                            }
-                          }
-                          
-                          if (foundCategory) {
-                            complaintId = foundCategory.complaint_id;
+                            console.log('Channel matched:', foundChannel);
+                          } else {
+                            console.log('No channel match found for:', channelInput, 'mapped to:', mappedChannelCode);
                           }
                         }
                         
                         // Create ticket payload matching the confirmation endpoint structure
+                        // Extract the actual user description - prioritize bot's collected info
+                        let actualDescription = "Keluhan dari chat bot";
+                        
+                        // First, try to use the bot's collected description if it's valid
+                        if (collectedInfo.description && 
+                            collectedInfo.description !== collectedInfo.ai_generated_description &&
+                            !collectedInfo.description.toLowerCase().includes('selamat siang') &&
+                            !collectedInfo.description.toLowerCase().includes('customer service') &&
+                            !collectedInfo.description.toLowerCase().includes('selamat sore')) {
+                          actualDescription = collectedInfo.description;
+                        } else {
+                          // Fallback to conversation messages
+                          const userMessages = messages.filter(msg => !msg.isBot && msg.text && msg.text.trim());
+                          const buttonSelections = ['ATM', 'IBANK', 'MBANK', 'CRM', 'DISPUTE DEBIT', 'QRIS DEBIT', 'MTUNAI ALFAMART',
+                                                   'PEMBAYARAN', 'TOP UP', 'TRANSFER', 'TARIK TUNAI', 'SETOR TUNAI', 'MOBILE TUNAI', 
+                                                   'BI FAST', 'DISPUTE', 'LAINNYA'];
+                          
+                          const conversationMessages = userMessages.filter(msg => 
+                            !buttonSelections.some(selection => msg.text.toUpperCase().includes(selection))
+                          );
+                          
+                          if (conversationMessages.length > 0) {
+                            actualDescription = conversationMessages.map(msg => msg.text).join('. ');
+                          }
+                        }
+                        
+                        // Map bot category to actual complaint ID based on context
+                        let complaintId = 1; // Default to first category
+                        if (collectedInfo.category) {
+                          const categoryInput = collectedInfo.category.toUpperCase().replace(/\s+/g, '_');
+                          const description = (actualDescription || "").toLowerCase();
+                          console.log('Available categories:', categories.map(c => ({id: c.complaint_id, code: c.complaint_code, name: c.complaint_name})));
+                          
+                          // Smart mapping based on description context
+                          let foundCategory;
+                          
+                          if (description.includes('tarik tunai') || description.includes('withdraw')) {
+                            // Find appropriate tarik tunai category based on channel
+                            if (collectedInfo.channel?.includes('ATM')) {
+                              foundCategory = categories.find(c => c.complaint_code === 'TARIK_TUNAI_DI_MESIN_ATM_BNI');
+                            } else {
+                              foundCategory = categories.find(c => c.complaint_code.includes('TARIK_TUNAI'));
+                            }
+                          } else if (description.includes('top up') || categoryInput.includes('TOP_UP')) {
+                            // Find appropriate top up category
+                            if (description.includes('dana')) {
+                              foundCategory = categories.find(c => c.complaint_code === 'TOP_UP_DANA');
+                            } else {
+                              foundCategory = categories.find(c => c.complaint_code.includes('TOP_UP'));
+                            }
+                          } else if (description.includes('transfer') || categoryInput.includes('TRANSFER')) {
+                            // Check if it's BI FAST related transfer
+                            if (description.includes('bi fast') || description.includes('bifast') || categoryInput.includes('BI_FAST')) {
+                              foundCategory = categories.find(c => c.complaint_code.includes('BI_FAST'));
+                            } else {
+                              foundCategory = categories.find(c => c.complaint_code.includes('TRANSFER') && !c.complaint_code.includes('BI_FAST'));
+                            }
+                          } else if (description.includes('bi fast') || description.includes('bifast') || categoryInput.includes('BI_FAST') || categoryInput.includes('BI FAST')) {
+                            // Prioritize BI FAST categories
+                            if (description.includes('gagal') || description.includes('tidak masuk') || description.includes('tidak terdeteksi')) {
+                              foundCategory = categories.find(c => c.complaint_code === 'BI_FAST_DANA_TIDAK_MASUK');
+                            } else {
+                              foundCategory = categories.find(c => c.complaint_code.includes('BI_FAST'));
+                            }
+                          } else {
+                            // Fallback to direct mapping
+                            foundCategory = categories.find(c => 
+                              c.complaint_code.includes(categoryInput) ||
+                              c.complaint_name.toUpperCase().includes(categoryInput.replace('_', ' '))
+                            );
+                          }
+                          
+                          if (foundCategory) {
+                            complaintId = foundCategory.complaint_id;
+                            console.log('Category matched:', foundCategory);
+                          } else {
+                            console.log('No category match found for:', categoryInput, 'with description:', description);
+                          }
+                        }
+                        
+                        console.log('Bot collected description:', collectedInfo.description);
+                        console.log('AI generated description:', collectedInfo.ai_generated_description);
+                        console.log('Final selected description:', actualDescription);
+                        
+                        // Check if we have amount from frontend flow
+                        let finalAmount = null;
+                        if (collectedInfo.amount) {
+                          finalAmount = parseInt(collectedInfo.amount.toString().replace(/[^0-9]/g, ''));
+                        } else {
+                          // Check if amount was collected through frontend flow
+                          const amountMessages = messages.filter(msg => 
+                            !msg.isBot && msg.text && /^[0-9]+$/.test(msg.text.replace(/[^0-9]/g, ''))
+                          );
+                          if (amountMessages.length > 0) {
+                            const lastAmountMsg = amountMessages[amountMessages.length - 1];
+                            const numericAmount = lastAmountMsg.text.replace(/[^0-9]/g, '');
+                            if (numericAmount && parseInt(numericAmount) > 0) {
+                              finalAmount = parseInt(numericAmount);
+                            }
+                          }
+                        }
+                        
                         const ticketPayload = {
-                          description: collectedInfo.description || "Keluhan dari chat bot",
+                          description: actualDescription,
                           issue_channel_id: channelId,
                           complaint_id: complaintId,
-                          // Add amount if it exists in collected info
-                          ...(collectedInfo.amount && { amount: parseInt(collectedInfo.amount) })
+                          // Add amount if available
+                          ...(finalAmount && finalAmount > 0 && { amount: finalAmount })
                         };
                         
                         console.log('Creating ticket with payload:', ticketPayload);
                         console.log('Collected info from bot:', collectedInfo);
+                        console.log('Channel mapping - Input:', collectedInfo.channel, 'Mapped ID:', channelId);
+                        console.log('Category mapping - Input:', collectedInfo.category, 'Mapped ID:', complaintId);
+                        console.log('Description mapping - Final:', actualDescription);
                         
                         const response = await api("/v1/tickets", {
                           method: "POST",
@@ -1659,6 +1765,25 @@ export default function ChatScreen() {
                               AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
                               return newMessages;
                             });
+                            
+                            // Add validation message after ticket creation
+                            setTimeout(() => {
+                              const validationMessage = {
+                                id: getUniqueId(),
+                                text: "Selanjutnya mari lakukan validasi dengan agent. Pilih metode validasi:",
+                                isBot: true,
+                                timestamp: new Date().toLocaleTimeString("id-ID", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }),
+                                hasValidationButtons: true,
+                              };
+                              setMessages((prev) => {
+                                const newMessages = [...prev, validationMessage];
+                                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                                return newMessages;
+                              });
+                            }, 1000);
                           }, 100);
                         } else {
                           Alert.alert("Error", "Tiket berhasil dibuat tapi ID tidak ditemukan.");
@@ -1669,35 +1794,8 @@ export default function ChatScreen() {
                       }
                     }}
                   >
-                    <MaterialIcons name="check" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>Buat Tiket</Text>
-                    <Text style={[styles.buttonText, { color: "#FFF", fontSize: 12 }]}>Ya, data sudah benar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.noButton}
-                    onPress={() => {
-                      // Add user message for correction request
-                      const userMessage: MessageType = {
-                        id: getUniqueId(),
-                        text: "Ada yang perlu diperbaiki",
-                        isBot: false,
-                        timestamp: new Date().toLocaleTimeString("id-ID", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }),
-                      };
-
-                      setMessages((prev) => {
-                        const newMessages = [...prev, userMessage];
-                        AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-                        return newMessages;
-                      });
-
-                      // Send to chatbot API
-                      sendToChatbot("Ada yang perlu diperbaiki");
-                    }}
-                  >
-                    <Text style={[styles.buttonText, { color: "#FFF", fontSize: 12 }]}>Ada yang perlu diperbaiki</Text>
+                    <MaterialIcons name="check" size={16} color={message.buttonSelected === 'edit' ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, message.buttonSelected === 'edit' && { color: "#999" }]}>Buat Tiket</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1717,6 +1815,15 @@ export default function ChatScreen() {
                   <TouchableOpacity
                     style={styles.callButton}
                     onPress={() => {
+                      // Validate agent availability for call
+                      if (peerCount < 2) {
+                        Alert.alert(
+                          "Agent Tidak Tersedia",
+                          "Tidak ada agent yang tersedia untuk panggilan saat ini. Silakan coba lagi nanti atau pilih opsi Chat."
+                        );
+                        return;
+                      }
+                      
                       placeCall();
                     }}
                   >
@@ -1726,6 +1833,19 @@ export default function ChatScreen() {
                   <TouchableOpacity
                     style={styles.chatButton}
                     onPress={() => {
+                      // Validate agent availability for chat
+                      const availableAgent = activePeers.find(
+                        (p) => p.userId && p.userId.startsWith("EMP-")
+                      );
+                      
+                      if (!availableAgent && !isFromTicketDetail) {
+                        Alert.alert(
+                          "Agent Tidak Tersedia",
+                          "Tidak ada agent yang tersedia untuk chat saat ini. Silakan coba lagi nanti atau pilih opsi Call."
+                        );
+                        return;
+                      }
+                      
                       setIsLiveChat(true);
                       quickDM();
                     }}
@@ -1899,35 +2019,7 @@ export default function ChatScreen() {
                 </View>
               )}
 
-              {/* Correction buttons for "Ada yang perlu diperbaiki" flow */}
-              {(message as any).hasCorrectionButtons && (
-                <View style={styles.correctionButtonContainer}>
-                  <TouchableOpacity
-                    style={styles.correctionButton}
-                    activeOpacity={0.7}
-                    onPress={() => handleCorrectionSelect("Channel salah")}
-                  >
-                    <MaterialIcons name="swap-horizontal-circle" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Channel salah</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.correctionButton}
-                    activeOpacity={0.7}
-                    onPress={() => handleCorrectionSelect("Kategori salah")}
-                  >
-                    <MaterialIcons name="category" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Kategori salah</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.correctionButton}
-                    activeOpacity={0.7}
-                    onPress={() => handleCorrectionSelect("Deskripsi salah")}
-                  >
-                    <MaterialIcons name="description" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Deskripsi salah</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+
 
             </View>
           ))}
@@ -2563,23 +2655,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 2,
   },
-  correctionButtonContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 8,
-    gap: 8,
-  },
-  correctionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FF9800", // Orange color to distinguish from other buttons
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 4,
-    minWidth: "45%",
-    justifyContent: "center",
-  },
+
   editButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -2597,5 +2673,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 16,
     gap: 4,
+  },
+  disabledButton: {
+    backgroundColor: "#E0E0E0",
   },
 });
