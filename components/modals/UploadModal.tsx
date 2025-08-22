@@ -49,7 +49,8 @@ export default function UploadModal({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.5, // Reduced quality for smaller file size
+        compress: 0.5, // Additional compression
       });
       
       if (!result.canceled && result.assets[0]) {
@@ -100,14 +101,14 @@ export default function UploadModal({
       return;
     }
     
-    // Validate file size (max 2MB - sesuai batasan server)
-    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    // Validate file size (max 1MB for better compatibility)
+    const maxSize = 1 * 1024 * 1024; // 1MB in bytes
     const fileSize = selectedFile.size || selectedFile.fileSize || 0;
     
     if (fileSize > maxSize) {
       Alert.alert(
         'File Terlalu Besar', 
-        `Ukuran file maksimal 2MB. File Anda berukuran ${formatFileSize(fileSize)}.`
+        `Ukuran file maksimal 1MB. File Anda berukuran ${formatFileSize(fileSize)}.`
       );
       return;
     }
@@ -253,7 +254,7 @@ export default function UploadModal({
       if (error.name === 'AbortError') {
         errorMessage = 'Upload timeout. Silakan coba lagi.';
       } else if (error.message?.includes('413')) {
-        errorMessage = 'File terlalu besar untuk server. Maksimal 2MB.';
+        errorMessage = 'File terlalu besar untuk server. Maksimal 1MB.';
       } else if (error.message?.includes('Network request failed')) {
         errorMessage = 'Koneksi internet bermasalah. Silakan cek koneksi Anda.';
       } else if (error.message?.includes('Failed to fetch')) {
@@ -402,7 +403,7 @@ export default function UploadModal({
             <>
               <View style={styles.fileLimitInfo}>
                 <MaterialIcons name="info" size={16} color="#666" />
-                <Text style={styles.fileLimitText}>Maksimal ukuran file: 2MB</Text>
+                <Text style={styles.fileLimitText}>Maksimal ukuran file: 1MB</Text>
               </View>
               
               <TouchableOpacity style={styles.uploadOption} onPress={handleImageSelect}>

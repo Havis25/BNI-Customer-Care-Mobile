@@ -8,6 +8,11 @@ import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useUser } from "@/hooks/useUser";
 import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
 import { api } from "@/lib/api";
+import { 
+  mapChatbotChannelToDatabase, 
+  mapChatbotCategoryToDatabase, 
+  checkIfCategoryNeedsAmount 
+} from "@/utils/chatbotMapping";
 
 import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -153,6 +158,8 @@ export default function ChatScreen() {
   const [summaryShown, setSummaryShown] = useState(false);
   const [ticketCreatedInSession, setTicketCreatedInSession] = useState(false);
   const [amountRequested, setAmountRequested] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
@@ -333,11 +340,9 @@ export default function ChatScreen() {
             response.message.toLowerCase().includes("deskripsi:"))) {
           setSummaryShown(true);
           
-          // Check if category requires amount - use more comprehensive detection
+          // Check if category requires amount using mapping utility
           const needsAmount = response.collected_info?.category && 
-            ['PEMBAYARAN', 'TOP_UP', 'TRANSFER', 'TARIK_TUNAI', 'SETOR_TUNAI', 'MOBILE_TUNAI', 'BI_FAST', 'BI FAST', 'BIFAST'].some(cat => 
-              response.collected_info.category.toUpperCase().includes(cat)
-            );
+            checkIfCategoryNeedsAmount(response.collected_info.category);
           
           if (needsAmount && !amountRequested) {
             // Ask for amount first
@@ -539,6 +544,10 @@ export default function ChatScreen() {
   // Handler for channel selection
   const handleChannelSelect = useCallback(
     (channel: string) => {
+      if (selectedChannel) return; // Prevent multiple selections
+      
+      setSelectedChannel(channel);
+      
       // Add user message showing selected channel
       const userMessage: MessageType = {
         id: getUniqueId(),
@@ -559,13 +568,16 @@ export default function ChatScreen() {
       // Send to chatbot API
       sendToChatbot(channel);
     },
-    [sendToChatbot, storageKey]
+    [sendToChatbot, storageKey, selectedChannel]
   );
 
   // Handler for category selection
   const handleCategorySelect = useCallback(
     (category: string) => {
+      if (selectedCategory) return; // Prevent multiple selections
+      
       console.log("Category selected:", category);
+      setSelectedCategory(category);
       
       // Add user message showing selected category
       const userMessage: MessageType = {
@@ -587,7 +599,7 @@ export default function ChatScreen() {
       // Send to chatbot API
       sendToChatbot(category);
     },
-    [sendToChatbot, storageKey]
+    [sendToChatbot, storageKey, selectedCategory]
   );
 
 
@@ -876,6 +888,18 @@ export default function ChatScreen() {
           } catch {
             console.log('Error parsing session data');
           }
+        }
+        
+        // Check if coming back from confirmation (edit form)
+        if (fromConfirmation === "true" && ticketData && ticketData !== 'null') {
+          setTicketCreatedInSession(true);
+          // Update session to reflect ticket creation
+          await AsyncStorage.setItem('chatSession', JSON.stringify({
+            sessionId: sessionData ? JSON.parse(sessionData).sessionId : null,
+            summaryShown: sessionData ? JSON.parse(sessionData).summaryShown : false,
+            ticketCreatedInSession: true,
+            amountRequested: sessionData ? JSON.parse(sessionData).amountRequested : false
+          }));
         }
 
         // Clear ticketCreatedInSession when coming from ticket detail
@@ -1358,7 +1382,7 @@ export default function ChatScreen() {
             )}
           </View>
 
-          {isLiveChat && (
+          {(isLiveChat || (currentTicketId && ticketCreatedInSession)) && (
             <TouchableOpacity
               style={styles.endChatButton}
               onPress={() => {
@@ -1383,11 +1407,9 @@ export default function ChatScreen() {
             </TouchableOpacity>
           )}
 
-          {!isLiveChat && (
+          {!isLiveChat && !currentTicketId && !ticketCreatedInSession && (
             <View style={{ width: 24 }} />
           )}
-
-          {!isLiveChat && <View style={{ width: 24 }} />}
         </View>
 
         {/* Chat Messages */}
@@ -1532,13 +1554,14 @@ export default function ChatScreen() {
               {message.hasButtons && (
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
-                    style={[styles.editButton, message.buttonSelected === 'create' && styles.disabledButton]}
-                    disabled={message.buttonSelected === 'create'}
+                    style={[styles.editButton, (message.buttonSelected === 'create' || ticketCreatedInSession) && styles.disabledButton]}
+                    disabled={message.buttonSelected === 'create' || ticketCreatedInSession}
                     onPress={() => {
+                      if (ticketCreatedInSession) return;
                       // Mark this message as having edit selected
                       setMessages((prev) => {
                         const updatedMessages = prev.map(msg => 
-                          msg.id === message.id ? { ...msg, buttonSelected: 'edit' } : msg
+                          msg.id === message.id ? { ...msg, buttonSelected: 'edit' as const } : msg
                         );
                         AsyncStorage.setItem(storageKey, JSON.stringify(updatedMessages));
                         return updatedMessages;
@@ -1546,18 +1569,19 @@ export default function ChatScreen() {
                       router.push("/complaint/confirmation");
                     }}
                   >
-                    <MaterialIcons name="edit" size={16} color={message.buttonSelected === 'create' ? "#999" : "#FFF"} />
-                    <Text style={[styles.buttonText, message.buttonSelected === 'create' && { color: "#999" }]}>Edit Form</Text>
+                    <MaterialIcons name="edit" size={16} color={(message.buttonSelected === 'create' || ticketCreatedInSession) ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, (message.buttonSelected === 'create' || ticketCreatedInSession) && { color: "#999" }]}>Edit Form</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.createButton, message.buttonSelected === 'edit' && styles.disabledButton]}
-                    disabled={message.buttonSelected === 'edit'}
+                    style={[styles.createButton, (message.buttonSelected === 'edit' || ticketCreatedInSession) && styles.disabledButton]}
+                    disabled={message.buttonSelected === 'edit' || ticketCreatedInSession}
                     onPress={async () => {
+                      if (ticketCreatedInSession) return;
                       try {
                         // Mark this message as having create selected
                         setMessages((prev) => {
                           const updatedMessages = prev.map(msg => 
-                            msg.id === message.id ? { ...msg, buttonSelected: 'create' } : msg
+                            msg.id === message.id ? { ...msg, buttonSelected: 'create' as const } : msg
                           );
                           AsyncStorage.setItem(storageKey, JSON.stringify(updatedMessages));
                           return updatedMessages;
@@ -1572,33 +1596,12 @@ export default function ChatScreen() {
                         console.log('Available channels from hook:', channels);
                         console.log('Available categories from hook:', categories);
                         
-                        // Map bot channel to actual channel ID
-                        let channelId = 1; // Default to first channel
-                        if (collectedInfo.channel) {
-                          const channelInput = collectedInfo.channel.toUpperCase().replace(/\s+/g, '_');
-                          console.log('Available channels:', channels.map(c => ({id: c.channel_id, code: c.channel_code, name: c.channel_name})));
-                          
-                          // Direct mapping for bot channel names to actual codes
-                          const channelMappings: Record<string, string> = {
-                            'QRIS_DEBIT': 'QRIS_DEBIT',
-                            'MTUNAI_ALFAMART': 'MTUNAI_ALFAMART', 
-                            'DISPUTE_DEBIT': 'DISPUTE_DEBIT',
-                            'CRM': 'CRM',
-                            'ATM': 'ATM',
-                            'IBANK': 'IBANK',
-                            'MBANK': 'MBANK'
-                          };
-                          
-                          const mappedChannelCode = channelMappings[channelInput] || channelInput;
-                          const foundChannel = channels.find(c => c.channel_code === mappedChannelCode);
-                          
-                          if (foundChannel) {
-                            channelId = foundChannel.channel_id;
-                            console.log('Channel matched:', foundChannel);
-                          } else {
-                            console.log('No channel match found for:', channelInput, 'mapped to:', mappedChannelCode);
-                          }
-                        }
+                        // Map bot channel to actual channel ID using utility
+                        const channelId = collectedInfo.channel ? 
+                          mapChatbotChannelToDatabase(collectedInfo.channel, channels) : 
+                          (channels[0]?.channel_id || 1);
+                        
+                        console.log('Channel mapping - Input:', collectedInfo.channel, 'Mapped ID:', channelId);
                         
                         // Create ticket payload matching the confirmation endpoint structure
                         // Extract the actual user description - prioritize bot's collected info
@@ -1627,59 +1630,12 @@ export default function ChatScreen() {
                           }
                         }
                         
-                        // Map bot category to actual complaint ID based on context
-                        let complaintId = 1; // Default to first category
-                        if (collectedInfo.category) {
-                          const categoryInput = collectedInfo.category.toUpperCase().replace(/\s+/g, '_');
-                          const description = (actualDescription || "").toLowerCase();
-                          console.log('Available categories:', categories.map(c => ({id: c.complaint_id, code: c.complaint_code, name: c.complaint_name})));
-                          
-                          // Smart mapping based on description context
-                          let foundCategory;
-                          
-                          if (description.includes('tarik tunai') || description.includes('withdraw')) {
-                            // Find appropriate tarik tunai category based on channel
-                            if (collectedInfo.channel?.includes('ATM')) {
-                              foundCategory = categories.find(c => c.complaint_code === 'TARIK_TUNAI_DI_MESIN_ATM_BNI');
-                            } else {
-                              foundCategory = categories.find(c => c.complaint_code.includes('TARIK_TUNAI'));
-                            }
-                          } else if (description.includes('top up') || categoryInput.includes('TOP_UP')) {
-                            // Find appropriate top up category
-                            if (description.includes('dana')) {
-                              foundCategory = categories.find(c => c.complaint_code === 'TOP_UP_DANA');
-                            } else {
-                              foundCategory = categories.find(c => c.complaint_code.includes('TOP_UP'));
-                            }
-                          } else if (description.includes('transfer') || categoryInput.includes('TRANSFER')) {
-                            // Check if it's BI FAST related transfer
-                            if (description.includes('bi fast') || description.includes('bifast') || categoryInput.includes('BI_FAST')) {
-                              foundCategory = categories.find(c => c.complaint_code.includes('BI_FAST'));
-                            } else {
-                              foundCategory = categories.find(c => c.complaint_code.includes('TRANSFER') && !c.complaint_code.includes('BI_FAST'));
-                            }
-                          } else if (description.includes('bi fast') || description.includes('bifast') || categoryInput.includes('BI_FAST') || categoryInput.includes('BI FAST')) {
-                            // Prioritize BI FAST categories
-                            if (description.includes('gagal') || description.includes('tidak masuk') || description.includes('tidak terdeteksi')) {
-                              foundCategory = categories.find(c => c.complaint_code === 'BI_FAST_DANA_TIDAK_MASUK');
-                            } else {
-                              foundCategory = categories.find(c => c.complaint_code.includes('BI_FAST'));
-                            }
-                          } else {
-                            // Fallback to direct mapping
-                            foundCategory = categories.find(c => 
-                              c.complaint_code.includes(categoryInput) ||
-                              c.complaint_name.toUpperCase().includes(categoryInput.replace('_', ' '))
-                            );
-                          }
-                          
-                          if (foundCategory) {
-                            complaintId = foundCategory.complaint_id;
-                            console.log('Category matched:', foundCategory);
-                          } else {
-                            console.log('No category match found for:', categoryInput, 'with description:', description);
-                          }
-                        }
+                        // Map bot category to actual complaint ID using utility
+                        const complaintId = collectedInfo.category ? 
+                          mapChatbotCategoryToDatabase(collectedInfo.category, actualDescription, categories) : 
+                          (categories[0]?.complaint_id || 1);
+                        
+                        console.log('Category mapping - Input:', collectedInfo.category, 'Mapped ID:', complaintId);
                         
                         console.log('Bot collected description:', collectedInfo.description);
                         console.log('AI generated description:', collectedInfo.ai_generated_description);
@@ -1794,8 +1750,8 @@ export default function ChatScreen() {
                       }
                     }}
                   >
-                    <MaterialIcons name="check" size={16} color={message.buttonSelected === 'edit' ? "#999" : "#FFF"} />
-                    <Text style={[styles.buttonText, message.buttonSelected === 'edit' && { color: "#999" }]}>Buat Tiket</Text>
+                    <MaterialIcons name="check" size={16} color={(message.buttonSelected === 'edit' || ticketCreatedInSession) ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, (message.buttonSelected === 'edit' || ticketCreatedInSession) && { color: "#999" }]}>Buat Tiket</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1847,6 +1803,48 @@ export default function ChatScreen() {
                       }
                       
                       setIsLiveChat(true);
+                      
+                      // Send ticket info if we have a ticket ID
+                      if (currentTicketId) {
+                        setTimeout(() => {
+                          const ticketInfoMessage = {
+                            id: getUniqueId(),
+                            text: `📋 Tiket #${currentTicketId.slice(-6)}`,
+                            isBot: false,
+                            timestamp: new Date().toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }),
+                            isTicketInfo: true,
+                            ticketId: currentTicketId,
+                          };
+                          
+                          setMessages((prev) => {
+                            const newMessages = [...prev, ticketInfoMessage];
+                            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                            return newMessages;
+                          });
+                          
+                          // Send ticket context to socket
+                          if (socket.connected) {
+                            socket.emit("chat:send", {
+                              ...ticketInfoMessage,
+                              author: chatUser,
+                              createdAt: Date.now(),
+                              type: "ticket-info",
+                              room: ACTIVE_ROOM,
+                            });
+                            
+                            socket.emit("ticket:context", {
+                              room: ACTIVE_ROOM,
+                              ticketId: currentTicketId,
+                              fromUserId: uid,
+                              timestamp: Date.now(),
+                            });
+                          }
+                        }, 500);
+                      }
+                      
                       quickDM();
                     }}
                   >
@@ -1858,163 +1856,179 @@ export default function ChatScreen() {
               {(message as any).hasChannelButtons && (
                 <View style={styles.channelButtonContainer}>
                   <TouchableOpacity
-                    style={styles.channelButton}
-                    activeOpacity={0.7}
+                    style={[styles.channelButton, selectedChannel && selectedChannel !== "ATM" && styles.disabledChannelButton]}
+                    activeOpacity={selectedChannel && selectedChannel !== "ATM" ? 1 : 0.7}
                     onPress={() => handleChannelSelect("ATM")}
+                    disabled={!!(selectedChannel && selectedChannel !== "ATM")}
                   >
-                    <MaterialIcons name="local-atm" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>ATM</Text>
+                    <MaterialIcons name="local-atm" size={16} color={selectedChannel && selectedChannel !== "ATM" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, { fontSize: 12 }, selectedChannel && selectedChannel !== "ATM" && { color: "#999" }]}>ATM</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.channelButton}
-                    activeOpacity={0.7}
+                    style={[styles.channelButton, selectedChannel && selectedChannel !== "IBANK" && styles.disabledChannelButton]}
+                    activeOpacity={selectedChannel && selectedChannel !== "IBANK" ? 1 : 0.7}
                     onPress={() => handleChannelSelect("IBANK")}
+                    disabled={!!(selectedChannel && selectedChannel !== "IBANK")}
                   >
-                    <MaterialIcons name="computer" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>IBANK</Text>
+                    <MaterialIcons name="computer" size={16} color={selectedChannel && selectedChannel !== "IBANK" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, { fontSize: 12 }, selectedChannel && selectedChannel !== "IBANK" && { color: "#999" }]}>IBANK</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.channelButton}
-                    activeOpacity={0.7}
+                    style={[styles.channelButton, selectedChannel && selectedChannel !== "MBANK" && styles.disabledChannelButton]}
+                    activeOpacity={selectedChannel && selectedChannel !== "MBANK" ? 1 : 0.7}
                     onPress={() => handleChannelSelect("MBANK")}
+                    disabled={!!(selectedChannel && selectedChannel !== "MBANK")}
                   >
-                    <MaterialIcons name="phone-android" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>MBANK</Text>
+                    <MaterialIcons name="phone-android" size={16} color={selectedChannel && selectedChannel !== "MBANK" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, { fontSize: 12 }, selectedChannel && selectedChannel !== "MBANK" && { color: "#999" }]}>MBANK</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.channelButton}
-                    activeOpacity={0.7}
+                    style={[styles.channelButton, selectedChannel && selectedChannel !== "CRM" && styles.disabledChannelButton]}
+                    activeOpacity={selectedChannel && selectedChannel !== "CRM" ? 1 : 0.7}
                     onPress={() => handleChannelSelect("CRM")}
+                    disabled={!!(selectedChannel && selectedChannel !== "CRM")}
                   >
-                    <MaterialIcons name="support-agent" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>CRM</Text>
+                    <MaterialIcons name="support-agent" size={16} color={selectedChannel && selectedChannel !== "CRM" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, { fontSize: 12 }, selectedChannel && selectedChannel !== "CRM" && { color: "#999" }]}>CRM</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.channelButton}
-                    activeOpacity={0.7}
+                    style={[styles.channelButton, selectedChannel && selectedChannel !== "MTUNAI ALFAMART" && styles.disabledChannelButton]}
+                    activeOpacity={selectedChannel && selectedChannel !== "MTUNAI ALFAMART" ? 1 : 0.7}
                     onPress={() => handleChannelSelect("MTUNAI ALFAMART")}
+                    disabled={!!(selectedChannel && selectedChannel !== "MTUNAI ALFAMART")}
                   >
-                    <MaterialIcons name="store" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>MTUNAI ALFAMART</Text>
+                    <MaterialIcons name="store" size={16} color={selectedChannel && selectedChannel !== "MTUNAI ALFAMART" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, { fontSize: 12 }, selectedChannel && selectedChannel !== "MTUNAI ALFAMART" && { color: "#999" }]}>MTUNAI ALFAMART</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.channelButton}
-                    activeOpacity={0.7}
+                    style={[styles.channelButton, selectedChannel && selectedChannel !== "DISPUTE DEBIT" && styles.disabledChannelButton]}
+                    activeOpacity={selectedChannel && selectedChannel !== "DISPUTE DEBIT" ? 1 : 0.7}
                     onPress={() => handleChannelSelect("DISPUTE DEBIT")}
+                    disabled={!!(selectedChannel && selectedChannel !== "DISPUTE DEBIT")}
                   >
-                    <MaterialIcons name="report-problem" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>DISPUTE DEBIT</Text>
+                    <MaterialIcons name="report-problem" size={16} color={selectedChannel && selectedChannel !== "DISPUTE DEBIT" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, { fontSize: 12 }, selectedChannel && selectedChannel !== "DISPUTE DEBIT" && { color: "#999" }]}>DISPUTE DEBIT</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.channelButton}
-                    activeOpacity={0.7}
+                    style={[styles.channelButton, selectedChannel && selectedChannel !== "QRIS DEBIT" && styles.disabledChannelButton]}
+                    activeOpacity={selectedChannel && selectedChannel !== "QRIS DEBIT" ? 1 : 0.7}
                     onPress={() => handleChannelSelect("QRIS DEBIT")}
+                    disabled={!!(selectedChannel && selectedChannel !== "QRIS DEBIT")}
                   >
-                    <MaterialIcons name="qr-code" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>QRIS DEBIT</Text>
+                    <MaterialIcons name="qr-code" size={16} color={selectedChannel && selectedChannel !== "QRIS DEBIT" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, { fontSize: 12 }, selectedChannel && selectedChannel !== "QRIS DEBIT" && { color: "#999" }]}>QRIS DEBIT</Text>
                   </TouchableOpacity>
                 </View>
               )}
               {(message as any).hasCategoryButtons && (
                 <View style={styles.categoryButtonContainer}>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "Pembayaran" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "Pembayaran" ? 1 : 0.7}
                     onPress={() => {
                       console.log("Pembayaran button pressed");
                       handleCategorySelect("Pembayaran");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "Pembayaran")}
                   >
-                    <MaterialIcons name="payment" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>PEMBAYARAN</Text>
+                    <MaterialIcons name="payment" size={16} color={selectedCategory && selectedCategory !== "Pembayaran" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "Pembayaran" && { color: "#999" }]}>PEMBAYARAN</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "Top Up" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "Top Up" ? 1 : 0.7}
                     onPress={() => {
                       console.log("Top Up button pressed");
                       handleCategorySelect("Top Up");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "Top Up")}
                   >
-                    <MaterialIcons name="add-card" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>TOP UP</Text>
+                    <MaterialIcons name="add-card" size={16} color={selectedCategory && selectedCategory !== "Top Up" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "Top Up" && { color: "#999" }]}>TOP UP</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "Transfer" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "Transfer" ? 1 : 0.7}
                     onPress={() => {
                       console.log("Transfer button pressed");
                       handleCategorySelect("Transfer");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "Transfer")}
                   >
-                    <MaterialIcons name="swap-horiz" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>TRANSFER</Text>
+                    <MaterialIcons name="swap-horiz" size={16} color={selectedCategory && selectedCategory !== "Transfer" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "Transfer" && { color: "#999" }]}>TRANSFER</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "Tarik Tunai" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "Tarik Tunai" ? 1 : 0.7}
                     onPress={() => {
                       console.log("Tarik Tunai button pressed");
                       handleCategorySelect("Tarik Tunai");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "Tarik Tunai")}
                   >
-                    <MaterialIcons name="local-atm" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>TARIK TUNAI</Text>
+                    <MaterialIcons name="local-atm" size={16} color={selectedCategory && selectedCategory !== "Tarik Tunai" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "Tarik Tunai" && { color: "#999" }]}>TARIK TUNAI</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "Setor Tunai" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "Setor Tunai" ? 1 : 0.7}
                     onPress={() => {
                       console.log("Setor Tunai button pressed");
                       handleCategorySelect("Setor Tunai");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "Setor Tunai")}
                   >
-                    <MaterialIcons name="account-balance-wallet" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>SETOR TUNAI</Text>
+                    <MaterialIcons name="account-balance-wallet" size={16} color={selectedCategory && selectedCategory !== "Setor Tunai" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "Setor Tunai" && { color: "#999" }]}>SETOR TUNAI</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "Mobile Tunai" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "Mobile Tunai" ? 1 : 0.7}
                     onPress={() => {
                       console.log("Mobile Tunai button pressed");
                       handleCategorySelect("Mobile Tunai");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "Mobile Tunai")}
                   >
-                    <MaterialIcons name="phone-android" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>MOBILE TUNAI</Text>
+                    <MaterialIcons name="phone-android" size={16} color={selectedCategory && selectedCategory !== "Mobile Tunai" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "Mobile Tunai" && { color: "#999" }]}>MOBILE TUNAI</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "BI Fast" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "BI Fast" ? 1 : 0.7}
                     onPress={() => {
                       console.log("BI Fast button pressed");
                       handleCategorySelect("BI Fast");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "BI Fast")}
                   >
-                    <MaterialIcons name="flash-on" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>BI FAST</Text>
+                    <MaterialIcons name="flash-on" size={16} color={selectedCategory && selectedCategory !== "BI Fast" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "BI Fast" && { color: "#999" }]}>BI FAST</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "Dispute" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "Dispute" ? 1 : 0.7}
                     onPress={() => {
                       console.log("Dispute button pressed");
                       handleCategorySelect("Dispute");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "Dispute")}
                   >
-                    <MaterialIcons name="report-problem" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>DISPUTE</Text>
+                    <MaterialIcons name="report-problem" size={16} color={selectedCategory && selectedCategory !== "Dispute" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "Dispute" && { color: "#999" }]}>DISPUTE</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.categoryButton}
-                    activeOpacity={0.7}
+                    style={[styles.categoryButton, selectedCategory && selectedCategory !== "Lainnya" && styles.disabledCategoryButton]}
+                    activeOpacity={selectedCategory && selectedCategory !== "Lainnya" ? 1 : 0.7}
                     onPress={() => {
                       console.log("Lainnya button pressed");
                       handleCategorySelect("Lainnya");
                     }}
+                    disabled={!!(selectedCategory && selectedCategory !== "Lainnya")}
                   >
-                    <MaterialIcons name="more-horiz" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>LAINNYA</Text>
+                    <MaterialIcons name="more-horiz" size={16} color={selectedCategory && selectedCategory !== "Lainnya" ? "#999" : "#FFF"} />
+                    <Text style={[styles.buttonText, selectedCategory && selectedCategory !== "Lainnya" && { color: "#999" }]}>LAINNYA</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -2675,6 +2689,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   disabledButton: {
+    backgroundColor: "#E0E0E0",
+  },
+  disabledChannelButton: {
+    backgroundColor: "#E0E0E0",
+  },
+  disabledCategoryButton: {
     backgroundColor: "#E0E0E0",
   },
 });
