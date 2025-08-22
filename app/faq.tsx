@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Animated,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,7 +23,20 @@ import { useFaq } from "@/hooks/useFaq";
 export default function FAQScreen() {
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
   const [searchText, setSearchText] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const { faqs, isLoading, error, fetchFaqs } = useFaq();
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchFaqs(),
+        new Promise(resolve => setTimeout(resolve, 1000))
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchFaqs]);
 
   useEffect(() => {
     fetchFaqs();
@@ -57,7 +72,18 @@ export default function FAQScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.container} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#52B5AB']}
+            tintColor="#52B5AB"
+          />
+        }
+      >
         {/* Teks di luar card */}
         <Text style={styles.helpText}>Bagaimana kami dapat membantu?</Text>
 
@@ -83,10 +109,11 @@ export default function FAQScreen() {
         {/* Card FAQ menyatu */}
         <View style={styles.card}>
           {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF8636" />
-              <Text style={styles.loadingText}>Memuat FAQ...</Text>
-            </View>
+            <>
+              {[1, 2, 3, 4, 5].map((item) => (
+                <SkeletonFaqItem key={item} />
+              ))}
+            </>
           ) : error ? (
             <Text style={styles.errorText}>{error}</Text>
           ) : filteredData.length === 0 ? (
@@ -256,4 +283,64 @@ const styles = StyleSheet.create({
     color: "#FF6B6B",
     padding: 16,
   },
+  skeletonItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e9ecef",
+  },
+  skeletonQuestion: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  skeletonText: {
+    height: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+  },
+  skeletonIcon: {
+    width: 24,
+    height: 24,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 12,
+  },
 });
+
+function SkeletonFaqItem() {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const shimmer = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    shimmer.start();
+    return () => shimmer.stop();
+  }, [shimmerAnim]);
+
+  const animatedStyle = {
+    opacity: shimmerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.3, 1],
+    }),
+  };
+
+  return (
+    <View style={styles.skeletonItem}>
+      <View style={styles.skeletonQuestion}>
+        <Animated.View style={[styles.skeletonText, { flex: 1, marginRight: 12 }, animatedStyle]} />
+        <Animated.View style={[styles.skeletonIcon, animatedStyle]} />
+      </View>
+    </View>
+  );
+}

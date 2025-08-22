@@ -30,7 +30,10 @@ export function useFaq() {
     setError(null);
 
     try {
-      const response = await api<FAQ[]>("/v1/faq");
+      const [response] = await Promise.all([
+        api<FAQ[]>("/v1/faq"),
+        new Promise(resolve => setTimeout(resolve, 1500))
+      ]);
       
       if (response && Array.isArray(response)) {
         const faqData = response.map((item) => ({
