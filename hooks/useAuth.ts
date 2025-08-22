@@ -13,7 +13,35 @@ type Customer = {
   role: string;
   address?: string;
   phone_number?: string;
-  accounts?: any[];
+  accounts?: {
+    account_id: number;
+    customer_id: number;
+    account_number: number;
+    account_type_id: number;
+    is_primary: boolean;
+    id: number;
+    account_type: {
+      account_type_id: number;
+      account_type_code: string;
+      account_type_name: string;
+      id: number;
+    };
+    cards: {
+      card_id: number;
+      account_id: number;
+      card_number: number;
+      card_status_id: number;
+      card_type: string;
+      exp_date: string;
+      id: number;
+      card_status: {
+        card_status_id: number;
+        card_status_code: string;
+        card_status_name: string;
+        id: number;
+      };
+    }[];
+  }[];
 };
 
 type LoginResponse = {
@@ -80,7 +108,11 @@ export function useAuth() {
         headers: { Authorization: res.access_token },
       });
 
-      const fullUserData = { ...userDetail.data, customer_id: userDetail.data.id };
+      const fullUserData = { 
+        ...userDetail.data, 
+        customer_id: userDetail.data.id,
+        accounts: userDetail.data.accounts || []
+      };
 
       // Clear any existing session data before setting new user data
       const allKeys = await AsyncStorage.getAllKeys();

@@ -35,6 +35,8 @@ type TicketPayload = {
   description: string;
   issue_channel_id: number;
   complaint_id: number;
+  related_account_id?: number;
+  related_card_id?: number;
   amount?: number;
 };
 
@@ -207,12 +209,35 @@ export default function ConfirmationScreen() {
     category?.complaint_id &&
     (!requiresAmount || (requiresAmount && amount.trim() && parseInt(amount) > 0));
 
+  // Get account and card IDs from user data
+  const getRelatedIds = () => {
+    const userAccounts = user?.accounts || [];
+    
+    if (userAccounts.length >= 1) {
+      const account = userAccounts[0];
+      return {
+        related_account_id: account.account_id,
+        related_card_id: account.cards && account.cards.length > 0 ? account.cards[0].card_id : null
+      };
+    }
+    
+    return { related_account_id: null, related_card_id: null };
+  };
+
+  const { related_account_id, related_card_id } = getRelatedIds();
+
   const payload: TicketPayload = {
     description: description.trim(),
     issue_channel_id: channel?.channel_id || 0,
     complaint_id: category?.complaint_id || 0,
+    // Always include related IDs (even if null)
+    related_account_id,
+    related_card_id,
     ...(requiresAmount && amount.trim() && { amount: parseInt(amount) }),
   };
+
+  console.log("Confirmation payload:", JSON.stringify(payload, null, 2));
+  console.log("User accounts:", user?.accounts);
 
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
