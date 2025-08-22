@@ -3,20 +3,20 @@ import { Fonts } from "@/constants/Fonts";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  RefreshControl,
-  StatusBar,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import {
-  SafeAreaView,
-  useSafeAreaInsets,
+    SafeAreaView,
+    useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
 export default function RiwayatDetailScreen() {
@@ -211,7 +211,7 @@ export default function RiwayatDetailScreen() {
             </View>
 
             <Text style={styles.detailTitle}>
-              {ticketDetail.issue_channel.channel_name}
+              {ticketDetail.issue_channel?.channel_name || "Channel tidak tersedia"}
             </Text>
 
             <View style={styles.descriptionSection}>

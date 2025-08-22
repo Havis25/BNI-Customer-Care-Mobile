@@ -48,6 +48,9 @@ type MessageType = {
   hasCallConfirmButtons?: boolean;
   hasTicketButton?: boolean;
   hasEditButtons?: boolean;
+  hasChannelButtons?: boolean;
+  hasCategoryButtons?: boolean;
+  hasCorrectionButtons?: boolean;
   isCallLog?: boolean;
   isFile?: boolean;
   isImage?: boolean;
@@ -299,6 +302,11 @@ export default function ChatScreen() {
             response.message.toLowerCase().includes("kategori:") ||
             response.message.toLowerCase().includes("deskripsi:"),
           hasValidationButtons: response.is_complete === true,
+          // Add correction buttons detection
+          hasCorrectionButtons: response.action === "asking_correction",
+          // Remove automatic button detection here to avoid duplicates
+          hasChannelButtons: false,
+          hasCategoryButtons: false,
         };
 
         setMessages((prev) => {
@@ -327,17 +335,153 @@ export default function ChatScreen() {
           }));
         }
 
-        // Add suggestions as quick reply buttons if available
-        if (response.suggestions && response.suggestions.length > 0) {
+        // Handle direct channel/category detection from bot response
+        const messageText = response.message?.toLowerCase() || "";
+        
+        // Special handling for "Pilih salah satu:" - check context
+        if (response.message?.trim() === "Pilih salah satu:") {
+          setTimeout(() => {
+            setMessages((prevMessages) => {
+              // Look at recent messages for context
+              const recentMessages = prevMessages.slice(-3);
+              const recentText = recentMessages.map(m => m.text?.toLowerCase() || "").join(" ");
+              
+              const hasChannelContext = recentText.includes("channel") || recentText.includes("platform");
+              const hasCategoryContext = recentText.includes("kategori") || 
+                                       recentText.includes("jenis masalah") || 
+                                       recentText.includes("jenis keluhan") ||
+                                       recentText.includes("keluhan");
+
+              // Avoid duplicates
+              const hasChannelButtons = prevMessages.some(msg => msg.hasChannelButtons);
+              const hasCategoryButtons = prevMessages.some(msg => msg.hasCategoryButtons);
+
+              if (hasChannelContext && !hasChannelButtons) {
+                const channelButtonMessage: MessageType = {
+                  id: getUniqueId(),
+                  text: "Silakan pilih channel yang Anda gunakan:",
+                  isBot: true,
+                  timestamp: new Date().toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                  hasChannelButtons: true,
+                };
+                return [...prevMessages, channelButtonMessage];
+              }
+
+              if (hasCategoryContext && !hasCategoryButtons) {
+                const categoryButtonMessage: MessageType = {
+                  id: getUniqueId(),
+                  text: "Silakan pilih kategori masalah Anda:",
+                  isBot: true,
+                  timestamp: new Date().toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                  hasCategoryButtons: true,
+                };
+                return [...prevMessages, categoryButtonMessage];
+              }
+
+              return prevMessages;
+            });
+          }, 500);
+        }
+
+        // Direct detection for channel keywords (without "Pilih salah satu:")
+        else if (messageText.includes("channel") || 
+                 messageText.includes("platform") ||
+                 messageText.includes("bisa anda beri tahu saya channel")) {
+          setTimeout(() => {
+            setMessages((prev) => {
+              const hasChannelButtons = prev.some(msg => msg.hasChannelButtons);
+              if (hasChannelButtons) return prev;
+              
+              const channelButtonMessage: MessageType = {
+                id: getUniqueId(),
+                text: "Silakan pilih channel yang Anda gunakan:",
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                hasChannelButtons: true,
+              };
+              return [...prev, channelButtonMessage];
+            });
+          }, 500);
+        }
+
+        // Direct detection for category keywords (without "Pilih salah satu:")
+        else if (messageText.includes("kategori") || 
+                 messageText.includes("jenis masalah") ||
+                 messageText.includes("jenis keluhan") ||
+                 messageText.includes("masalah apa") ||
+                 messageText.includes("keluhan apa") ||
+                 messageText.includes("bisa anda beri tahu saya jenis")) {
+          setTimeout(() => {
+            setMessages((prev) => {
+              const hasCategoryButtons = prev.some(msg => msg.hasCategoryButtons);
+              if (hasCategoryButtons) return prev;
+              
+              const categoryButtonMessage: MessageType = {
+                id: getUniqueId(),
+                text: "Silakan pilih kategori masalah Anda:",
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                hasCategoryButtons: true,
+              };
+              return [...prev, categoryButtonMessage];
+            });
+          }, 500);
+        }
+
+        // Direct detection for correction keywords
+        else if (messageText.includes("bagian mana yang perlu dikoreksi") ||
+                 messageText.includes("yang perlu diperbaiki") ||
+                 messageText.includes("koreksi") ||
+                 messageText.includes("perbaiki") ||
+                 messageText.includes("ubah data")) {
+          setTimeout(() => {
+            setMessages((prev) => {
+              const hasCorrectionButtons = prev.some(msg => msg.hasCorrectionButtons);
+              if (hasCorrectionButtons) return prev;
+              
+              const correctionButtonMessage: MessageType = {
+                id: getUniqueId(),
+                text: "Silakan pilih bagian yang ingin diperbaiki:",
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                hasCorrectionButtons: true,
+              };
+              return [...prev, correctionButtonMessage];
+            });
+          }, 500);
+        }
+
+        // Only add suggestions if they don't conflict with button logic
+        if (response.suggestions && 
+            response.suggestions.length > 0 && 
+            response.message?.trim() !== "Pilih salah satu:" &&
+            !messageText.includes("channel") &&
+            !messageText.includes("kategori") &&
+            !messageText.includes("jenis")) {
           const suggestionMessage: MessageType = {
             id: getUniqueId(),
-            text: "Pilih salah satu:",
+            text: "Pilihan lainnya:",
             isBot: true,
             timestamp: new Date().toLocaleTimeString("id-ID", {
               hour: "2-digit",
               minute: "2-digit",
             }),
-            hasLiveChatButtons: true, // Reuse this for suggestion buttons
+            hasLiveChatButtons: true,
           };
           setMessages((prev) => {
             const newMessages = [...prev, suggestionMessage];
@@ -369,11 +513,133 @@ export default function ChatScreen() {
     [sessionId, summaryShown, user, authUser, ticketCreatedInSession, storageKey]
   );
 
-  // Test function to send a simple message
-  const testChatbot = useCallback(async () => {
-    console.log("Testing chatbot with simple message...");
-    await sendToChatbot("Halo");
-  }, [sendToChatbot]);
+  // Handler for channel selection
+  const handleChannelSelect = useCallback(
+    (channel: string) => {
+      // Add user message showing selected channel
+      const userMessage: MessageType = {
+        id: getUniqueId(),
+        text: channel,
+        isBot: false,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      setMessages((prev) => {
+        const newMessages = [...prev, userMessage];
+        AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+        return newMessages;
+      });
+
+      // Send to chatbot API
+      sendToChatbot(channel);
+    },
+    [sendToChatbot, storageKey]
+  );
+
+  // Handler for category selection
+  const handleCategorySelect = useCallback(
+    (category: string) => {
+      console.log("Category selected:", category);
+      
+      // Add user message showing selected category
+      const userMessage: MessageType = {
+        id: getUniqueId(),
+        text: category,
+        isBot: false,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      setMessages((prev) => {
+        const newMessages = [...prev, userMessage];
+        AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+        return newMessages;
+      });
+
+      // Send to chatbot API
+      sendToChatbot(category);
+    },
+    [sendToChatbot, storageKey]
+  );
+
+  // Handler for correction selection (when user wants to fix data)
+  const handleCorrectionSelect = useCallback(
+    (correctionType: string) => {
+      console.log("Correction selected:", correctionType);
+      
+      // Add user message showing selected correction
+      const userMessage: MessageType = {
+        id: getUniqueId(),
+        text: correctionType,
+        isBot: false,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      setMessages((prev) => {
+        const newMessages = [...prev, userMessage];
+        AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+        return newMessages;
+      });
+
+      // Add appropriate bot response and buttons based on correction type
+      setTimeout(() => {
+        let botResponse: MessageType;
+        
+        if (correctionType === "Channel salah") {
+          botResponse = {
+            id: getUniqueId(),
+            text: "Silakan pilih channel yang benar:",
+            isBot: true,
+            timestamp: new Date().toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            hasChannelButtons: true,
+          };
+        } else if (correctionType === "Kategori salah") {
+          botResponse = {
+            id: getUniqueId(),
+            text: "Silakan pilih kategori yang benar:",
+            isBot: true,
+            timestamp: new Date().toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            hasCategoryButtons: true,
+          };
+        } else {
+          // For "Deskripsi salah"
+          botResponse = {
+            id: getUniqueId(),
+            text: "Silakan ketik deskripsi yang benar pada kolom chat di bawah.",
+            isBot: true,
+            timestamp: new Date().toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          };
+        }
+
+        setMessages((prev) => {
+          const newMessages = [...prev, botResponse];
+          AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+          return newMessages;
+        });
+      }, 500);
+
+      // Also send to chatbot API for backend processing
+      sendToChatbot(correctionType);
+    },
+    [sendToChatbot, storageKey]
+  );
 
   const handleUploadSuccess = (
     fileName: string,
@@ -439,7 +705,7 @@ export default function ChatScreen() {
         } else {
           setCurrentTicketId(null);
         }
-      } catch (error) {
+      } catch {
         setCurrentTicketId(null);
       }
 
@@ -652,8 +918,8 @@ export default function ChatScreen() {
             if (session.ticketCreatedInSession !== undefined && !isFromTicketDetail) {
               setTicketCreatedInSession(session.ticketCreatedInSession);
             }
-          } catch (error) {
-            console.log('Error parsing session data:', error);
+          } catch {
+            console.log('Error parsing session data');
           }
         }
 
@@ -690,7 +956,7 @@ export default function ChatScreen() {
               // No messages - start fresh
               setMessages([initialBotMessage]);
             }
-          } catch (error) {
+          } catch {
             setMessages([initialBotMessage]);
           }
         } else {
@@ -1116,24 +1382,11 @@ export default function ChatScreen() {
           )}
 
           {!isLiveChat && (
-            <TouchableOpacity style={styles.debugButton} onPress={testChatbot}>
-              <MaterialIcons name="bug-report" size={16} color="#FF8636" />
-            </TouchableOpacity>
+            <View style={{ width: 24 }} />
           )}
 
-          {!isLiveChat && !testChatbot && <View style={{ width: 24 }} />}
+          {!isLiveChat && <View style={{ width: 24 }} />}
         </View>
-
-        {/* Debug Info */}
-        {__DEV__ && (
-          <View style={styles.debugInfo}>
-            <Text style={styles.debugText}>
-              Session: {sessionId || "None"} | API:{" "}
-              {process.env.EXPO_PUBLIC_API_URL || "https://bcare.my.id"} |
-              Messages: {messages.length}
-            </Text>
-          </View>
-        )}
 
         {/* Chat Messages */}
         <ScrollView
@@ -1216,11 +1469,11 @@ export default function ChatScreen() {
                       ticketDetail.ticket_number === message.ticketId ? (
                         <>
                           <Text style={styles.ticketInfoChannel}>
-                            {ticketDetail.issue_channel.channel_name}
+                            {ticketDetail.issue_channel?.channel_name || "Channel tidak tersedia"}
                           </Text>
                           <Text style={styles.ticketInfoStatus}>
                             Status:{" "}
-                            {ticketDetail.customer_status.customer_status_name}
+                            {ticketDetail.customer_status?.customer_status_name || "Status tidak tersedia"}
                           </Text>
                         </>
                       ) : (
@@ -1418,6 +1671,33 @@ export default function ChatScreen() {
                   >
                     <MaterialIcons name="check" size={16} color="#FFF" />
                     <Text style={styles.buttonText}>Buat Tiket</Text>
+                    <Text style={[styles.buttonText, { color: "#FFF", fontSize: 12 }]}>Ya, data sudah benar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.noButton}
+                    onPress={() => {
+                      // Add user message for correction request
+                      const userMessage: MessageType = {
+                        id: getUniqueId(),
+                        text: "Ada yang perlu diperbaiki",
+                        isBot: false,
+                        timestamp: new Date().toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }),
+                      };
+
+                      setMessages((prev) => {
+                        const newMessages = [...prev, userMessage];
+                        AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                        return newMessages;
+                      });
+
+                      // Send to chatbot API
+                      sendToChatbot("Ada yang perlu diperbaiki");
+                    }}
+                  >
+                    <Text style={[styles.buttonText, { color: "#FFF", fontSize: 12 }]}>Ada yang perlu diperbaiki</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1428,7 +1708,7 @@ export default function ChatScreen() {
                     onPress={() => setShowTicketModal(true)}
                   >
                     <MaterialIcons name="receipt" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>Lihat Tiket Anda</Text>
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Lihat Tiket Anda</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1441,7 +1721,7 @@ export default function ChatScreen() {
                     }}
                   >
                     <MaterialIcons name="call" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>Call</Text>
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Call</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.chatButton}
@@ -1451,7 +1731,200 @@ export default function ChatScreen() {
                     }}
                   >
                     <MaterialIcons name="chat" size={16} color="#FFF" />
-                    <Text style={styles.buttonText}>Chat</Text>
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Chat</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {(message as any).hasChannelButtons && (
+                <View style={styles.channelButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.channelButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleChannelSelect("ATM")}
+                  >
+                    <MaterialIcons name="local-atm" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>ATM</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.channelButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleChannelSelect("IBANK")}
+                  >
+                    <MaterialIcons name="computer" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>IBANK</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.channelButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleChannelSelect("MBANK")}
+                  >
+                    <MaterialIcons name="phone-android" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>MBANK</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.channelButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleChannelSelect("CRM")}
+                  >
+                    <MaterialIcons name="support-agent" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>CRM</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.channelButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleChannelSelect("MTUNAI ALFAMART")}
+                  >
+                    <MaterialIcons name="store" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>MTUNAI ALFAMART</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.channelButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleChannelSelect("DISPUTE DEBIT")}
+                  >
+                    <MaterialIcons name="report-problem" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>DISPUTE DEBIT</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.channelButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleChannelSelect("QRIS DEBIT")}
+                  >
+                    <MaterialIcons name="qr-code" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>QRIS DEBIT</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {(message as any).hasCategoryButtons && (
+                <View style={styles.categoryButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Pembayaran button pressed");
+                      handleCategorySelect("Pembayaran");
+                    }}
+                  >
+                    <MaterialIcons name="payment" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>PEMBAYARAN</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Top Up button pressed");
+                      handleCategorySelect("Top Up");
+                    }}
+                  >
+                    <MaterialIcons name="add-card" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>TOP UP</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Transfer button pressed");
+                      handleCategorySelect("Transfer");
+                    }}
+                  >
+                    <MaterialIcons name="swap-horiz" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>TRANSFER</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Tarik Tunai button pressed");
+                      handleCategorySelect("Tarik Tunai");
+                    }}
+                  >
+                    <MaterialIcons name="local-atm" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>TARIK TUNAI</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Setor Tunai button pressed");
+                      handleCategorySelect("Setor Tunai");
+                    }}
+                  >
+                    <MaterialIcons name="account-balance-wallet" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>SETOR TUNAI</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Mobile Tunai button pressed");
+                      handleCategorySelect("Mobile Tunai");
+                    }}
+                  >
+                    <MaterialIcons name="phone-android" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>MOBILE TUNAI</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("BI Fast button pressed");
+                      handleCategorySelect("BI Fast");
+                    }}
+                  >
+                    <MaterialIcons name="flash-on" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>BI FAST</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Dispute button pressed");
+                      handleCategorySelect("Dispute");
+                    }}
+                  >
+                    <MaterialIcons name="report-problem" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>DISPUTE</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.categoryButton}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Lainnya button pressed");
+                      handleCategorySelect("Lainnya");
+                    }}
+                  >
+                    <MaterialIcons name="more-horiz" size={16} color="#FFF" />
+                    <Text style={styles.buttonText}>LAINNYA</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Correction buttons for "Ada yang perlu diperbaiki" flow */}
+              {(message as any).hasCorrectionButtons && (
+                <View style={styles.correctionButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.correctionButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleCorrectionSelect("Channel salah")}
+                  >
+                    <MaterialIcons name="swap-horizontal-circle" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Channel salah</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.correctionButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleCorrectionSelect("Kategori salah")}
+                  >
+                    <MaterialIcons name="category" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Kategori salah</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.correctionButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleCorrectionSelect("Deskripsi salah")}
+                  >
+                    <MaterialIcons name="description" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>Deskripsi salah</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1829,12 +2302,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 8,
   },
-
+  yesButton: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  noButton: {
+    backgroundColor: "#FF9800",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
   buttonText: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 10,
+    fontWeight: "600",
     color: "#FFF",
     fontFamily: "Poppins",
+    textAlign: "center",
   },
   messageRow: {
     flexDirection: "row",
@@ -2034,20 +2519,66 @@ const styles = StyleSheet.create({
     color: "#FF8636",
     fontWeight: "500",
   },
-  debugInfo: {
-    backgroundColor: "#F0F0F0",
-    padding: 8,
-    marginHorizontal: 16,
+  channelButtonContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+    gap: 8,
   },
-  debugText: {
-    fontSize: 10,
-    color: "#666",
-    fontFamily: "Poppins",
-  },
-  debugButton: {
-    padding: 8,
+  channelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#52B5AB",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: "#FFF3EB",
+    gap: 4,
+    minWidth: "30%",
+    maxWidth: "48%",
+    justifyContent: "center",
+  },
+  categoryButtonContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+    gap: 6,
+    justifyContent: "space-between",
+    zIndex: 1000, // Ensure buttons are on top
+    pointerEvents: "auto", // Ensure touch events are captured
+  },
+  categoryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 16,
+    gap: 4,
+    minWidth: "30%",
+    maxWidth: "32%",
+    justifyContent: "center",
+    elevation: 2, // Add elevation for Android
+    shadowColor: "#000", // Add shadow for iOS
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  correctionButtonContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+    gap: 8,
+  },
+  correctionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF9800", // Orange color to distinguish from other buttons
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 4,
+    minWidth: "45%",
+    justifyContent: "center",
   },
   editButton: {
     flexDirection: "row",
