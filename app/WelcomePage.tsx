@@ -19,7 +19,7 @@ export default function WelcomePage() {
 
       <View style={styles.headerContainer}>
         <Image
-          source={require("../assets/images/welcome_pic.png")}
+          source={require("../assets/images/welcome.png")}
           style={styles.illustration}
           resizeMode="contain"
         />
@@ -35,9 +35,9 @@ export default function WelcomePage() {
 
       <TouchableOpacity
         style={styles.startButton}
-        onPress={() => router.push("/login")}
+        onPress={() => router.push("/onboarding")}
       >
-        <Text style={styles.startButtonText}>Start Now</Text>
+        <Text style={styles.startButtonText}>Mulai Sekarang</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -47,14 +47,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
-    paddingTop: 20,
-    paddingBottom: 26,
+    // paddingTop: 20,
+    // paddingBottom: 26,
   },
 
   logoWrapper: {
     width: "100%",
     alignItems: "flex-start",
-    marginBottom: 10,
+    // marginBottom: 10,
     zIndex: 10,
     position: "relative",
     paddingHorizontal: 24,
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 100,
     height: 100,
-    marginTop: -30,
+    marginTop: -42,
   },
 
   headerContainer: {
@@ -71,9 +71,6 @@ const styles = StyleSheet.create({
     height: 300,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: -100,
-    zIndex: 1,
-    position: "relative",
   },
 
   illustration: {
@@ -83,13 +80,13 @@ const styles = StyleSheet.create({
 
   textSection: {
     marginHorizontal: 24,
-    marginTop: 171,
+    marginTop: 151,
     alignItems: "center",
   },
 
   title: {
-    fontSize: 26,
-    fontFamily: Fonts.bold,
+    fontSize: 28,
+    fontFamily: Fonts.semiBold,
     color: Colors.light.darkGreen,
     textAlign: "center",
     marginBottom: 10,
@@ -107,7 +104,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primaryGreen,
     paddingVertical: 12,
     borderRadius: 5,
-    marginTop: 100,
+    marginTop: 45,
     marginHorizontal: 24,
     alignItems: "center",
     justifyContent: "center",
