@@ -1,29 +1,29 @@
+import TabTransition from "@/components/TabTransition";
 import { Fonts } from "@/constants/Fonts";
+import { useTickets } from "@/hooks/useTickets";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import {
-  Animated,
-  FlatList,
-  Modal,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Animated,
+    FlatList,
+    Modal,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import TabTransition from "@/components/TabTransition";
-import { useTickets } from "@/hooks/useTickets";
 
 
 const getStatusColorBackground = (status: string) => {
@@ -130,7 +130,7 @@ export default function RiwayatScreen() {
       ticket_id: t.ticket_id || t.ticket_number, // Use ticket_id if available, fallback to ticket_number
       ticket_number: t.ticket_number,
       customer_status: toIndoStatus(t.customer_status.customer_status_code),
-      channel: t.issue_channel.channel_name,
+      channel: t.issue_channel?.channel_name || "Tidak tersedia",
       created_time: t.created_time,
       description: t.description,
     }));
@@ -228,7 +228,7 @@ export default function RiwayatScreen() {
             setTimeout(() => setShowNewTicketNotification(false), 3000);
             await refetch();
           }
-        } catch (error) {
+        } catch {
         }
       };
       
