@@ -59,7 +59,13 @@ export const useTokenManager = () => {
 
   // ✅ Refresh token otomatis
   const refreshToken = useCallback(async (): Promise<string | null> => {
-    if (isRefreshing) return token; // kalau lagi refresh, pakai token lama
+    if (isRefreshing) {
+      // Wait for current refresh to complete
+      while (isRefreshing) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return await getAccessToken();
+    }
 
     setIsRefreshing(true);
     try {
@@ -76,23 +82,31 @@ export const useTokenManager = () => {
         },
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
 
-      // ✅ Sesuaikan sesuai response backend baru
-      if (response.ok && data.access_token) {
+      if (data.access_token) {
         await saveTokens(data.access_token, data.refresh_token || storedRefreshToken);
+        console.log("✅ Token refreshed via useTokenManager");
         return data.access_token;
       }
 
-      throw new Error(data.message || "Token refresh failed");
+      throw new Error(data.message || "Invalid response format");
     } catch (error) {
       console.error("Token refresh error:", error);
       await clearTokens();
+      // Redirect to login
+      import("expo-router").then(({ router }) => {
+        router.replace("/login");
+      });
       return null;
     } finally {
       setIsRefreshing(false);
     }
-  }, [token, isRefreshing]);
+  }, [isRefreshing, getRefreshToken, getAccessToken, saveTokens, clearTokens]);
 
   // ✅ Hapus semua token
   const clearTokens = async () => {
