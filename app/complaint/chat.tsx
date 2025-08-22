@@ -185,11 +185,6 @@ export default function ChatScreen() {
   // Function to check API health
   const checkApiHealth = useCallback(async () => {
     try {
-      console.log(
-        "Checking API health at:",
-        `${process.env.EXPO_PUBLIC_API_URL || "https://bcare.my.id"}/healthz`
-      );
-
       const response = await api<{
         status: string;
         model?: string;
@@ -198,10 +193,8 @@ export default function ChatScreen() {
         method: "GET",
       });
 
-      console.log("API Health Check Response:", response);
       return response.status === "ok";
     } catch (error) {
-      console.error("Health check failed:", error);
       return false;
     }
   }, []);
@@ -233,12 +226,6 @@ export default function ChatScreen() {
     async (userMessage: string) => {
       try {
         setIsTyping(true);
-        console.log("Sending message to chatbot:", userMessage);
-        console.log("Current sessionId:", sessionId);
-        console.log(
-          "API Base URL:",
-          process.env.EXPO_PUBLIC_API_URL || "https://bcare.my.id"
-        );
 
         const response = await api<{
           success: boolean;
@@ -264,12 +251,14 @@ export default function ChatScreen() {
             session_id: sessionId,
             user_context: {
               full_name: user?.full_name || authUser?.full_name || "User",
-              account_number: (user?.accounts || authUser?.accounts || [])[0]?.account_number || "N/A",
+              account_number:
+                (user?.accounts || authUser?.accounts || [])[0]
+                  ?.account_number || "N/A",
             },
           }),
         });
 
-        console.log("Chatbot API Response:", response);
+
 
         // Check if API response is successful
         if (response.success === false) {
@@ -300,9 +289,7 @@ export default function ChatScreen() {
           );
         }
 
-        console.log("Bot response text:", botResponseText);
-        console.log("Bot next_step:", response.next_step);
-        console.log("Bot action:", response.action);
+
 
         // Handle amount confirmation - create summary message with buttons instead of confirmation question
         if (
@@ -319,7 +306,7 @@ export default function ChatScreen() {
                 msg.text &&
                 /^[0-9]+$/.test(msg.text.replace(/[^0-9]/g, ""))
             );
-            
+
             let displayAmount = "Tidak tersedia";
             if (amountMessages.length > 0) {
               const lastAmountMsg = amountMessages[amountMessages.length - 1];
@@ -327,9 +314,7 @@ export default function ChatScreen() {
               displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
             } else if (response.collected_info?.amount) {
               displayAmount = parseInt(
-                response.collected_info.amount
-                  .toString()
-                  .replace(/[^0-9]/g, "")
+                response.collected_info.amount.toString().replace(/[^0-9]/g, "")
               ).toLocaleString("id-ID");
             }
 
@@ -613,7 +598,6 @@ Sekarang Anda dapat melanjutkan:`;
           });
         }
       } catch (error) {
-        console.error("Error sending to chatbot:", error);
         // Add error message
         const errorMessage: MessageType = {
           id: getUniqueId(),
@@ -680,7 +664,6 @@ Sekarang Anda dapat melanjutkan:`;
     (category: string) => {
       if (selectedCategory) return; // Prevent multiple selections
 
-      console.log("Category selected:", category);
       setSelectedCategory(category);
 
       // Add user message showing selected category
@@ -1004,7 +987,7 @@ Sekarang Anda dapat melanjutkan:`;
         ) {
           setTicketCreatedInSession(true);
           setEditFormSelected(true);
-          
+
           // Add ticket created message and show ticket button
           setTimeout(() => {
             const ticketCreatedMessage = {
@@ -1028,7 +1011,7 @@ Sekarang Anda dapat melanjutkan:`;
               return newMessages;
             });
           }, 500);
-          
+
           // Update session to reflect ticket creation
           await AsyncStorage.setItem(
             "chatSession",
@@ -1548,8 +1531,6 @@ Sekarang Anda dapat melanjutkan:`;
           >
             <MaterialIcons name="close" size={24} color="#FF4444" />
           </TouchableOpacity>
-
-
         </View>
 
         {/* Chat Messages */}
@@ -1925,20 +1906,36 @@ Sekarang Anda dapat melanjutkan:`;
 
                         // Get account and card IDs from user data
                         const getRelatedIds = () => {
-                          const userAccounts = user?.accounts || authUser?.accounts || [];
-                          
+                          const userAccounts =
+                            user?.accounts || authUser?.accounts || [];
+
                           if (userAccounts.length >= 1) {
                             const account = userAccounts[0];
+                            let cardId = null;
+
+                            // Check if account has cards property and extract card_id
+                            if (
+                              "cards" in account &&
+                              Array.isArray((account as any).cards) &&
+                              (account as any).cards.length > 0
+                            ) {
+                              cardId = (account as any).cards[0].card_id;
+                            }
+
                             return {
                               related_account_id: account.account_id,
-                              related_card_id: account.cards && account.cards.length > 0 ? account.cards[0].card_id : null
+                              related_card_id: cardId,
                             };
                           }
-                          
-                          return { related_account_id: null, related_card_id: null };
+
+                          return {
+                            related_account_id: null,
+                            related_card_id: null,
+                          };
                         };
 
-                        const { related_account_id, related_card_id } = getRelatedIds();
+                        const { related_account_id, related_card_id } =
+                          getRelatedIds();
 
                         const ticketPayload = {
                           description: actualDescription,
@@ -1953,9 +1950,20 @@ Sekarang Anda dapat melanjutkan:`;
                         };
 
                         console.log("User data:", user || authUser);
-                        console.log("User accounts:", (user?.accounts || authUser?.accounts));
-                        console.log("Related IDs - Account:", related_account_id, "Card:", related_card_id);
-                        console.log("Final payload:", JSON.stringify(ticketPayload, null, 2));
+                        console.log(
+                          "User accounts:",
+                          user?.accounts || authUser?.accounts
+                        );
+                        console.log(
+                          "Related IDs - Account:",
+                          related_account_id,
+                          "Card:",
+                          related_card_id
+                        );
+                        console.log(
+                          "Final payload:",
+                          JSON.stringify(ticketPayload, null, 2)
+                        );
                         console.log("Collected info from bot:", collectedInfo);
                         console.log(
                           "Channel mapping - Input:",
@@ -2219,628 +2227,652 @@ Sekarang Anda dapat melanjutkan:`;
                   </TouchableOpacity>
                 </View>
               )}
-              {(message as any).hasChannelButtons && !ticketCreatedInSession && !editFormSelected && (
-                <View style={styles.channelButtonContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.channelButton,
-                      selectedChannel &&
-                        selectedChannel !== "ATM" &&
-                        styles.disabledChannelButton,
-                    ]}
-                    activeOpacity={
-                      selectedChannel && selectedChannel !== "ATM" ? 1 : 0.7
-                    }
-                    onPress={() => handleChannelSelect("ATM")}
-                    disabled={!!(selectedChannel && selectedChannel !== "ATM")}
-                  >
-                    <MaterialIcons
-                      name="local-atm"
-                      size={16}
-                      color={
-                        selectedChannel && selectedChannel !== "ATM"
-                          ? "#999"
-                          : "#FFF"
-                      }
-                    />
-                    <Text
+              {(message as any).hasChannelButtons &&
+                !ticketCreatedInSession &&
+                !editFormSelected && (
+                  <View style={styles.channelButtonContainer}>
+                    <TouchableOpacity
                       style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
+                        styles.channelButton,
                         selectedChannel &&
-                          selectedChannel !== "ATM" && { color: "#999" },
+                          selectedChannel !== "ATM" &&
+                          styles.disabledChannelButton,
                       ]}
-                    >
-                      ATM
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.channelButton,
-                      selectedChannel &&
-                        selectedChannel !== "IBANK" &&
-                        styles.disabledChannelButton,
-                    ]}
-                    activeOpacity={
-                      selectedChannel && selectedChannel !== "IBANK" ? 1 : 0.7
-                    }
-                    onPress={() => handleChannelSelect("IBANK")}
-                    disabled={
-                      !!(selectedChannel && selectedChannel !== "IBANK")
-                    }
-                  >
-                    <MaterialIcons
-                      name="computer"
-                      size={16}
-                      color={
-                        selectedChannel && selectedChannel !== "IBANK"
-                          ? "#999"
-                          : "#FFF"
+                      activeOpacity={
+                        selectedChannel && selectedChannel !== "ATM" ? 1 : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        selectedChannel &&
-                          selectedChannel !== "IBANK" && { color: "#999" },
-                      ]}
-                    >
-                      IBANK
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.channelButton,
-                      selectedChannel &&
-                        selectedChannel !== "MBANK" &&
-                        styles.disabledChannelButton,
-                    ]}
-                    activeOpacity={
-                      selectedChannel && selectedChannel !== "MBANK" ? 1 : 0.7
-                    }
-                    onPress={() => handleChannelSelect("MBANK")}
-                    disabled={
-                      !!(selectedChannel && selectedChannel !== "MBANK")
-                    }
-                  >
-                    <MaterialIcons
-                      name="phone-android"
-                      size={16}
-                      color={
-                        selectedChannel && selectedChannel !== "MBANK"
-                          ? "#999"
-                          : "#FFF"
+                      onPress={() => handleChannelSelect("ATM")}
+                      disabled={
+                        !!(selectedChannel && selectedChannel !== "ATM")
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        selectedChannel &&
-                          selectedChannel !== "MBANK" && { color: "#999" },
-                      ]}
                     >
-                      MBANK
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.channelButton,
-                      selectedChannel &&
-                        selectedChannel !== "CRM" &&
-                        styles.disabledChannelButton,
-                    ]}
-                    activeOpacity={
-                      selectedChannel && selectedChannel !== "CRM" ? 1 : 0.7
-                    }
-                    onPress={() => handleChannelSelect("CRM")}
-                    disabled={!!(selectedChannel && selectedChannel !== "CRM")}
-                  >
-                    <MaterialIcons
-                      name="support-agent"
-                      size={16}
-                      color={
-                        selectedChannel && selectedChannel !== "CRM"
-                          ? "#999"
-                          : "#FFF"
+                      <MaterialIcons
+                        name="local-atm"
+                        size={16}
+                        color={
+                          selectedChannel && selectedChannel !== "ATM"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { fontSize: 12 },
+                          selectedChannel &&
+                            selectedChannel !== "ATM" && { color: "#999" },
+                        ]}
+                      >
+                        ATM
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.channelButton,
+                        selectedChannel &&
+                          selectedChannel !== "IBANK" &&
+                          styles.disabledChannelButton,
+                      ]}
+                      activeOpacity={
+                        selectedChannel && selectedChannel !== "IBANK" ? 1 : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        selectedChannel &&
-                          selectedChannel !== "CRM" && { color: "#999" },
-                      ]}
+                      onPress={() => handleChannelSelect("IBANK")}
+                      disabled={
+                        !!(selectedChannel && selectedChannel !== "IBANK")
+                      }
                     >
-                      CRM
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.channelButton,
-                      selectedChannel &&
-                        selectedChannel !== "MTUNAI ALFAMART" &&
-                        styles.disabledChannelButton,
-                    ]}
-                    activeOpacity={
-                      selectedChannel && selectedChannel !== "MTUNAI ALFAMART"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => handleChannelSelect("MTUNAI ALFAMART")}
-                    disabled={
-                      !!(
+                      <MaterialIcons
+                        name="computer"
+                        size={16}
+                        color={
+                          selectedChannel && selectedChannel !== "IBANK"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { fontSize: 12 },
+                          selectedChannel &&
+                            selectedChannel !== "IBANK" && { color: "#999" },
+                        ]}
+                      >
+                        IBANK
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.channelButton,
+                        selectedChannel &&
+                          selectedChannel !== "MBANK" &&
+                          styles.disabledChannelButton,
+                      ]}
+                      activeOpacity={
+                        selectedChannel && selectedChannel !== "MBANK" ? 1 : 0.7
+                      }
+                      onPress={() => handleChannelSelect("MBANK")}
+                      disabled={
+                        !!(selectedChannel && selectedChannel !== "MBANK")
+                      }
+                    >
+                      <MaterialIcons
+                        name="phone-android"
+                        size={16}
+                        color={
+                          selectedChannel && selectedChannel !== "MBANK"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { fontSize: 12 },
+                          selectedChannel &&
+                            selectedChannel !== "MBANK" && { color: "#999" },
+                        ]}
+                      >
+                        MBANK
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.channelButton,
+                        selectedChannel &&
+                          selectedChannel !== "CRM" &&
+                          styles.disabledChannelButton,
+                      ]}
+                      activeOpacity={
+                        selectedChannel && selectedChannel !== "CRM" ? 1 : 0.7
+                      }
+                      onPress={() => handleChannelSelect("CRM")}
+                      disabled={
+                        !!(selectedChannel && selectedChannel !== "CRM")
+                      }
+                    >
+                      <MaterialIcons
+                        name="support-agent"
+                        size={16}
+                        color={
+                          selectedChannel && selectedChannel !== "CRM"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { fontSize: 12 },
+                          selectedChannel &&
+                            selectedChannel !== "CRM" && { color: "#999" },
+                        ]}
+                      >
+                        CRM
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.channelButton,
+                        selectedChannel &&
+                          selectedChannel !== "MTUNAI ALFAMART" &&
+                          styles.disabledChannelButton,
+                      ]}
+                      activeOpacity={
                         selectedChannel && selectedChannel !== "MTUNAI ALFAMART"
-                      )
-                    }
-                  >
-                    <MaterialIcons
-                      name="store"
-                      size={16}
-                      color={
-                        selectedChannel && selectedChannel !== "MTUNAI ALFAMART"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        selectedChannel &&
-                          selectedChannel !== "MTUNAI ALFAMART" && {
-                            color: "#999",
-                          },
-                      ]}
+                      onPress={() => handleChannelSelect("MTUNAI ALFAMART")}
+                      disabled={
+                        !!(
+                          selectedChannel &&
+                          selectedChannel !== "MTUNAI ALFAMART"
+                        )
+                      }
                     >
-                      MTUNAI ALFAMART
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.channelButton,
-                      selectedChannel &&
-                        selectedChannel !== "DISPUTE DEBIT" &&
-                        styles.disabledChannelButton,
-                    ]}
-                    activeOpacity={
-                      selectedChannel && selectedChannel !== "DISPUTE DEBIT"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => handleChannelSelect("DISPUTE DEBIT")}
-                    disabled={
-                      !!(selectedChannel && selectedChannel !== "DISPUTE DEBIT")
-                    }
-                  >
-                    <MaterialIcons
-                      name="report-problem"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="store"
+                        size={16}
+                        color={
+                          selectedChannel &&
+                          selectedChannel !== "MTUNAI ALFAMART"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { fontSize: 12 },
+                          selectedChannel &&
+                            selectedChannel !== "MTUNAI ALFAMART" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        MTUNAI ALFAMART
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.channelButton,
+                        selectedChannel &&
+                          selectedChannel !== "DISPUTE DEBIT" &&
+                          styles.disabledChannelButton,
+                      ]}
+                      activeOpacity={
                         selectedChannel && selectedChannel !== "DISPUTE DEBIT"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        selectedChannel &&
-                          selectedChannel !== "DISPUTE DEBIT" && {
-                            color: "#999",
-                          },
-                      ]}
+                      onPress={() => handleChannelSelect("DISPUTE DEBIT")}
+                      disabled={
+                        !!(
+                          selectedChannel && selectedChannel !== "DISPUTE DEBIT"
+                        )
+                      }
                     >
-                      DISPUTE DEBIT
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.channelButton,
-                      selectedChannel &&
-                        selectedChannel !== "QRIS DEBIT" &&
-                        styles.disabledChannelButton,
-                    ]}
-                    activeOpacity={
-                      selectedChannel && selectedChannel !== "QRIS DEBIT"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => handleChannelSelect("QRIS DEBIT")}
-                    disabled={
-                      !!(selectedChannel && selectedChannel !== "QRIS DEBIT")
-                    }
-                  >
-                    <MaterialIcons
-                      name="qr-code"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="report-problem"
+                        size={16}
+                        color={
+                          selectedChannel && selectedChannel !== "DISPUTE DEBIT"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { fontSize: 12 },
+                          selectedChannel &&
+                            selectedChannel !== "DISPUTE DEBIT" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        DISPUTE DEBIT
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.channelButton,
+                        selectedChannel &&
+                          selectedChannel !== "QRIS DEBIT" &&
+                          styles.disabledChannelButton,
+                      ]}
+                      activeOpacity={
                         selectedChannel && selectedChannel !== "QRIS DEBIT"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        selectedChannel &&
-                          selectedChannel !== "QRIS DEBIT" && { color: "#999" },
-                      ]}
+                      onPress={() => handleChannelSelect("QRIS DEBIT")}
+                      disabled={
+                        !!(selectedChannel && selectedChannel !== "QRIS DEBIT")
+                      }
                     >
-                      QRIS DEBIT
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              {(message as any).hasCategoryButtons && !ticketCreatedInSession && !editFormSelected && (
-                <View style={styles.categoryButtonContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "Pembayaran" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "Pembayaran"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("Pembayaran button pressed");
-                      handleCategorySelect("Pembayaran");
-                    }}
-                    disabled={
-                      !!(selectedCategory && selectedCategory !== "Pembayaran")
-                    }
-                  >
-                    <MaterialIcons
-                      name="payment"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="qr-code"
+                        size={16}
+                        color={
+                          selectedChannel && selectedChannel !== "QRIS DEBIT"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { fontSize: 12 },
+                          selectedChannel &&
+                            selectedChannel !== "QRIS DEBIT" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        QRIS DEBIT
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              {(message as any).hasCategoryButtons &&
+                !ticketCreatedInSession &&
+                !editFormSelected && (
+                  <View style={styles.categoryButtonContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "Pembayaran" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
                         selectedCategory && selectedCategory !== "Pembayaran"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "Pembayaran" && {
-                            color: "#999",
-                          },
-                      ]}
+                      onPress={() => {
+                        console.log("Pembayaran button pressed");
+                        handleCategorySelect("Pembayaran");
+                      }}
+                      disabled={
+                        !!(
+                          selectedCategory && selectedCategory !== "Pembayaran"
+                        )
+                      }
                     >
-                      PEMBAYARAN
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "Top Up" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "Top Up"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("Top Up button pressed");
-                      handleCategorySelect("Top Up");
-                    }}
-                    disabled={
-                      !!(selectedCategory && selectedCategory !== "Top Up")
-                    }
-                  >
-                    <MaterialIcons
-                      name="add-card"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="payment"
+                        size={16}
+                        color={
+                          selectedCategory && selectedCategory !== "Pembayaran"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "Pembayaran" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        PEMBAYARAN
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "Top Up" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
                         selectedCategory && selectedCategory !== "Top Up"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "Top Up" && { color: "#999" },
-                      ]}
+                      onPress={() => {
+                        console.log("Top Up button pressed");
+                        handleCategorySelect("Top Up");
+                      }}
+                      disabled={
+                        !!(selectedCategory && selectedCategory !== "Top Up")
+                      }
                     >
-                      TOP UP
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "Transfer" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "Transfer"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("Transfer button pressed");
-                      handleCategorySelect("Transfer");
-                    }}
-                    disabled={
-                      !!(selectedCategory && selectedCategory !== "Transfer")
-                    }
-                  >
-                    <MaterialIcons
-                      name="swap-horiz"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="add-card"
+                        size={16}
+                        color={
+                          selectedCategory && selectedCategory !== "Top Up"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "Top Up" && { color: "#999" },
+                        ]}
+                      >
+                        TOP UP
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "Transfer" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
                         selectedCategory && selectedCategory !== "Transfer"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "Transfer" && { color: "#999" },
-                      ]}
+                      onPress={() => {
+                        console.log("Transfer button pressed");
+                        handleCategorySelect("Transfer");
+                      }}
+                      disabled={
+                        !!(selectedCategory && selectedCategory !== "Transfer")
+                      }
                     >
-                      TRANSFER
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "Tarik Tunai" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "Tarik Tunai"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("Tarik Tunai button pressed");
-                      handleCategorySelect("Tarik Tunai");
-                    }}
-                    disabled={
-                      !!(selectedCategory && selectedCategory !== "Tarik Tunai")
-                    }
-                  >
-                    <MaterialIcons
-                      name="local-atm"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="swap-horiz"
+                        size={16}
+                        color={
+                          selectedCategory && selectedCategory !== "Transfer"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "Transfer" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        TRANSFER
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "Tarik Tunai" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
                         selectedCategory && selectedCategory !== "Tarik Tunai"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "Tarik Tunai" && {
-                            color: "#999",
-                          },
-                      ]}
+                      onPress={() => {
+                        console.log("Tarik Tunai button pressed");
+                        handleCategorySelect("Tarik Tunai");
+                      }}
+                      disabled={
+                        !!(
+                          selectedCategory && selectedCategory !== "Tarik Tunai"
+                        )
+                      }
                     >
-                      TARIK TUNAI
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "Setor Tunai" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "Setor Tunai"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("Setor Tunai button pressed");
-                      handleCategorySelect("Setor Tunai");
-                    }}
-                    disabled={
-                      !!(selectedCategory && selectedCategory !== "Setor Tunai")
-                    }
-                  >
-                    <MaterialIcons
-                      name="account-balance-wallet"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="local-atm"
+                        size={16}
+                        color={
+                          selectedCategory && selectedCategory !== "Tarik Tunai"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "Tarik Tunai" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        TARIK TUNAI
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "Setor Tunai" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
                         selectedCategory && selectedCategory !== "Setor Tunai"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "Setor Tunai" && {
-                            color: "#999",
-                          },
-                      ]}
-                    >
-                      SETOR TUNAI
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "Mobile Tunai" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "Mobile Tunai"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("Mobile Tunai button pressed");
-                      handleCategorySelect("Mobile Tunai");
-                    }}
-                    disabled={
-                      !!(
-                        selectedCategory && selectedCategory !== "Mobile Tunai"
-                      )
-                    }
-                  >
-                    <MaterialIcons
-                      name="phone-android"
-                      size={16}
-                      color={
-                        selectedCategory && selectedCategory !== "Mobile Tunai"
-                          ? "#999"
-                          : "#FFF"
+                      onPress={() => {
+                        console.log("Setor Tunai button pressed");
+                        handleCategorySelect("Setor Tunai");
+                      }}
+                      disabled={
+                        !!(
+                          selectedCategory && selectedCategory !== "Setor Tunai"
+                        )
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "Mobile Tunai" && {
-                            color: "#999",
-                          },
-                      ]}
                     >
-                      MOBILE TUNAI
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "BI Fast" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "BI Fast"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("BI Fast button pressed");
-                      handleCategorySelect("BI Fast");
-                    }}
-                    disabled={
-                      !!(selectedCategory && selectedCategory !== "BI Fast")
-                    }
-                  >
-                    <MaterialIcons
-                      name="flash-on"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="account-balance-wallet"
+                        size={16}
+                        color={
+                          selectedCategory && selectedCategory !== "Setor Tunai"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "Setor Tunai" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        SETOR TUNAI
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "Mobile Tunai" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
+                        selectedCategory && selectedCategory !== "Mobile Tunai"
+                          ? 1
+                          : 0.7
+                      }
+                      onPress={() => {
+                        console.log("Mobile Tunai button pressed");
+                        handleCategorySelect("Mobile Tunai");
+                      }}
+                      disabled={
+                        !!(
+                          selectedCategory &&
+                          selectedCategory !== "Mobile Tunai"
+                        )
+                      }
+                    >
+                      <MaterialIcons
+                        name="phone-android"
+                        size={16}
+                        color={
+                          selectedCategory &&
+                          selectedCategory !== "Mobile Tunai"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "Mobile Tunai" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        MOBILE TUNAI
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "BI Fast" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
                         selectedCategory && selectedCategory !== "BI Fast"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "BI Fast" && { color: "#999" },
-                      ]}
+                      onPress={() => {
+                        console.log("BI Fast button pressed");
+                        handleCategorySelect("BI Fast");
+                      }}
+                      disabled={
+                        !!(selectedCategory && selectedCategory !== "BI Fast")
+                      }
                     >
-                      BI FAST
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "Dispute" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "Dispute"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("Dispute button pressed");
-                      handleCategorySelect("Dispute");
-                    }}
-                    disabled={
-                      !!(selectedCategory && selectedCategory !== "Dispute")
-                    }
-                  >
-                    <MaterialIcons
-                      name="report-problem"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="flash-on"
+                        size={16}
+                        color={
+                          selectedCategory && selectedCategory !== "BI Fast"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "BI Fast" && { color: "#999" },
+                        ]}
+                      >
+                        BI FAST
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "Dispute" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
                         selectedCategory && selectedCategory !== "Dispute"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "Dispute" && { color: "#999" },
-                      ]}
+                      onPress={() => {
+                        console.log("Dispute button pressed");
+                        handleCategorySelect("Dispute");
+                      }}
+                      disabled={
+                        !!(selectedCategory && selectedCategory !== "Dispute")
+                      }
                     >
-                      DISPUTE
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryButton,
-                      selectedCategory &&
-                        selectedCategory !== "Lainnya" &&
-                        styles.disabledCategoryButton,
-                    ]}
-                    activeOpacity={
-                      selectedCategory && selectedCategory !== "Lainnya"
-                        ? 1
-                        : 0.7
-                    }
-                    onPress={() => {
-                      console.log("Lainnya button pressed");
-                      handleCategorySelect("Lainnya");
-                    }}
-                    disabled={
-                      !!(selectedCategory && selectedCategory !== "Lainnya")
-                    }
-                  >
-                    <MaterialIcons
-                      name="more-horiz"
-                      size={16}
-                      color={
+                      <MaterialIcons
+                        name="report-problem"
+                        size={16}
+                        color={
+                          selectedCategory && selectedCategory !== "Dispute"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "Dispute" && { color: "#999" },
+                        ]}
+                      >
+                        DISPUTE
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryButton,
+                        selectedCategory &&
+                          selectedCategory !== "Lainnya" &&
+                          styles.disabledCategoryButton,
+                      ]}
+                      activeOpacity={
                         selectedCategory && selectedCategory !== "Lainnya"
-                          ? "#999"
-                          : "#FFF"
+                          ? 1
+                          : 0.7
                       }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        selectedCategory &&
-                          selectedCategory !== "Lainnya" && { color: "#999" },
-                      ]}
+                      onPress={() => {
+                        console.log("Lainnya button pressed");
+                        handleCategorySelect("Lainnya");
+                      }}
+                      disabled={
+                        !!(selectedCategory && selectedCategory !== "Lainnya")
+                      }
                     >
-                      LAINNYA
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+                      <MaterialIcons
+                        name="more-horiz"
+                        size={16}
+                        color={
+                          selectedCategory && selectedCategory !== "Lainnya"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          selectedCategory &&
+                            selectedCategory !== "Lainnya" && { color: "#999" },
+                        ]}
+                      >
+                        LAINNYA
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
             </View>
           ))}
 

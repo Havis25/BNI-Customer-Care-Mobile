@@ -1,7 +1,7 @@
 import BottomSheet from "@/components/modals/BottomSheet";
-import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
 import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
+import { useUser } from "@/hooks/useUser";
 import { api } from "@/lib/api";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -39,8 +39,6 @@ type TicketPayload = {
   related_card_id?: number;
   amount?: number;
 };
-
-
 
 /** SelectField: iOS pakai ActionSheet, Android/Web pakai Picker dropdown */
 function SelectField({
@@ -105,7 +103,13 @@ export default function ConfirmationScreen() {
   const insets = useSafeAreaInsets();
   const { user, selectAccount, account_number, accounts } = useUser();
   const { token, isAuthenticated } = useAuth();
-  const { channels, categories, getFilteredCategories, isLoading: dataLoading, error: dataError } = useChannelsAndCategories();
+  const {
+    channels,
+    categories,
+    getFilteredCategories,
+    isLoading: dataLoading,
+    error: dataError,
+  } = useChannelsAndCategories();
 
   const full_nameauto = (user?.full_name || "").trim() || "User Complain";
 
@@ -125,47 +129,48 @@ export default function ConfirmationScreen() {
 
   // Get filtered categories based on selected channel
   const filteredCategories = getFilteredCategories(channel);
-  
+
   // Categories that require amount field (transaction-related)
   const transactionCategories = [
-    'PEMBAYARAN_KARTU_KREDIT_BNI',
-    'PEMBAYARAN_KARTU_KREDIT_BANK_LAIN',
-    'PEMBAYARAN_PLN_VIA_ATM_BANK_LAIN',
-    'PEMBAYARAN_SAMSAT',
-    'PEMBAYARAN_TELKOM_TELKOMSEL_INDOSAT_PROVIDER_LAINNYA',
-    'TOP_UP_DANA',
-    'TOP_UP_GOPAY',
-    'TOP_UP_OVO',
-    'TOP_UP_PULSA',
-    'TOP_UP_PULSA_VIA_ATM_BANK_LAIN',
-    'TOP_UP_SHOPEE_PAY',
-    'TOP_UP_LINKAJA',
-    'TOP_UP_E_MONEY',
-    'TRANSFER_ATM_ALTO_DANA_TDK_MASUK',
-    'TRANSFER_ATM_BERSAMA_DANA_TDK_MASUK',
-    'TRANSFER_ATM_LINK_DANA_TDK_MASUK',
-    'TRANSFER_ATM_PRIMA_DANA_TDK_MASUK',
-    'TRANSFER_ANTAR_REKENING_BNI',
-    'TRANSFER_ATM_ALTO_BILATERAL',
-    'TRANSFER_ATM_BERSAMA_BILATERAL',
-    'TRANSFER_ATM_ALTO_LINK_BILATERAL',
-    'TRANSFER_ATM_PRIMA_BILATERAL',
-    'BI_FAST_DANA_TIDAK_MASUK',
-    'BI_FAST_BILATERAL',
-    'MOBILE_TUNAI_ALFAMIDI',
-    'MOBILE_TUNAI_INDOMARET',
-    'MOBILE_TUNAI',
-    'MOBILE_TUNAI_ALFAMART',
-    'SETOR_TUNAI_DI_MESIN_ATM_CRM',
-    'TARIK_TUNAI_DI_MESIN_ATM_BNI',
-    'TARIK_TUNAI_DI_ATM_LINK',
-    'TARIK_TUNAI_DI_JARINGAN_ALTO',
-    'TARIK_TUNAI_DI_JARINGAN_BERSAMA',
-    'TARIK_TUNAI_DI_ATM_CIRRUS'
+    "PEMBAYARAN_KARTU_KREDIT_BNI",
+    "PEMBAYARAN_KARTU_KREDIT_BANK_LAIN",
+    "PEMBAYARAN_PLN_VIA_ATM_BANK_LAIN",
+    "PEMBAYARAN_SAMSAT",
+    "PEMBAYARAN_TELKOM_TELKOMSEL_INDOSAT_PROVIDER_LAINNYA",
+    "TOP_UP_DANA",
+    "TOP_UP_GOPAY",
+    "TOP_UP_OVO",
+    "TOP_UP_PULSA",
+    "TOP_UP_PULSA_VIA_ATM_BANK_LAIN",
+    "TOP_UP_SHOPEE_PAY",
+    "TOP_UP_LINKAJA",
+    "TOP_UP_E_MONEY",
+    "TRANSFER_ATM_ALTO_DANA_TDK_MASUK",
+    "TRANSFER_ATM_BERSAMA_DANA_TDK_MASUK",
+    "TRANSFER_ATM_LINK_DANA_TDK_MASUK",
+    "TRANSFER_ATM_PRIMA_DANA_TDK_MASUK",
+    "TRANSFER_ANTAR_REKENING_BNI",
+    "TRANSFER_ATM_ALTO_BILATERAL",
+    "TRANSFER_ATM_BERSAMA_BILATERAL",
+    "TRANSFER_ATM_ALTO_LINK_BILATERAL",
+    "TRANSFER_ATM_PRIMA_BILATERAL",
+    "BI_FAST_DANA_TIDAK_MASUK",
+    "BI_FAST_BILATERAL",
+    "MOBILE_TUNAI_ALFAMIDI",
+    "MOBILE_TUNAI_INDOMARET",
+    "MOBILE_TUNAI",
+    "MOBILE_TUNAI_ALFAMART",
+    "SETOR_TUNAI_DI_MESIN_ATM_CRM",
+    "TARIK_TUNAI_DI_MESIN_ATM_BNI",
+    "TARIK_TUNAI_DI_ATM_LINK",
+    "TARIK_TUNAI_DI_JARINGAN_ALTO",
+    "TARIK_TUNAI_DI_JARINGAN_BERSAMA",
+    "TARIK_TUNAI_DI_ATM_CIRRUS",
   ];
-  
+
   // Check if current category requires amount
-  const requiresAmount = category && transactionCategories.includes(category.complaint_code);
+  const requiresAmount =
+    category && transactionCategories.includes(category.complaint_code);
 
   // Update state when API data loads
   useEffect(() => {
@@ -177,7 +182,7 @@ export default function ConfirmationScreen() {
   useEffect(() => {
     if (categories.length > 0 && !category) {
       setCategory(categories[0]);
-      setAmount(''); // Reset amount when initial category is set
+      setAmount(""); // Reset amount when initial category is set
     }
   }, [categories]);
 
@@ -185,42 +190,59 @@ export default function ConfirmationScreen() {
   useEffect(() => {
     if (channel && filteredCategories.length > 0) {
       // If current category is not in filtered list, select first filtered category
-      if (!filteredCategories.find(c => c.complaint_id === category?.complaint_id)) {
+      if (
+        !filteredCategories.find(
+          (c) => c.complaint_id === category?.complaint_id
+        )
+      ) {
         setCategory(filteredCategories[0]);
-        setAmount(''); // Reset amount when category changes
+        setAmount(""); // Reset amount when category changes
       }
     }
   }, [channel, filteredCategories, category?.complaint_id]);
-  
+
   // Reset amount when category changes
   useEffect(() => {
-    setAmount('');
+    setAmount("");
   }, [category?.complaint_id]);
 
   const isValid =
-    isChecked && 
-    !!channel && 
-    !!category && 
-    description.trim().length >= 8 && 
-    !dataLoading && 
-    channels.length > 0 && 
+    isChecked &&
+    !!channel &&
+    !!category &&
+    description.trim().length >= 8 &&
+    !dataLoading &&
+    channels.length > 0 &&
     filteredCategories.length > 0 &&
     channel?.channel_id &&
     category?.complaint_id &&
-    (!requiresAmount || (requiresAmount && amount.trim() && parseInt(amount) > 0));
+    (!requiresAmount ||
+      (requiresAmount && amount.trim() && parseInt(amount) > 0));
 
   // Get account and card IDs from user data
   const getRelatedIds = () => {
     const userAccounts = user?.accounts || [];
-    
+
     if (userAccounts.length >= 1) {
       const account = userAccounts[0];
+      let cardId = null;
+
+      // Check if account has cards property and extract card_id
+      const accountWithCards = account as any;
+      if (
+        accountWithCards.cards &&
+        Array.isArray(accountWithCards.cards) &&
+        accountWithCards.cards.length > 0
+      ) {
+        cardId = accountWithCards.cards[0].card_id;
+      }
+
       return {
         related_account_id: account.account_id,
-        related_card_id: account.cards && account.cards.length > 0 ? account.cards[0].card_id : null
+        related_card_id: cardId,
       };
     }
-    
+
     return { related_account_id: null, related_card_id: null };
   };
 
@@ -236,14 +258,13 @@ export default function ConfirmationScreen() {
     ...(requiresAmount && amount.trim() && { amount: parseInt(amount) }),
   };
 
-  console.log("Confirmation payload:", JSON.stringify(payload, null, 2));
-  console.log("User accounts:", user?.accounts);
+
 
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
     try {
       setSubmitting(true);
-      
+
       // Cek autentikasi
       if (!isAuthenticated || !token) {
         Alert.alert("Error", "Sesi telah berakhir. Silakan login kembali.");
@@ -256,7 +277,7 @@ export default function ConfirmationScreen() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      
+
       // Extract ticket ID from response - check all possible paths
       let ticketId = null;
       if (response?.success && response?.data) {
@@ -266,15 +287,17 @@ export default function ConfirmationScreen() {
       } else if (response?.ticket_id) {
         ticketId = response.ticket_id;
       }
-      
+
       if (ticketId) {
         // Store ticket ID in AsyncStorage for persistence
-        await AsyncStorage.setItem('currentTicketId', String(ticketId));
-        
+        await AsyncStorage.setItem("currentTicketId", String(ticketId));
+
         // Trigger refresh for riwayat screen
-        await AsyncStorage.setItem('shouldRefreshRiwayat', 'true');
-        
-        router.push(`/complaint/chat?fromConfirmation=true&ticketId=${ticketId}`);
+        await AsyncStorage.setItem("shouldRefreshRiwayat", "true");
+
+        router.push(
+          `/complaint/chat?fromConfirmation=true&ticketId=${ticketId}`
+        );
       } else {
         router.push("/complaint/chat?fromConfirmation=true");
       }
@@ -339,7 +362,9 @@ export default function ConfirmationScreen() {
               {accounts.length > 1 ? (
                 <SelectField
                   label="No Rekening"
-                  value={`${account_number} (${user?.selectedAccount?.account_type || ""})`}
+                  value={`${account_number} (${
+                    user?.selectedAccount?.account_type || ""
+                  })`}
                   options={accounts.map(
                     (acc) => `${acc.account_number} (${acc.account_type})`
                   )}
@@ -375,16 +400,23 @@ export default function ConfirmationScreen() {
                 <View style={styles.fieldContainer}>
                   <Text style={styles.label}>Channel</Text>
                   <View style={[styles.textInput, styles.errorField]}>
-                    <Text style={styles.errorText}>Gagal memuat data channel</Text>
+                    <Text style={styles.errorText}>
+                      Gagal memuat data channel
+                    </Text>
                   </View>
                 </View>
               ) : (
                 <SelectField
                   label="Channel"
-                  value={channel?.channel_name || (channels.length > 0 ? channels[0].channel_name : "")}
-                  options={channels.map(c => c.channel_name)}
+                  value={
+                    channel?.channel_name ||
+                    (channels.length > 0 ? channels[0].channel_name : "")
+                  }
+                  options={channels.map((c) => c.channel_name)}
                   onChange={(v) => {
-                    const selectedChannel = channels.find(c => c.channel_name === v);
+                    const selectedChannel = channels.find(
+                      (c) => c.channel_name === v
+                    );
                     if (selectedChannel) setChannel(selectedChannel);
                   }}
                 />
@@ -402,16 +434,25 @@ export default function ConfirmationScreen() {
                 <View style={styles.fieldContainer}>
                   <Text style={styles.label}>Category</Text>
                   <View style={[styles.textInput, styles.errorField]}>
-                    <Text style={styles.errorText}>Gagal memuat data kategori</Text>
+                    <Text style={styles.errorText}>
+                      Gagal memuat data kategori
+                    </Text>
                   </View>
                 </View>
               ) : (
                 <SelectField
                   label="Category"
-                  value={category?.complaint_name || (filteredCategories.length > 0 ? filteredCategories[0].complaint_name : "")}
-                  options={filteredCategories.map(c => c.complaint_name)}
+                  value={
+                    category?.complaint_name ||
+                    (filteredCategories.length > 0
+                      ? filteredCategories[0].complaint_name
+                      : "")
+                  }
+                  options={filteredCategories.map((c) => c.complaint_name)}
                   onChange={(v) => {
-                    const selectedCategory = filteredCategories.find(c => c.complaint_name === v);
+                    const selectedCategory = filteredCategories.find(
+                      (c) => c.complaint_name === v
+                    );
                     if (selectedCategory) setCategory(selectedCategory);
                   }}
                 />
@@ -426,7 +467,7 @@ export default function ConfirmationScreen() {
                     value={amount}
                     onChangeText={(text) => {
                       // Only allow numbers
-                      const numericText = text.replace(/[^0-9]/g, '');
+                      const numericText = text.replace(/[^0-9]/g, "");
                       setAmount(numericText);
                     }}
                     placeholder="Masukkan nominal transaksi"
@@ -434,8 +475,9 @@ export default function ConfirmationScreen() {
                     returnKeyType="done"
                   />
                   <Text style={styles.helper}>
-                    {amount && `Rp ${parseInt(amount).toLocaleString('id-ID')}`}
-                    {!amount && 'Masukkan nominal dalam Rupiah (contoh: 100000)'}
+                    {amount && `Rp ${parseInt(amount).toLocaleString("id-ID")}`}
+                    {!amount &&
+                      "Masukkan nominal dalam Rupiah (contoh: 100000)"}
                   </Text>
                 </View>
               )}
@@ -660,7 +702,7 @@ const styles = StyleSheet.create({
   submitText: { fontSize: 16, fontWeight: "bold", fontFamily: "Poppins" },
   enabledText: { color: "#FFF" },
   disabledText: { color: "#999" },
-  
+
   loadingField: {
     justifyContent: "center",
     alignItems: "center",
@@ -683,4 +725,3 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins",
   },
 });
-
