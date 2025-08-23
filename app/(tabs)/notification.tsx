@@ -314,6 +314,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
+    paddingBottom: 70,
   },
   listWrapper: {
     flex: 1,
