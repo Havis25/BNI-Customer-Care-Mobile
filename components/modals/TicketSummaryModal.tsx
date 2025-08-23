@@ -108,6 +108,18 @@ export default function TicketSummaryModal({ visible, onClose, ticketId }: Ticke
                   <Text style={[styles.summaryValue, styles.amountValue]}>{formatAmount(ticketDetail.amount)}</Text>
                 </View>
               )}
+              {ticketDetail.transaction_date && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Tgl Transaksi:</Text>
+                  <Text style={[styles.summaryValue, styles.transactionDateValue]}>
+                    {new Date(ticketDetail.transaction_date).toLocaleDateString('id-ID', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </Text>
+                </View>
+              )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Status:</Text>
                 <Text style={[styles.summaryValue, styles.statusPending]}>
@@ -238,6 +250,11 @@ const styles = StyleSheet.create({
   amountValue: {
     fontWeight: "700",
     color: "#4CAF50",
+    fontSize: 14,
+  },
+  transactionDateValue: {
+    fontWeight: "600",
+    color: "#2196F3",
     fontSize: 14,
   },
   closeTicketButton: {

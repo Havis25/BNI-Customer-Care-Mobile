@@ -1,6 +1,7 @@
 import BottomSheet from "@/components/modals/BottomSheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
+import { useTerminals } from "@/hooks/useTerminals";
 import { useUser } from "@/hooks/useUser";
 import { api } from "@/lib/api";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -38,6 +39,7 @@ type TicketPayload = {
   related_account_id?: number;
   related_card_id?: number;
   amount?: number;
+  terminal_id?: number;
 };
 
 /** SelectField: iOS pakai ActionSheet, Android/Web pakai Picker dropdown */
@@ -110,12 +112,14 @@ export default function ConfirmationScreen() {
     isLoading: dataLoading,
     error: dataError,
   } = useChannelsAndCategories();
+  const { terminals } = useTerminals();
 
   const full_nameauto = (user?.full_name || "").trim() || "User Complain";
 
   // Editable
   const [channel, setChannel] = useState<any>(null);
   const [category, setCategory] = useState<any>(null);
+  const [terminal, setTerminal] = useState<any>(null);
   const [description, setdescription] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
 
@@ -129,6 +133,19 @@ export default function ConfirmationScreen() {
 
   // Get filtered categories based on selected channel
   const filteredCategories = getFilteredCategories(channel);
+
+  // Get filtered terminals based on selected channel
+  const filteredTerminals = terminals.filter((terminal) => {
+    if (!channel) return false;
+    // Check if channel supports terminals and matches terminal's channel
+    return (
+      channel.channel_code === terminal.channel.channel_code &&
+      terminal.channel.supports_terminal
+    );
+  });
+
+  // Check if current channel requires terminal selection
+  const requiresTerminal = channel && filteredTerminals.length > 0;
 
   // Categories that require amount field (transaction-related)
   const transactionCategories = [
@@ -199,7 +216,20 @@ export default function ConfirmationScreen() {
         setAmount(""); // Reset amount when category changes
       }
     }
-  }, [channel, filteredCategories, category?.complaint_id]);
+
+    // Reset terminal when channel changes
+    if (requiresTerminal && filteredTerminals.length > 0) {
+      setTerminal(filteredTerminals[0]);
+    } else {
+      setTerminal(null);
+    }
+  }, [
+    channel,
+    filteredCategories,
+    category?.complaint_id,
+    requiresTerminal,
+    filteredTerminals,
+  ]);
 
   // Reset amount when category changes
   useEffect(() => {
@@ -217,7 +247,8 @@ export default function ConfirmationScreen() {
     channel?.channel_id &&
     category?.complaint_id &&
     (!requiresAmount ||
-      (requiresAmount && amount.trim() && parseInt(amount) > 0));
+      (requiresAmount && amount.trim() && parseInt(amount) > 0)) &&
+    (!requiresTerminal || (requiresTerminal && !!terminal));
 
   // Get account and card IDs from user data
   const getRelatedIds = () => {
@@ -256,9 +287,8 @@ export default function ConfirmationScreen() {
     related_account_id,
     related_card_id,
     ...(requiresAmount && amount.trim() && { amount: parseInt(amount) }),
+    ...(requiresTerminal && terminal && { terminal_id: terminal.terminal_id }),
   };
-
-
 
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
@@ -454,6 +484,29 @@ export default function ConfirmationScreen() {
                       (c) => c.complaint_name === v
                     );
                     if (selectedCategory) setCategory(selectedCategory);
+                  }}
+                />
+              )}
+
+              {/* Terminal - only show for channels that support terminals */}
+              {requiresTerminal && (
+                <SelectField
+                  label="Terminal"
+                  value={
+                    terminal
+                      ? `${terminal.terminal_code} - ${terminal.location}`
+                      : filteredTerminals.length > 0
+                      ? `${filteredTerminals[0].terminal_code} - ${filteredTerminals[0].location}`
+                      : ""
+                  }
+                  options={filteredTerminals.map(
+                    (t) => `${t.terminal_code} - ${t.location}`
+                  )}
+                  onChange={(v) => {
+                    const selectedTerminal = filteredTerminals.find(
+                      (t) => `${t.terminal_code} - ${t.location}` === v
+                    );
+                    if (selectedTerminal) setTerminal(selectedTerminal);
                   }}
                 />
               )}

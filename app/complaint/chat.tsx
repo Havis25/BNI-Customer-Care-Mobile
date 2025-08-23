@@ -3,13 +3,18 @@ import CallModal from "@/components/modals/CallModal";
 import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
 import UploadModal from "@/components/modals/UploadModal";
 import { useAuth } from "@/hooks/useAuth";
-import { useChannelsAndCategories, Channel } from "@/hooks/useChannelsAndCategories";
+import {
+  useChannelsAndCategories,
+  Channel,
+} from "@/hooks/useChannelsAndCategories";
+import { useTerminals } from "@/hooks/useTerminals";
 import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useUser } from "@/hooks/useUser";
 import { api } from "@/lib/api";
 import {
   checkIfCategoryNeedsAmount,
+  checkIfCategoryNeedsTransactionDate,
   mapChatbotCategoryToDatabase,
   mapChatbotChannelToDatabase,
 } from "@/utils/chatbotMapping";
@@ -56,6 +61,7 @@ type MessageType = {
   hasEditButtons?: boolean;
   hasChannelButtons?: boolean;
   hasCategoryButtons?: boolean;
+  hasTerminalButtons?: boolean;
   isCallLog?: boolean;
   isFile?: boolean;
   isImage?: boolean;
@@ -160,9 +166,20 @@ export default function ChatScreen() {
   const [summaryShown, setSummaryShown] = useState(false);
   const [ticketCreatedInSession, setTicketCreatedInSession] = useState(false);
   const [amountRequested, setAmountRequested] = useState(false);
+  const [transactionDateRequested, setTransactionDateRequested] =
+    useState(false);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedTerminal, setSelectedTerminal] = useState<string | null>(null);
   const [editFormSelected, setEditFormSelected] = useState(false);
+
+  // Track which button groups have been selected to disable other options
+  const [buttonGroupStates, setButtonGroupStates] = useState<{
+    [messageId: string]: {
+      type: "channel" | "category" | "terminal" | "validation" | "edit";
+      selectedValue: string;
+    };
+  }>({});
 
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
@@ -176,7 +193,11 @@ export default function ChatScreen() {
   const { ticketDetail, fetchTicketDetail } = useTicketDetail();
 
   // Channels and categories data
-  const { channels, categories, getFilteredCategories } = useChannelsAndCategories();
+  const { channels, categories, getFilteredCategories } =
+    useChannelsAndCategories();
+
+  // Terminals data
+  const { terminals } = useTerminals();
 
   const getUniqueId = () => {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -288,20 +309,120 @@ export default function ChatScreen() {
           );
         }
 
-        // Handle amount confirmation - create summary message with buttons instead of confirmation question
+        // Handle amount confirmation - check if transaction date is also needed
         if (
           amountRequested &&
+          !transactionDateRequested &&
           (response.message.toLowerCase().includes("mohon konfirmasi") ||
             response.message.toLowerCase().includes("apakah data") ||
             response.message.toLowerCase().includes("sudah benar"))
         ) {
-          // Get the most recent amount input from user messages
+          // Check if category also needs transaction date
+          const needsTransactionDate =
+            response.collected_info?.category &&
+            checkIfCategoryNeedsTransactionDate(
+              response.collected_info.category
+            );
+
+          if (needsTransactionDate) {
+            // Ask for transaction date next
+            setTimeout(() => {
+              const transactionDateMessage: MessageType = {
+                id: getUniqueId(),
+                text: "Mohon masukkan tanggal transaksi (format: DD/MM/YYYY atau DD-MM-YYYY):",
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              };
+              setMessages((prev) => {
+                const newMessages = [...prev, transactionDateMessage];
+                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                return newMessages;
+              });
+              setTransactionDateRequested(true);
+            }, 1000);
+            return;
+          } else {
+            // No transaction date needed, show summary
+            setMessages((currentMessages) => {
+              const amountMessages = currentMessages.filter(
+                (msg) =>
+                  !msg.isBot &&
+                  msg.text &&
+                  /^[0-9]+$/.test(msg.text.replace(/[^0-9]/g, ""))
+              );
+
+              let displayAmount = "Tidak tersedia";
+              if (amountMessages.length > 0) {
+                const lastAmountMsg = amountMessages[amountMessages.length - 1];
+                const numericAmount = lastAmountMsg.text.replace(/[^0-9]/g, "");
+                displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
+              } else if (response.collected_info?.amount) {
+                displayAmount = parseInt(
+                  response.collected_info.amount
+                    .toString()
+                    .replace(/[^0-9]/g, "")
+                ).toLocaleString("id-ID");
+              }
+
+              const summaryText = `📋 RINGKASAN KELUHAN ANDA
+
+📍 Channel: ${response.collected_info?.channel || "Tidak tersedia"}
+
+📂 Kategori: ${response.collected_info?.category || "Tidak tersedia"}
+
+💰 Nominal: Rp ${displayAmount}
+
+📝 Deskripsi: ${
+                response.collected_info?.ai_generated_description ||
+                response.collected_info?.description ||
+                "Tidak tersedia"
+              }
+
+Sekarang Anda dapat melanjutkan:`;
+
+              const summaryMessage: MessageType = {
+                id: getUniqueId(),
+                text: summaryText,
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                hasButtons: true,
+                buttonSelected: undefined,
+              };
+
+              const newMessages = [...currentMessages, summaryMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+            return;
+          }
+        }
+
+        // Handle transaction date confirmation - create summary with all info
+        if (
+          transactionDateRequested &&
+          (response.message.toLowerCase().includes("mohon konfirmasi") ||
+            response.message.toLowerCase().includes("apakah data") ||
+            response.message.toLowerCase().includes("sudah benar"))
+        ) {
           setMessages((currentMessages) => {
             const amountMessages = currentMessages.filter(
               (msg) =>
                 !msg.isBot &&
                 msg.text &&
                 /^[0-9]+$/.test(msg.text.replace(/[^0-9]/g, ""))
+            );
+
+            const dateMessages = currentMessages.filter(
+              (msg) =>
+                !msg.isBot &&
+                msg.text &&
+                /\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text)
             );
 
             let displayAmount = "Tidak tersedia";
@@ -315,7 +436,12 @@ export default function ChatScreen() {
               ).toLocaleString("id-ID");
             }
 
-            // Create a summary message with all collected info and buttons
+            let displayTransactionDate = "Tidak tersedia";
+            if (dateMessages.length > 0) {
+              displayTransactionDate =
+                dateMessages[dateMessages.length - 1].text;
+            }
+
             const summaryText = `📋 RINGKASAN KELUHAN ANDA
 
 📍 Channel: ${response.collected_info?.channel || "Tidak tersedia"}
@@ -323,6 +449,8 @@ export default function ChatScreen() {
 📂 Kategori: ${response.collected_info?.category || "Tidak tersedia"}
 
 💰 Nominal: Rp ${displayAmount}
+
+📅 Tanggal Transaksi: ${displayTransactionDate}
 
 📝 Deskripsi: ${
               response.collected_info?.ai_generated_description ||
@@ -360,14 +488,7 @@ Sekarang Anda dapat melanjutkan:`;
             hour: "2-digit",
             minute: "2-digit",
           }),
-          hasButtons:
-            response.next_step === "summary_complete" ||
-            response.action === "summary_complete" ||
-            response.action === "ready_for_confirmation" ||
-            response.message.toLowerCase().includes("summary") ||
-            response.message.toLowerCase().includes("ringkasan") ||
-            response.message.toLowerCase().includes("kategori:") ||
-            response.message.toLowerCase().includes("deskripsi:"),
+          hasButtons: false, // Will be set later based on conditions
           hasValidationButtons: response.is_complete === true,
           // Remove automatic button detection here to avoid duplicates
           hasChannelButtons: false,
@@ -403,7 +524,7 @@ Sekarang Anda dapat melanjutkan:`;
             checkIfCategoryNeedsAmount(response.collected_info.category);
 
           if (needsAmount && !amountRequested) {
-            // Ask for amount first
+            // Ask for amount first, don't show buttons yet
             setTimeout(() => {
               const amountMessage: MessageType = {
                 id: getUniqueId(),
@@ -421,11 +542,12 @@ Sekarang Anda dapat melanjutkan:`;
               });
               setAmountRequested(true);
             }, 1000);
-          } else {
-            // Show buttons directly
+          } else if (!needsAmount) {
+            // Only show buttons if no amount is needed
             botMessage.hasButtons = true;
             botMessage.buttonSelected = undefined;
           }
+          // If amount is needed but already requested, don't show buttons yet
 
           // Save updated session state
           await AsyncStorage.setItem(
@@ -434,6 +556,9 @@ Sekarang Anda dapat melanjutkan:`;
               sessionId,
               summaryShown: true,
               ticketCreatedInSession,
+              amountRequested,
+              transactionDateRequested,
+              selectedTerminal,
             })
           );
         }
@@ -626,16 +751,28 @@ Sekarang Anda dapat melanjutkan:`;
       ticketCreatedInSession,
       storageKey,
       amountRequested,
+      transactionDateRequested,
       messages,
     ]
   );
 
   // Handler for channel selection
   const handleChannelSelect = useCallback(
-    (channel: string) => {
+    (channel: string, messageId?: string) => {
       if (selectedChannel) return; // Prevent multiple selections
 
       setSelectedChannel(channel);
+
+      // Update button group states to disable other options
+      if (messageId) {
+        setButtonGroupStates((prev) => ({
+          ...prev,
+          [messageId]: {
+            type: "channel",
+            selectedValue: channel,
+          },
+        }));
+      }
 
       // Add user message showing selected channel
       const userMessage: MessageType = {
@@ -654,18 +791,113 @@ Sekarang Anda dapat melanjutkan:`;
         return newMessages;
       });
 
-      // Send to chatbot API
-      sendToChatbot(channel);
+      // If ATM or CRM channel is selected, ask for terminal first
+      const channelNeedsTerminal =
+        (channel === "ATM" || channel === "CRM") && terminals.length > 0;
+
+      if (channelNeedsTerminal) {
+        setTimeout(() => {
+          const terminalMessage: MessageType = {
+            id: getUniqueId(),
+            text: `Silakan pilih terminal ${channel} yang Anda gunakan:`,
+            isBot: true,
+            timestamp: new Date().toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            hasTerminalButtons: true,
+          };
+          setMessages((prev) => {
+            const newMessages = [...prev, terminalMessage];
+            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+            return newMessages;
+          });
+        }, 500);
+      } else {
+        // Send to chatbot API for other channels
+        sendToChatbot(channel);
+      }
     },
-    [sendToChatbot, storageKey, selectedChannel]
+    [sendToChatbot, storageKey, selectedChannel, terminals]
+  );
+
+  // Handler for terminal selection
+  const handleTerminalSelect = useCallback(
+    (terminalId: number, messageId?: string) => {
+      console.log("handleTerminalSelect called with terminalId:", terminalId);
+
+      if (selectedTerminal) {
+        console.log("Terminal already selected, returning");
+        return; // Prevent multiple selections
+      }
+
+      // Find terminal by ID
+      const terminal = terminals.find((t) => t.terminal_id === terminalId);
+      if (!terminal) {
+        console.log("Terminal not found for ID:", terminalId);
+        return;
+      }
+
+      console.log("Setting selected terminal to:", terminal);
+      setSelectedTerminal(terminal.terminal_id.toString());
+
+      // Update button group states to disable other options
+      if (messageId) {
+        setButtonGroupStates((prev) => ({
+          ...prev,
+          [messageId]: {
+            type: "terminal",
+            selectedValue: terminal.terminal_id.toString(),
+          },
+        }));
+      }
+
+      // Add user message showing selected terminal location
+      const terminalDisplay = `${terminal.terminal_code} - ${terminal.location}`;
+      const userMessage: MessageType = {
+        id: getUniqueId(),
+        text: terminalDisplay,
+        isBot: false,
+        timestamp: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      console.log("Adding user message:", userMessage);
+      setMessages((prev) => {
+        console.log("Previous messages count:", prev.length);
+        const newMessages = [...prev, userMessage];
+        console.log("New messages count:", newMessages.length);
+        AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+        return newMessages;
+      });
+
+      // Send channel with terminal info to chatbot API
+      const channelWithTerminal = `${selectedChannel} - ${terminalDisplay}`;
+      console.log("Sending to chatbot:", channelWithTerminal);
+      sendToChatbot(channelWithTerminal);
+    },
+    [sendToChatbot, storageKey, selectedTerminal, terminals, selectedChannel]
   );
 
   // Handler for category selection
   const handleCategorySelect = useCallback(
-    (category: string) => {
+    (category: string, messageId?: string) => {
       if (selectedCategory) return; // Prevent multiple selections
 
       setSelectedCategory(category);
+
+      // Update button group states to disable other options
+      if (messageId) {
+        setButtonGroupStates((prev) => ({
+          ...prev,
+          [messageId]: {
+            type: "category",
+            selectedValue: category,
+          },
+        }));
+      }
 
       // Add user message showing selected category
       const userMessage: MessageType = {
@@ -688,6 +920,38 @@ Sekarang Anda dapat melanjutkan:`;
       sendToChatbot(category);
     },
     [sendToChatbot, storageKey, selectedCategory]
+  );
+
+  // Handler for edit button selection
+  const handleEditSelect = useCallback(
+    (editType: "edit" | "create", messageId: string) => {
+      // Update button group states to disable other options
+      setButtonGroupStates((prev) => ({
+        ...prev,
+        [messageId]: {
+          type: "edit",
+          selectedValue: editType,
+        },
+      }));
+
+      if (editType === "edit") {
+        router.push({
+          pathname: "/complaint/confirmation",
+          params: {
+            ticketId: currentTicketId || "",
+            mode: "edit",
+          },
+        });
+      } else {
+        router.push({
+          pathname: "/complaint/confirmation",
+          params: {
+            mode: "create",
+          },
+        });
+      }
+    },
+    [currentTicketId, router]
   );
 
   const handleUploadSuccess = (
@@ -972,8 +1236,14 @@ Sekarang Anda dapat melanjutkan:`;
             if (session.amountRequested !== undefined) {
               setAmountRequested(session.amountRequested);
             }
+            if (session.transactionDateRequested !== undefined) {
+              setTransactionDateRequested(session.transactionDateRequested);
+            }
             if (session.editFormSelected !== undefined) {
               setEditFormSelected(session.editFormSelected);
+            }
+            if (session.selectedTerminal !== undefined) {
+              setSelectedTerminal(session.selectedTerminal);
             }
           } catch {
             console.log("Error parsing session data");
@@ -1025,6 +1295,12 @@ Sekarang Anda dapat melanjutkan:`;
               amountRequested: sessionData
                 ? JSON.parse(sessionData).amountRequested
                 : false,
+              transactionDateRequested: sessionData
+                ? JSON.parse(sessionData).transactionDateRequested
+                : false,
+              selectedTerminal: sessionData
+                ? JSON.parse(sessionData).selectedTerminal
+                : null,
               editFormSelected: true,
             })
           );
@@ -1043,6 +1319,8 @@ Sekarang Anda dapat melanjutkan:`;
                 : false,
               ticketCreatedInSession: false,
               amountRequested: false,
+              transactionDateRequested: false,
+              selectedTerminal: null,
               editFormSelected: false,
             })
           );
@@ -1275,9 +1553,12 @@ Sekarang Anda dapat melanjutkan:`;
       setSummaryShown(false);
       setTicketCreatedInSession(false);
       setAmountRequested(false);
+      setTransactionDateRequested(false);
       setSelectedChannel(null);
       setSelectedCategory(null);
+      setSelectedTerminal(null);
       setEditFormSelected(false);
+      setButtonGroupStates({});
 
       // Disconnect from socket properly
       if (socket.connected) {
@@ -1325,8 +1606,35 @@ Sekarang Anda dapat melanjutkan:`;
 
       setInputText("");
 
+      // Check if this is transaction date input
+      if (transactionDateRequested && summaryShown && !isLiveChat) {
+        // Validate transaction date input
+        const datePattern = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/;
+        if (datePattern.test(userMessage.trim())) {
+          // Send transaction date to chatbot to update session
+          sendToChatbot(`Tanggal transaksi: ${userMessage.trim()}`);
+        } else {
+          // Invalid date format, ask again
+          setTimeout(() => {
+            const errorMessage: MessageType = {
+              id: getUniqueId(),
+              text: "Mohon masukkan tanggal dengan format yang benar (DD/MM/YYYY atau DD-MM-YYYY). Contoh: 15/01/2024 atau 15-01-2024",
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, errorMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+          }, 500);
+        }
+      }
       // Check if this is amount input after summary
-      if (amountRequested && summaryShown && !isLiveChat) {
+      else if (amountRequested && summaryShown && !isLiveChat) {
         // Validate amount input
         const numericAmount = userMessage.replace(/[^0-9]/g, "");
         if (numericAmount && parseInt(numericAmount) > 0) {
@@ -1367,6 +1675,7 @@ Sekarang Anda dapat melanjutkan:`;
     storageKey,
     socket,
     amountRequested,
+    transactionDateRequested,
     summaryShown,
     sendToChatbot,
   ]);
@@ -1469,6 +1778,85 @@ Sekarang Anda dapat melanjutkan:`;
     setCallStatus("idle");
     setRemoteFrame(null);
   };
+
+  // Handler for validation button selection
+  const handleValidationSelect = useCallback(
+    (validationType: "call" | "chat", messageId: string) => {
+      // Update button group states to disable other options
+      setButtonGroupStates((prev) => ({
+        ...prev,
+        [messageId]: {
+          type: "validation",
+          selectedValue: validationType,
+        },
+      }));
+
+      if (validationType === "call") {
+        placeCall();
+      } else {
+        setIsLiveChat(true);
+
+        // Send ticket info if we have a ticket ID
+        if (currentTicketId) {
+          setTimeout(() => {
+            const ticketInfoMessage = {
+              id: getUniqueId(),
+              text: `📋 Tiket #${currentTicketId.slice(-6)}`,
+              isBot: false,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              isTicketInfo: true,
+              ticketId: currentTicketId,
+            };
+
+            setMessages((prev) => {
+              const newMessages = [...prev, ticketInfoMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+
+            // Send ticket context to socket
+            if (socket.connected) {
+              socket.emit("chat:send", {
+                ...ticketInfoMessage,
+                author: chatUser,
+                createdAt: Date.now(),
+                type: "ticket-info",
+                room: ACTIVE_ROOM,
+              });
+
+              socket.emit("ticket:context", {
+                room: ACTIVE_ROOM,
+                ticketId: currentTicketId,
+                fromUserId: uid,
+                timestamp: Date.now(),
+              });
+            }
+
+            fetchTicketDetail(currentTicketId);
+          }, 500);
+        }
+
+        // Auto-connect to available agent
+        setTimeout(() => {
+          quickDM();
+        }, 1000);
+      }
+    },
+    [
+      placeCall,
+      currentTicketId,
+      storageKey,
+      chatUser,
+      ACTIVE_ROOM,
+      socket,
+      uid,
+      fetchTicketDetail,
+      quickDM,
+    ]
+  );
 
   useEffect(() => {
     setTimeout(() => {
@@ -1911,6 +2299,28 @@ Sekarang Anda dapat melanjutkan:`;
                           }
                         }
 
+                        // Check if we have transaction date from frontend flow
+                        let finalTransactionDate = null;
+                        const dateMessages = messages.filter(
+                          (msg) =>
+                            !msg.isBot &&
+                            msg.text &&
+                            /\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text)
+                        );
+                        if (dateMessages.length > 0) {
+                          const lastDateMsg =
+                            dateMessages[dateMessages.length - 1];
+                          // Convert DD/MM/YYYY or DD-MM-YYYY to YYYY-MM-DD format
+                          const dateStr = lastDateMsg.text.trim();
+                          const dateParts = dateStr.split(/[\/\-]/);
+                          if (dateParts.length === 3) {
+                            const day = dateParts[0].padStart(2, "0");
+                            const month = dateParts[1].padStart(2, "0");
+                            const year = dateParts[2];
+                            finalTransactionDate = `${year}-${month}-${day}`;
+                          }
+                        }
+
                         // Get account and card IDs from user data
                         const getRelatedIds = () => {
                           const userAccounts =
@@ -1944,6 +2354,21 @@ Sekarang Anda dapat melanjutkan:`;
                         const { related_account_id, related_card_id } =
                           getRelatedIds();
 
+                        // Get terminal ID if ATM or CRM channel is selected
+                        let terminalId = null;
+                        if (
+                          (selectedChannel === "ATM" ||
+                            selectedChannel === "CRM") &&
+                          selectedTerminal
+                        ) {
+                          const terminal = terminals.find(
+                            (t) => t.terminal_id.toString() === selectedTerminal
+                          );
+                          if (terminal) {
+                            terminalId = terminal.terminal_id;
+                          }
+                        }
+
                         const ticketPayload = {
                           description: actualDescription,
                           issue_channel_id: channelId,
@@ -1954,6 +2379,12 @@ Sekarang Anda dapat melanjutkan:`;
                           // Add amount if available
                           ...(finalAmount &&
                             finalAmount > 0 && { amount: finalAmount }),
+                          // Add transaction date if available
+                          ...(finalTransactionDate && {
+                            transaction_date: finalTransactionDate,
+                          }),
+                          // Add terminal ID if ATM channel
+                          ...(terminalId && { terminal_id: terminalId }),
                         };
 
                         console.log("User data:", user || authUser);
@@ -1988,6 +2419,11 @@ Sekarang Anda dapat melanjutkan:`;
                           "Description mapping - Final:",
                           actualDescription
                         );
+                        console.log(
+                          "Transaction date - Final:",
+                          finalTransactionDate
+                        );
+                        console.log("Amount - Final:", finalAmount);
 
                         const response = await api("/v1/tickets", {
                           method: "POST",
@@ -2030,6 +2466,9 @@ Sekarang Anda dapat melanjutkan:`;
                               sessionId,
                               summaryShown,
                               ticketCreatedInSession: true,
+                              amountRequested,
+                              transactionDateRequested,
+                              selectedTerminal,
                             })
                           );
 
@@ -2143,7 +2582,21 @@ Sekarang Anda dapat melanjutkan:`;
               {(message as any).hasValidationButtons && (
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
-                    style={styles.callButton}
+                    style={[
+                      styles.callButton,
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                        "chat" && styles.disabledButton,
+                    ]}
+                    activeOpacity={
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                      "chat"
+                        ? 1
+                        : 0.7
+                    }
+                    disabled={
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                      "chat"
+                    }
                     onPress={() => {
                       // Validate agent availability for call
                       if (peerCount < 2) {
@@ -2154,16 +2607,46 @@ Sekarang Anda dapat melanjutkan:`;
                         return;
                       }
 
-                      placeCall();
+                      handleValidationSelect("call", String(message.id));
                     }}
                   >
-                    <MaterialIcons name="call" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>
+                    <MaterialIcons
+                      name="call"
+                      size={16}
+                      color={
+                        buttonGroupStates[String(message.id)]?.selectedValue ===
+                        "chat"
+                          ? "#999"
+                          : "#FFF"
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        { fontSize: 12 },
+                        buttonGroupStates[String(message.id)]?.selectedValue ===
+                          "chat" && { color: "#999" },
+                      ]}
+                    >
                       Call
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.chatButton}
+                    style={[
+                      styles.chatButton,
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                        "call" && styles.disabledButton,
+                    ]}
+                    activeOpacity={
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                      "call"
+                        ? 1
+                        : 0.7
+                    }
+                    disabled={
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                      "call"
+                    }
                     onPress={() => {
                       // Validate agent availability for chat
                       const availableAgent = activePeers.find(
@@ -2178,57 +2661,27 @@ Sekarang Anda dapat melanjutkan:`;
                         return;
                       }
 
-                      setIsLiveChat(true);
-
-                      // Send ticket info if we have a ticket ID
-                      if (currentTicketId) {
-                        setTimeout(() => {
-                          const ticketInfoMessage = {
-                            id: getUniqueId(),
-                            text: `📋 Tiket #${currentTicketId.slice(-6)}`,
-                            isBot: false,
-                            timestamp: new Date().toLocaleTimeString("id-ID", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }),
-                            isTicketInfo: true,
-                            ticketId: currentTicketId,
-                          };
-
-                          setMessages((prev) => {
-                            const newMessages = [...prev, ticketInfoMessage];
-                            AsyncStorage.setItem(
-                              storageKey,
-                              JSON.stringify(newMessages)
-                            );
-                            return newMessages;
-                          });
-
-                          // Send ticket context to socket
-                          if (socket.connected) {
-                            socket.emit("chat:send", {
-                              ...ticketInfoMessage,
-                              author: chatUser,
-                              createdAt: Date.now(),
-                              type: "ticket-info",
-                              room: ACTIVE_ROOM,
-                            });
-
-                            socket.emit("ticket:context", {
-                              room: ACTIVE_ROOM,
-                              ticketId: currentTicketId,
-                              fromUserId: uid,
-                              timestamp: Date.now(),
-                            });
-                          }
-                        }, 500);
-                      }
-
-                      quickDM();
+                      handleValidationSelect("chat", String(message.id));
                     }}
                   >
-                    <MaterialIcons name="chat" size={16} color="#FFF" />
-                    <Text style={[styles.buttonText, { fontSize: 12 }]}>
+                    <MaterialIcons
+                      name="chat"
+                      size={16}
+                      color={
+                        buttonGroupStates[String(message.id)]?.selectedValue ===
+                        "call"
+                          ? "#999"
+                          : "#FFF"
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        { fontSize: 12 },
+                        buttonGroupStates[String(message.id)]?.selectedValue ===
+                          "call" && { color: "#999" },
+                      ]}
+                    >
                       Chat
                     </Text>
                   </TouchableOpacity>
@@ -2238,320 +2691,81 @@ Sekarang Anda dapat melanjutkan:`;
                 !ticketCreatedInSession &&
                 !editFormSelected && (
                   <View style={styles.channelButtonContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.channelButton,
-                        selectedChannel &&
-                          selectedChannel !== "ATM" &&
-                          styles.disabledChannelButton,
-                      ]}
-                      activeOpacity={
-                        selectedChannel && selectedChannel !== "ATM" ? 1 : 0.7
-                      }
-                      onPress={() => handleChannelSelect("ATM")}
-                      disabled={
-                        !!(selectedChannel && selectedChannel !== "ATM")
-                      }
-                    >
-                      <MaterialIcons
-                        name="local-atm"
-                        size={16}
-                        color={
-                          selectedChannel && selectedChannel !== "ATM"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          { fontSize: 12 },
-                          selectedChannel &&
-                            selectedChannel !== "ATM" && { color: "#999" },
-                        ]}
-                      >
-                        ATM
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.channelButton,
-                        selectedChannel &&
-                          selectedChannel !== "IBANK" &&
-                          styles.disabledChannelButton,
-                      ]}
-                      activeOpacity={
-                        selectedChannel && selectedChannel !== "IBANK" ? 1 : 0.7
-                      }
-                      onPress={() => handleChannelSelect("IBANK")}
-                      disabled={
-                        !!(selectedChannel && selectedChannel !== "IBANK")
-                      }
-                    >
-                      <MaterialIcons
-                        name="computer"
-                        size={16}
-                        color={
-                          selectedChannel && selectedChannel !== "IBANK"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          { fontSize: 12 },
-                          selectedChannel &&
-                            selectedChannel !== "IBANK" && { color: "#999" },
-                        ]}
-                      >
-                        IBANK
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.channelButton,
-                        selectedChannel &&
-                          selectedChannel !== "MBANK" &&
-                          styles.disabledChannelButton,
-                      ]}
-                      activeOpacity={
-                        selectedChannel && selectedChannel !== "MBANK" ? 1 : 0.7
-                      }
-                      onPress={() => handleChannelSelect("MBANK")}
-                      disabled={
-                        !!(selectedChannel && selectedChannel !== "MBANK")
-                      }
-                    >
-                      <MaterialIcons
-                        name="phone-android"
-                        size={16}
-                        color={
-                          selectedChannel && selectedChannel !== "MBANK"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          { fontSize: 12 },
-                          selectedChannel &&
-                            selectedChannel !== "MBANK" && { color: "#999" },
-                        ]}
-                      >
-                        MBANK
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.channelButton,
-                        selectedChannel &&
-                          selectedChannel !== "CRM" &&
-                          styles.disabledChannelButton,
-                      ]}
-                      activeOpacity={
-                        selectedChannel && selectedChannel !== "CRM" ? 1 : 0.7
-                      }
-                      onPress={() => handleChannelSelect("CRM")}
-                      disabled={
-                        !!(selectedChannel && selectedChannel !== "CRM")
-                      }
-                    >
-                      <MaterialIcons
-                        name="support-agent"
-                        size={16}
-                        color={
-                          selectedChannel && selectedChannel !== "CRM"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          { fontSize: 12 },
-                          selectedChannel &&
-                            selectedChannel !== "CRM" && { color: "#999" },
-                        ]}
-                      >
-                        CRM
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.channelButton,
-                        selectedChannel &&
-                          selectedChannel !== "MTUNAI ALFAMART" &&
-                          styles.disabledChannelButton,
-                      ]}
-                      activeOpacity={
-                        selectedChannel && selectedChannel !== "MTUNAI ALFAMART"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => handleChannelSelect("MTUNAI ALFAMART")}
-                      disabled={
-                        !!(
-                          selectedChannel &&
-                          selectedChannel !== "MTUNAI ALFAMART"
-                        )
-                      }
-                    >
-                      <MaterialIcons
-                        name="store"
-                        size={16}
-                        color={
-                          selectedChannel &&
-                          selectedChannel !== "MTUNAI ALFAMART"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          { fontSize: 12 },
-                          selectedChannel &&
-                            selectedChannel !== "MTUNAI ALFAMART" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        MTUNAI ALFAMART
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.channelButton,
-                        selectedChannel &&
-                          selectedChannel !== "DISPUTE DEBIT" &&
-                          styles.disabledChannelButton,
-                      ]}
-                      activeOpacity={
-                        selectedChannel && selectedChannel !== "DISPUTE DEBIT"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => handleChannelSelect("DISPUTE DEBIT")}
-                      disabled={
-                        !!(
-                          selectedChannel && selectedChannel !== "DISPUTE DEBIT"
-                        )
-                      }
-                    >
-                      <MaterialIcons
-                        name="report-problem"
-                        size={16}
-                        color={
-                          selectedChannel && selectedChannel !== "DISPUTE DEBIT"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          { fontSize: 12 },
-                          selectedChannel &&
-                            selectedChannel !== "DISPUTE DEBIT" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        DISPUTE DEBIT
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.channelButton,
-                        selectedChannel &&
-                          selectedChannel !== "QRIS DEBIT" &&
-                          styles.disabledChannelButton,
-                      ]}
-                      activeOpacity={
-                        selectedChannel && selectedChannel !== "QRIS DEBIT"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => handleChannelSelect("QRIS DEBIT")}
-                      disabled={
-                        !!(selectedChannel && selectedChannel !== "QRIS DEBIT")
-                      }
-                    >
-                      <MaterialIcons
-                        name="qr-code"
-                        size={16}
-                        color={
-                          selectedChannel && selectedChannel !== "QRIS DEBIT"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          { fontSize: 12 },
-                          selectedChannel &&
-                            selectedChannel !== "QRIS DEBIT" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        QRIS DEBIT
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.channelButton,
-                        selectedChannel &&
-                          selectedChannel !== "TAPCASH" &&
-                          styles.disabledChannelButton,
-                      ]}
-                      activeOpacity={
-                        selectedChannel && selectedChannel !== "TAPCASH"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => handleChannelSelect("TAPCASH")}
-                      disabled={
-                        !!(selectedChannel && selectedChannel !== "TAPCASH")
-                      }
-                    >
-                      <MaterialIcons
-                        name="credit-card"
-                        size={16}
-                        color={
-                          selectedChannel && selectedChannel !== "TAPCASH"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          { fontSize: 12 },
-                          selectedChannel &&
-                            selectedChannel !== "TAPCASH" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        TAPCASH
-                      </Text>
-                    </TouchableOpacity>
+                    {[
+                      { name: "ATM", icon: "local-atm" },
+                      { name: "IBANK", icon: "computer" },
+                      { name: "MBANK", icon: "phone-android" },
+                      { name: "CRM", icon: "support-agent" },
+                      { name: "MTUNAI ALFAMART", icon: "store" },
+                      { name: "DISPUTE DEBIT", icon: "report-problem" },
+                      { name: "QRIS DEBIT", icon: "qr-code" },
+                    ].map((channel) => {
+                      const messageGroupState =
+                        buttonGroupStates[String(message.id)];
+                      const isThisSelected =
+                        messageGroupState?.selectedValue === channel.name;
+                      const isOtherSelected =
+                        messageGroupState && !isThisSelected;
+                      const globalChannelSelected =
+                        selectedChannel && selectedChannel !== channel.name;
+
+                      return (
+                        <TouchableOpacity
+                          key={channel.name}
+                          style={[
+                            styles.channelButton,
+                            (isOtherSelected || globalChannelSelected) &&
+                              styles.disabledChannelButton,
+                          ]}
+                          activeOpacity={
+                            isOtherSelected || globalChannelSelected ? 1 : 0.7
+                          }
+                          onPress={() =>
+                            handleChannelSelect(
+                              channel.name,
+                              String(message.id)
+                            )
+                          }
+                          disabled={
+                            !!(isOtherSelected || globalChannelSelected)
+                          }
+                        >
+                          <MaterialIcons
+                            name={channel.icon as any}
+                            size={16}
+                            color={
+                              isOtherSelected || globalChannelSelected
+                                ? "#999"
+                                : "#FFF"
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.buttonText,
+                              { fontSize: 12 },
+                              (isOtherSelected || globalChannelSelected) && {
+                                color: "#999",
+                              },
+                            ]}
+                          >
+                            {channel.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 )}
               {(message as any).hasCategoryButtons &&
                 !ticketCreatedInSession &&
-                !editFormSelected && (() => {
+                !editFormSelected &&
+                (() => {
                   // Get filtered categories based on selected channel using the hook
-                  const selectedChannelObj = channels.find(c => {
+                  const selectedChannelObj = channels.find((c) => {
                     if (!selectedChannel) return false;
-                    
+
                     const channelUpper = selectedChannel.toUpperCase();
-                    const channelCode = channelUpper.replace(/\s+/g, '_');
-                    
+                    const channelCode = channelUpper.replace(/\s+/g, "_");
+
                     return (
                       c.channel_name === selectedChannel ||
                       c.channel_code === selectedChannel ||
@@ -2559,130 +2773,312 @@ Sekarang Anda dapat melanjutkan:`;
                       c.channel_code === channelCode ||
                       c.channel_name?.toUpperCase() === channelUpper ||
                       // Handle specific mappings
-                      (selectedChannel === 'MTUNAI ALFAMART' && c.channel_code === 'MTUNAI_ALFAMART') ||
-                      (selectedChannel === 'DISPUTE DEBIT' && c.channel_code === 'DISPUTE_DEBIT') ||
-                      (selectedChannel === 'QRIS DEBIT' && c.channel_code === 'QRIS_DEBIT') ||
-                      (selectedChannel === 'TAPCASH' && c.channel_code === 'TAPCASH')
+                      (selectedChannel === "MTUNAI ALFAMART" &&
+                        c.channel_code === "MTUNAI_ALFAMART") ||
+                      (selectedChannel === "DISPUTE DEBIT" &&
+                        c.channel_code === "DISPUTE_DEBIT") ||
+                      (selectedChannel === "QRIS DEBIT" &&
+                        c.channel_code === "QRIS_DEBIT")
                     );
                   });
-                  
+
                   // Use getFilteredCategories from hook to get categories based on selected channel
-                  let availableCategories = getFilteredCategories(selectedChannelObj || null);
-                  
+                  let availableCategories = getFilteredCategories(
+                    selectedChannelObj || null
+                  );
+
                   // If no categories available, show first 9 categories as fallback
-                  if (!availableCategories || availableCategories.length === 0) {
+                  if (
+                    !availableCategories ||
+                    availableCategories.length === 0
+                  ) {
                     availableCategories = categories.slice(0, 9);
                   }
-                  
+
                   // Map categories to display names
-                  const categoryDisplayMap: Record<string, { name: string; icon: string }> = {
-                    'PEMBAYARAN_KARTU_KREDIT_BNI': { name: 'PEMBAYARAN KK BNI', icon: 'payment' },
-                    'PEMBAYARAN_KARTU_KREDIT_BANK_LAIN': { name: 'PEMBAYARAN KK LAIN', icon: 'payment' },
-                    'PEMBAYARAN_PLN_VIA_ATM_BANK_LAIN': { name: 'PEMBAYARAN PLN', icon: 'flash-on' },
-                    'PEMBAYARAN_SAMSAT': { name: 'PEMBAYARAN SAMSAT', icon: 'directions-car' },
-                    'PEMBAYARAN_TELKOM_TELKOMSEL_INDOSAT_PROVIDER_LAINNYA': { name: 'PEMBAYARAN TELKOM', icon: 'phone' },
-                    'PEMBAYARAN_MPNG2': { name: 'PEMBAYARAN MPNG2', icon: 'payment' },
-                    'PEMBAYARAN_MPNG3': { name: 'PEMBAYARAN MPNG3', icon: 'payment' },
-                    'PEMBAYARAN_MPNG4': { name: 'PEMBAYARAN MPNG4', icon: 'payment' },
-                    'TOP_UP_DANA': { name: 'TOP UP DANA', icon: 'account-balance-wallet' },
-                    'TOP_UP_GOPAY': { name: 'TOP UP GOPAY', icon: 'account-balance-wallet' },
-                    'TOP_UP_OVO': { name: 'TOP UP OVO', icon: 'account-balance-wallet' },
-                    'TOP_UP_SHOPEE_PAY': { name: 'TOP UP SHOPEE PAY', icon: 'account-balance-wallet' },
-                    'TOP_UP_LINKAJA': { name: 'TOP UP LINKAJA', icon: 'account-balance-wallet' },
-                    'TOP_UP_E_MONEY': { name: 'TOP UP E-MONEY', icon: 'account-balance-wallet' },
-                    'TOP_UP_PULSA': { name: 'TOP UP PULSA', icon: 'phone-android' },
-                    'TOP_UP_PULSA_VIA_ATM_BANK_LAIN': { name: 'TOP UP PULSA ATM', icon: 'phone-android' },
-                    'TRANSFER_ATM_ALTO_DANA_TDK_MASUK': { name: 'TRANSFER ALTO GAGAL', icon: 'swap-horiz' },
-                    'TRANSFER_ATM_BERSAMA_DANA_TDK_MASUK': { name: 'TRANSFER BERSAMA GAGAL', icon: 'swap-horiz' },
-                    'TRANSFER_ATM_LINK_DANA_TDK_MASUK': { name: 'TRANSFER LINK GAGAL', icon: 'swap-horiz' },
-                    'TRANSFER_ATM_PRIMA_DANA_TDK_MASUK': { name: 'TRANSFER PRIMA GAGAL', icon: 'swap-horiz' },
-                    'TRANSFER_ANTAR_REKENING_BNI': { name: 'TRANSFER BNI', icon: 'swap-horiz' },
-                    'TRANSFER_ATM_ALTO_BILATERAL': { name: 'TRANSFER ALTO BILATERAL', icon: 'swap-horiz' },
-                    'TRANSFER_ATM_BERSAMA_BILATERAL': { name: 'TRANSFER BERSAMA BILATERAL', icon: 'swap-horiz' },
-                    'TRANSFER_ATM_ALTO_LINK_BILATERAL': { name: 'TRANSFER ALTO LINK BILATERAL', icon: 'swap-horiz' },
-                    'TRANSFER_ATM_PRIMA_BILATERAL': { name: 'TRANSFER PRIMA BILATERAL', icon: 'swap-horiz' },
-                    'TARIK_TUNAI_DI_MESIN_ATM_BNI': { name: 'TARIK TUNAI BNI', icon: 'local-atm' },
-                    'TARIK_TUNAI_DI_ATM_LINK': { name: 'TARIK TUNAI LINK', icon: 'local-atm' },
-                    'TARIK_TUNAI_DI_JARINGAN_ALTO': { name: 'TARIK TUNAI ALTO', icon: 'local-atm' },
-                    'TARIK_TUNAI_DI_JARINGAN_BERSAMA': { name: 'TARIK TUNAI BERSAMA', icon: 'local-atm' },
-                    'TARIK_TUNAI_DI_ATM_CIRRUS': { name: 'TARIK TUNAI CIRRUS', icon: 'local-atm' },
-                    'SETOR_TUNAI_DI_MESIN_ATM_CRM': { name: 'SETOR TUNAI CRM', icon: 'account-balance-wallet' },
-                    'MOBILE_TUNAI_ALFAMIDI': { name: 'MOBILE TUNAI ALFAMIDI', icon: 'store' },
-                    'MOBILE_TUNAI_INDOMARET': { name: 'MOBILE TUNAI INDOMARET', icon: 'store' },
-                    'MOBILE_TUNAI': { name: 'MOBILE TUNAI', icon: 'phone-android' },
-                    'MOBILE_TUNAI_ALFAMART': { name: 'MOBILE TUNAI ALFAMART', icon: 'store' },
-                    'BI_FAST_DANA_TIDAK_MASUK': { name: 'BI FAST GAGAL', icon: 'flash-on' },
-                    'BI_FAST_BILATERAL': { name: 'BI FAST BILATERAL', icon: 'flash-on' },
-                    'BI_FAST_GAGAL_HAPUS_AKUN': { name: 'BI FAST HAPUS AKUN', icon: 'flash-on' },
-                    'BI_FAST_GAGAL_MIGRASI_AKUN': { name: 'BI FAST MIGRASI AKUN', icon: 'flash-on' },
-                    'BI_FAST_GAGAL_SUSPEND_AKUN': { name: 'BI FAST SUSPEND AKUN', icon: 'flash-on' },
-                    'BI_FAST_GAGAL_UPDATE_AKUN': { name: 'BI FAST UPDATE AKUN', icon: 'flash-on' },
-                    'DISPUTE': { name: 'DISPUTE', icon: 'report-problem' },
-                    '2ND_CHARGEBACK': { name: '2ND CHARGEBACK', icon: 'report-problem' },
-                    'DISPUTE_QRIS_KARTU_DEBIT': { name: 'DISPUTE QRIS DEBIT', icon: 'qr-code' },
-                    '2ND_CHARGEBACK_QRIS_DEBIT': { name: '2ND CHARGEBACK QRIS', icon: 'qr-code' },
-                    'PERMINTAAN_CCTV_ATM_BNI': { name: 'PERMINTAAN CCTV', icon: 'videocam' },
-                    'TAPCASH_TOP_UP': { name: 'TAPCASH TOP UP', icon: 'credit-card' },
-                    'TAPCASH_SALDO': { name: 'TAPCASH SALDO', icon: 'credit-card' },
-                    'TAPCASH_TRANSAKSI': { name: 'TAPCASH TRANSAKSI', icon: 'credit-card' },
+                  const categoryDisplayMap: Record<
+                    string,
+                    { name: string; icon: string }
+                  > = {
+                    PEMBAYARAN_KARTU_KREDIT_BNI: {
+                      name: "PEMBAYARAN KK BNI",
+                      icon: "payment",
+                    },
+                    PEMBAYARAN_KARTU_KREDIT_BANK_LAIN: {
+                      name: "PEMBAYARAN KK LAIN",
+                      icon: "payment",
+                    },
+                    PEMBAYARAN_PLN_VIA_ATM_BANK_LAIN: {
+                      name: "PEMBAYARAN PLN",
+                      icon: "flash-on",
+                    },
+                    PEMBAYARAN_SAMSAT: {
+                      name: "PEMBAYARAN SAMSAT",
+                      icon: "directions-car",
+                    },
+                    PEMBAYARAN_TELKOM_TELKOMSEL_INDOSAT_PROVIDER_LAINNYA: {
+                      name: "PEMBAYARAN TELKOM",
+                      icon: "phone",
+                    },
+                    PEMBAYARAN_MPNG2: {
+                      name: "PEMBAYARAN MPNG2",
+                      icon: "payment",
+                    },
+                    PEMBAYARAN_MPNG3: {
+                      name: "PEMBAYARAN MPNG3",
+                      icon: "payment",
+                    },
+                    PEMBAYARAN_MPNG4: {
+                      name: "PEMBAYARAN MPNG4",
+                      icon: "payment",
+                    },
+                    TOP_UP_DANA: {
+                      name: "TOP UP DANA",
+                      icon: "account-balance-wallet",
+                    },
+                    TOP_UP_GOPAY: {
+                      name: "TOP UP GOPAY",
+                      icon: "account-balance-wallet",
+                    },
+                    TOP_UP_OVO: {
+                      name: "TOP UP OVO",
+                      icon: "account-balance-wallet",
+                    },
+                    TOP_UP_SHOPEE_PAY: {
+                      name: "TOP UP SHOPEE PAY",
+                      icon: "account-balance-wallet",
+                    },
+                    TOP_UP_LINKAJA: {
+                      name: "TOP UP LINKAJA",
+                      icon: "account-balance-wallet",
+                    },
+                    TOP_UP_E_MONEY: {
+                      name: "TOP UP E-MONEY",
+                      icon: "account-balance-wallet",
+                    },
+                    TOP_UP_PULSA: {
+                      name: "TOP UP PULSA",
+                      icon: "phone-android",
+                    },
+                    TOP_UP_PULSA_VIA_ATM_BANK_LAIN: {
+                      name: "TOP UP PULSA ATM",
+                      icon: "phone-android",
+                    },
+                    TOP_UP_PRA_MIGRASI_DANA_GAGAL_TERKOREKSI: {
+                      name: "TOP UP TAPCASH MIGRASI",
+                      icon: "credit-card",
+                    },
+                    TRANSFER_ATM_ALTO_DANA_TDK_MASUK: {
+                      name: "TRANSFER ALTO GAGAL",
+                      icon: "swap-horiz",
+                    },
+                    TRANSFER_ATM_BERSAMA_DANA_TDK_MASUK: {
+                      name: "TRANSFER BERSAMA GAGAL",
+                      icon: "swap-horiz",
+                    },
+                    TRANSFER_ATM_LINK_DANA_TDK_MASUK: {
+                      name: "TRANSFER LINK GAGAL",
+                      icon: "swap-horiz",
+                    },
+                    TRANSFER_ATM_PRIMA_DANA_TDK_MASUK: {
+                      name: "TRANSFER PRIMA GAGAL",
+                      icon: "swap-horiz",
+                    },
+                    TRANSFER_ANTAR_REKENING_BNI: {
+                      name: "TRANSFER BNI",
+                      icon: "swap-horiz",
+                    },
+                    TRANSFER_ATM_ALTO_BILATERAL: {
+                      name: "TRANSFER ALTO BILATERAL",
+                      icon: "swap-horiz",
+                    },
+                    TRANSFER_ATM_BERSAMA_BILATERAL: {
+                      name: "TRANSFER BERSAMA BILATERAL",
+                      icon: "swap-horiz",
+                    },
+                    TRANSFER_ATM_ALTO_LINK_BILATERAL: {
+                      name: "TRANSFER ALTO LINK BILATERAL",
+                      icon: "swap-horiz",
+                    },
+                    TRANSFER_ATM_PRIMA_BILATERAL: {
+                      name: "TRANSFER PRIMA BILATERAL",
+                      icon: "swap-horiz",
+                    },
+                    TARIK_TUNAI_DI_MESIN_ATM_BNI: {
+                      name: "TARIK TUNAI BNI",
+                      icon: "local-atm",
+                    },
+                    TARIK_TUNAI_DI_ATM_LINK: {
+                      name: "TARIK TUNAI LINK",
+                      icon: "local-atm",
+                    },
+                    TARIK_TUNAI_DI_JARINGAN_ALTO: {
+                      name: "TARIK TUNAI ALTO",
+                      icon: "local-atm",
+                    },
+                    TARIK_TUNAI_DI_JARINGAN_BERSAMA: {
+                      name: "TARIK TUNAI BERSAMA",
+                      icon: "local-atm",
+                    },
+                    TARIK_TUNAI_DI_ATM_CIRRUS: {
+                      name: "TARIK TUNAI CIRRUS",
+                      icon: "local-atm",
+                    },
+                    SETOR_TUNAI_DI_MESIN_ATM_CRM: {
+                      name: "SETOR TUNAI CRM",
+                      icon: "account-balance-wallet",
+                    },
+                    MOBILE_TUNAI_ALFAMIDI: {
+                      name: "MOBILE TUNAI ALFAMIDI",
+                      icon: "store",
+                    },
+                    MOBILE_TUNAI_INDOMARET: {
+                      name: "MOBILE TUNAI INDOMARET",
+                      icon: "store",
+                    },
+                    MOBILE_TUNAI: {
+                      name: "MOBILE TUNAI",
+                      icon: "phone-android",
+                    },
+                    MOBILE_TUNAI_ALFAMART: {
+                      name: "MOBILE TUNAI ALFAMART",
+                      icon: "store",
+                    },
+                    BI_FAST_DANA_TIDAK_MASUK: {
+                      name: "BI FAST GAGAL",
+                      icon: "flash-on",
+                    },
+                    BI_FAST_BILATERAL: {
+                      name: "BI FAST BILATERAL",
+                      icon: "flash-on",
+                    },
+                    BI_FAST_GAGAL_HAPUS_AKUN: {
+                      name: "BI FAST HAPUS AKUN",
+                      icon: "flash-on",
+                    },
+                    BI_FAST_GAGAL_MIGRASI_AKUN: {
+                      name: "BI FAST MIGRASI AKUN",
+                      icon: "flash-on",
+                    },
+                    BI_FAST_GAGAL_SUSPEND_AKUN: {
+                      name: "BI FAST SUSPEND AKUN",
+                      icon: "flash-on",
+                    },
+                    BI_FAST_GAGAL_UPDATE_AKUN: {
+                      name: "BI FAST UPDATE AKUN",
+                      icon: "flash-on",
+                    },
+                    DISPUTE: { name: "DISPUTE", icon: "report-problem" },
+                    "2ND_CHARGEBACK": {
+                      name: "2ND CHARGEBACK",
+                      icon: "report-problem",
+                    },
+                    DISPUTE_QRIS_KARTU_DEBIT: {
+                      name: "DISPUTE QRIS DEBIT",
+                      icon: "qr-code",
+                    },
+                    "2ND_CHARGEBACK_QRIS_DEBIT": {
+                      name: "2ND CHARGEBACK QRIS",
+                      icon: "qr-code",
+                    },
+                    PERMINTAAN_CCTV_ATM_BNI: {
+                      name: "PERMINTAAN CCTV",
+                      icon: "videocam",
+                    },
                   };
-                  
+
                   return (
                     <View style={styles.categoryButtonContainer}>
                       {availableCategories.slice(0, 9).map((category) => {
-                        const displayInfo = categoryDisplayMap[category.complaint_code] || 
-                          { name: category.complaint_name.substring(0, 15), icon: 'help' };
-                        
+                        const displayInfo = categoryDisplayMap[
+                          category.complaint_code
+                        ] || {
+                          name: category.complaint_name.substring(0, 15),
+                          icon: "help",
+                        };
+
+                        const messageGroupState =
+                          buttonGroupStates[String(message.id)];
+                        const isThisSelected =
+                          messageGroupState?.selectedValue === displayInfo.name;
+                        const isOtherSelected =
+                          messageGroupState && !isThisSelected;
+                        const globalCategorySelected =
+                          selectedCategory &&
+                          selectedCategory !== displayInfo.name;
+
                         return (
                           <TouchableOpacity
                             key={category.complaint_id}
                             style={[
                               styles.categoryButton,
-                              selectedCategory &&
-                                selectedCategory !== displayInfo.name &&
+                              (isOtherSelected || globalCategorySelected) &&
                                 styles.disabledCategoryButton,
                             ]}
                             activeOpacity={
-                              selectedCategory && selectedCategory !== displayInfo.name
+                              isOtherSelected || globalCategorySelected
                                 ? 1
                                 : 0.7
                             }
                             onPress={() => {
                               // Map back to general category for chatbot
                               let generalCategory = displayInfo.name;
-                              
+
                               // Map specific categories back to general ones for chatbot
-                              if (category.complaint_code.includes('PEMBAYARAN')) {
-                                generalCategory = 'PEMBAYARAN';
-                              } else if (category.complaint_code.includes('TOP_UP')) {
-                                generalCategory = 'TOP UP';
-                              } else if (category.complaint_code.includes('TRANSFER')) {
-                                generalCategory = 'TRANSFER';
-                              } else if (category.complaint_code.includes('TARIK_TUNAI')) {
-                                generalCategory = 'TARIK TUNAI';
-                              } else if (category.complaint_code.includes('SETOR_TUNAI')) {
-                                generalCategory = 'SETOR TUNAI';
-                              } else if (category.complaint_code.includes('MOBILE_TUNAI')) {
-                                generalCategory = 'MOBILE TUNAI';
-                              } else if (category.complaint_code.includes('BI_FAST')) {
-                                generalCategory = 'BI FAST';
-                              } else if (category.complaint_code.includes('DISPUTE') || category.complaint_code.includes('CHARGEBACK')) {
-                                generalCategory = 'DISPUTE';
-                              } else if (category.complaint_code.includes('TAPCASH')) {
-                                generalCategory = 'TAPCASH';
+                              if (
+                                category.complaint_code.includes("PEMBAYARAN")
+                              ) {
+                                generalCategory = "PEMBAYARAN";
+                              } else if (
+                                category.complaint_code ===
+                                "TOP_UP_PRA_MIGRASI_DANA_GAGAL_TERKOREKSI"
+                              ) {
+                                generalCategory = "TAPCASH";
+                              } else if (
+                                category.complaint_code.includes("TOP_UP")
+                              ) {
+                                generalCategory = "TOP UP";
+                              } else if (
+                                category.complaint_code.includes("TRANSFER")
+                              ) {
+                                generalCategory = "TRANSFER";
+                              } else if (
+                                category.complaint_code.includes("TARIK_TUNAI")
+                              ) {
+                                generalCategory = "TARIK TUNAI";
+                              } else if (
+                                category.complaint_code.includes("SETOR_TUNAI")
+                              ) {
+                                generalCategory = "SETOR TUNAI";
+                              } else if (
+                                category.complaint_code.includes("MOBILE_TUNAI")
+                              ) {
+                                generalCategory = "MOBILE TUNAI";
+                              } else if (
+                                category.complaint_code.includes("BI_FAST")
+                              ) {
+                                generalCategory = "BI FAST";
+                              } else if (
+                                category.complaint_code.includes("DISPUTE") ||
+                                category.complaint_code.includes("CHARGEBACK")
+                              ) {
+                                generalCategory = "DISPUTE";
                               }
-                              
-                              handleCategorySelect(generalCategory);
+
+                              handleCategorySelect(
+                                generalCategory,
+                                String(message.id)
+                              );
                             }}
                             disabled={
-                              !!(selectedCategory && selectedCategory !== displayInfo.name)
+                              !!(isOtherSelected || globalCategorySelected)
                             }
                           >
                             <MaterialIcons
                               name={displayInfo.icon as any}
                               size={14}
                               color={
-                                selectedCategory && selectedCategory !== displayInfo.name
+                                isOtherSelected || globalCategorySelected
                                   ? "#999"
                                   : "#FFF"
                               }
@@ -2690,16 +3086,15 @@ Sekarang Anda dapat melanjutkan:`;
                             <Text
                               style={[
                                 styles.buttonText,
-                                { 
+                                {
                                   fontSize: 8,
-                                  textAlign: 'center',
+                                  textAlign: "center",
                                   lineHeight: 9,
-                                  fontWeight: '600'
+                                  fontWeight: "600",
                                 },
-                                selectedCategory &&
-                                  selectedCategory !== displayInfo.name && {
-                                    color: "#999",
-                                  },
+                                (isOtherSelected || globalCategorySelected) && {
+                                  color: "#999",
+                                },
                               ]}
                               numberOfLines={2}
                               adjustsFontSizeToFit
@@ -2712,6 +3107,110 @@ Sekarang Anda dapat melanjutkan:`;
                     </View>
                   );
                 })()}
+              {(message as any).hasTerminalButtons &&
+                !ticketCreatedInSession &&
+                !editFormSelected && (
+                  <View style={styles.terminalButtonContainer}>
+                    {(() => {
+                      console.log("Terminals data:", terminals);
+                      console.log("First terminal:", terminals[0]);
+
+                      if (!terminals || terminals.length === 0) {
+                        return (
+                          <Text style={styles.buttonText}>
+                            Tidak ada terminal tersedia
+                          </Text>
+                        );
+                      }
+
+                      return terminals
+                        .slice(0, 6)
+                        .map((terminal) => {
+                          // Safety check for terminal properties
+                          if (!terminal || !terminal.terminal_id) {
+                            console.log("Invalid terminal object:", terminal);
+                            return null;
+                          }
+
+                          const terminalDisplay = `${
+                            terminal.terminal_code || "Unknown"
+                          } - ${terminal.location || "Unknown Location"}`;
+                          const messageGroupState =
+                            buttonGroupStates[String(message.id)];
+                          const isThisSelected =
+                            messageGroupState?.selectedValue ===
+                            terminal.terminal_id?.toString();
+                          const isOtherSelected =
+                            messageGroupState && !isThisSelected;
+                          const globalTerminalSelected =
+                            selectedTerminal &&
+                            selectedTerminal !==
+                              terminal.terminal_id?.toString();
+
+                          return (
+                            <TouchableOpacity
+                              key={terminal.terminal_id || Math.random()}
+                              style={[
+                                styles.terminalButton,
+                                (isOtherSelected || globalTerminalSelected) &&
+                                  styles.disabledTerminalButton,
+                              ]}
+                              activeOpacity={
+                                isOtherSelected || globalTerminalSelected
+                                  ? 1
+                                  : 0.7
+                              }
+                              onPress={() => {
+                                console.log(
+                                  "Terminal button pressed:",
+                                  terminal.terminal_id
+                                );
+                                if (terminal.terminal_id) {
+                                  handleTerminalSelect(
+                                    terminal.terminal_id,
+                                    String(message.id)
+                                  );
+                                }
+                              }}
+                              disabled={
+                                !!(isOtherSelected || globalTerminalSelected)
+                              }
+                            >
+                              <MaterialIcons
+                                name="local-atm"
+                                size={14}
+                                color={
+                                  isOtherSelected || globalTerminalSelected
+                                    ? "#999"
+                                    : "#FFF"
+                                }
+                              />
+                              <Text
+                                style={[
+                                  styles.buttonText,
+                                  {
+                                    fontSize: 9,
+                                    textAlign: "center",
+                                    lineHeight: 11,
+                                    fontWeight: "600",
+                                    marginTop: 2,
+                                  },
+                                  (isOtherSelected ||
+                                    globalTerminalSelected) && {
+                                    color: "#999",
+                                  },
+                                ]}
+                                numberOfLines={3}
+                              >
+                                {terminalDisplay}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })
+                        .filter(Boolean); // Remove null entries
+                    })()}
+                  </View>
+                )}
             </View>
           ))}
 
@@ -3392,6 +3891,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#E0E0E0",
   },
   disabledCategoryButton: {
+    backgroundColor: "#E0E0E0",
+  },
+  terminalButtonContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+    gap: 6,
+    justifyContent: "space-between",
+  },
+  terminalButton: {
+    flexDirection: "column",
+    alignItems: "center",
+    backgroundColor: "#2196F3",
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 2,
+    minWidth: "30%",
+    maxWidth: "32%",
+    justifyContent: "center",
+    minHeight: 50,
+  },
+  disabledTerminalButton: {
     backgroundColor: "#E0E0E0",
   },
 });
