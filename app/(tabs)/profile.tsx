@@ -22,6 +22,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Fonts } from "@/constants/Fonts";
+import { triggerAndroidNotification } from "@/utils/androidNotification";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -180,6 +181,22 @@ export default function ProfileScreen() {
               </View>
             </View>
             <MaterialIcons name="chevron-right" size={24} color="#000" />
+          </TouchableOpacity>
+
+          {/* Test Notification Button - TEMPORARY */}
+          <TouchableOpacity 
+            style={styles.testButton} 
+            onPress={async () => {
+              const success = await triggerAndroidNotification();
+              if (success) {
+                Alert.alert("Success", "Notification sent!");
+              } else {
+                Alert.alert("Error", "Failed to send notification");
+              }
+            }}
+          >
+            <MaterialIcons name="notifications" size={24} color="#52B5AB" />
+            <Text style={styles.testButtonText}>Test Notification</Text>
           </TouchableOpacity>
 
           {/* Tombol Keluar */}
@@ -342,6 +359,24 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 14,
     color: "red",
+    fontFamily: Fonts.semiBold,
+  },
+  testButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#52B5AB",
+    borderRadius: 8,
+    gap: 12,
+    backgroundColor: "rgba(82,181,171,0.1)",
+  },
+  testButtonText: {
+    fontSize: 14,
+    color: "#52B5AB",
     fontFamily: Fonts.semiBold,
   },
   profileSkeleton: {

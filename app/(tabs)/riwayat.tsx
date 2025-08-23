@@ -129,7 +129,7 @@ export default function RiwayatScreen() {
     const mappedData = tickets.map((t) => ({
       ticket_id: t.ticket_id || t.ticket_number, // Use ticket_id if available, fallback to ticket_number
       ticket_number: t.ticket_number,
-      customer_status: toIndoStatus(t.customer_status.customer_status_code),
+      customer_status: toIndoStatus(t.customer_status?.customer_status_code),
       channel: t.issue_channel?.channel_name || "Tidak tersedia",
       created_time: t.created_time,
       description: t.description,
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   listContainer: {
-    paddingBottom: Platform.OS === "ios" ? 20 : 0,
+    paddingBottom: Platform.OS === "ios" ? 20 : 80,
   },
   card: {
     marginTop: 12,
