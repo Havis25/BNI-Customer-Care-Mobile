@@ -237,6 +237,7 @@ export default function ChatScreen() {
             channel?: string;
             category?: string;
             description?: string;
+            ai_generated_description?: string;
             amount?: string | number;
           };
           next_step?: string;
@@ -257,8 +258,6 @@ export default function ChatScreen() {
             },
           }),
         });
-
-
 
         // Check if API response is successful
         if (response.success === false) {
@@ -288,8 +287,6 @@ export default function ChatScreen() {
             })
           );
         }
-
-
 
         // Handle amount confirmation - create summary message with buttons instead of confirmation question
         if (
@@ -327,7 +324,11 @@ export default function ChatScreen() {
 
 💰 Nominal: Rp ${displayAmount}
 
-📝 Deskripsi: ${response.collected_info?.description || "Tidak tersedia"}
+📝 Deskripsi: ${
+              response.collected_info?.ai_generated_description ||
+              response.collected_info?.description ||
+              "Tidak tersedia"
+            }
 
 Sekarang Anda dapat melanjutkan:`;
 
@@ -1789,11 +1790,17 @@ Sekarang Anda dapat melanjutkan:`;
                         );
 
                         // Create ticket payload matching the confirmation endpoint structure
-                        // Extract the actual user description - prioritize bot's collected info
+                        // Extract the actual user description - prioritize AI generated description
                         let actualDescription = "Keluhan dari chat bot";
 
-                        // First, try to use the bot's collected description if it's valid
+                        // First priority: use AI generated description if available
                         if (
+                          collectedInfo.ai_generated_description &&
+                          collectedInfo.ai_generated_description.trim() !== ""
+                        ) {
+                          actualDescription =
+                            collectedInfo.ai_generated_description;
+                        } else if (
                           collectedInfo.description &&
                           collectedInfo.description !==
                             collectedInfo.ai_generated_description &&
@@ -1863,12 +1870,12 @@ Sekarang Anda dapat melanjutkan:`;
                         );
 
                         console.log(
-                          "Bot collected description:",
-                          collectedInfo.description
+                          "AI generated description (priority 1):",
+                          collectedInfo.ai_generated_description
                         );
                         console.log(
-                          "AI generated description:",
-                          collectedInfo.ai_generated_description
+                          "Bot collected description (priority 2):",
+                          collectedInfo.description
                         );
                         console.log(
                           "Final selected description:",
