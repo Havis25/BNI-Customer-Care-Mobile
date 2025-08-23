@@ -1,14 +1,16 @@
+import { API_BASE } from "@/lib/api";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useState } from "react";
 
 const TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
-const REFRESH_PATH = "/v1/auth/refresh-token"; // <-- endpoint refresh token baru
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://your-api-url.com";
+const REFRESH_PATH = "/v1/auth/refresh";
 
 export const useTokenManager = () => {
   const [token, setToken] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshFailCount, setRefreshFailCount] = useState(0);
+  const MAX_REFRESH_ATTEMPTS = 3;
 
   // ✅ Load token dari SecureStore saat startup
   useEffect(() => {
@@ -78,6 +80,13 @@ export const useTokenManager = () => {
       return await getAccessToken();
     }
 
+    // Circuit breaker - stop trying after max attempts
+    if (refreshFailCount >= MAX_REFRESH_ATTEMPTS) {
+      console.log(`❌ Refresh attempts exceeded (${refreshFailCount}/${MAX_REFRESH_ATTEMPTS}) - returning current token`);
+      const currentToken = await getAccessToken();
+      return currentToken;
+    }
+
     setIsRefreshing(true);
     try {
       const storedRefreshToken = await getRefreshToken();
@@ -85,7 +94,7 @@ export const useTokenManager = () => {
         throw new Error("No refresh token available");
       }
 
-      const response = await fetch(`${API_BASE_URL}${REFRESH_PATH}`, {
+      const response = await fetch(`${API_BASE}${REFRESH_PATH}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,6 +110,7 @@ export const useTokenManager = () => {
 
       if (data.access_token) {
         await saveTokens(data.access_token, data.refresh_token || storedRefreshToken);
+        setRefreshFailCount(0); // Reset fail count on success
         console.log("✅ Token refreshed via useTokenManager");
         return data.access_token;
       }
@@ -108,12 +118,10 @@ export const useTokenManager = () => {
       throw new Error(data.message || "Invalid response format");
     } catch (error) {
       console.error("Token refresh error:", error);
-      await clearTokens();
-      // Redirect to login
-      import("expo-router").then(({ router }) => {
-        router.replace("/login");
-      });
-      return null;
+      setRefreshFailCount(prev => prev + 1);
+      // Don't logout user, return current token so they stay in app
+      const currentToken = await getAccessToken();
+      return currentToken;
     } finally {
       setIsRefreshing(false);
     }
