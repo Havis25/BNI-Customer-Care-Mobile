@@ -3,7 +3,7 @@ import CallModal from "@/components/modals/CallModal";
 import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
 import UploadModal from "@/components/modals/UploadModal";
 import { useAuth } from "@/hooks/useAuth";
-import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
+import { useChannelsAndCategories, Channel } from "@/hooks/useChannelsAndCategories";
 import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useUser } from "@/hooks/useUser";
@@ -176,7 +176,7 @@ export default function ChatScreen() {
   const { ticketDetail, fetchTicketDetail } = useTicketDetail();
 
   // Channels and categories data
-  const { channels, categories } = useChannelsAndCategories();
+  const { channels, categories, getFilteredCategories } = useChannelsAndCategories();
 
   const getUniqueId = () => {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -2501,385 +2501,217 @@ Sekarang Anda dapat melanjutkan:`;
                         QRIS DEBIT
                       </Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.channelButton,
+                        selectedChannel &&
+                          selectedChannel !== "TAPCASH" &&
+                          styles.disabledChannelButton,
+                      ]}
+                      activeOpacity={
+                        selectedChannel && selectedChannel !== "TAPCASH"
+                          ? 1
+                          : 0.7
+                      }
+                      onPress={() => handleChannelSelect("TAPCASH")}
+                      disabled={
+                        !!(selectedChannel && selectedChannel !== "TAPCASH")
+                      }
+                    >
+                      <MaterialIcons
+                        name="credit-card"
+                        size={16}
+                        color={
+                          selectedChannel && selectedChannel !== "TAPCASH"
+                            ? "#999"
+                            : "#FFF"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { fontSize: 12 },
+                          selectedChannel &&
+                            selectedChannel !== "TAPCASH" && {
+                              color: "#999",
+                            },
+                        ]}
+                      >
+                        TAPCASH
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               {(message as any).hasCategoryButtons &&
                 !ticketCreatedInSession &&
-                !editFormSelected && (
-                  <View style={styles.categoryButtonContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "Pembayaran" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "Pembayaran"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("Pembayaran button pressed");
-                        handleCategorySelect("Pembayaran");
-                      }}
-                      disabled={
-                        !!(
-                          selectedCategory && selectedCategory !== "Pembayaran"
-                        )
-                      }
-                    >
-                      <MaterialIcons
-                        name="payment"
-                        size={16}
-                        color={
-                          selectedCategory && selectedCategory !== "Pembayaran"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "Pembayaran" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        PEMBAYARAN
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "Top Up" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "Top Up"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("Top Up button pressed");
-                        handleCategorySelect("Top Up");
-                      }}
-                      disabled={
-                        !!(selectedCategory && selectedCategory !== "Top Up")
-                      }
-                    >
-                      <MaterialIcons
-                        name="add-card"
-                        size={16}
-                        color={
-                          selectedCategory && selectedCategory !== "Top Up"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "Top Up" && { color: "#999" },
-                        ]}
-                      >
-                        TOP UP
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "Transfer" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "Transfer"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("Transfer button pressed");
-                        handleCategorySelect("Transfer");
-                      }}
-                      disabled={
-                        !!(selectedCategory && selectedCategory !== "Transfer")
-                      }
-                    >
-                      <MaterialIcons
-                        name="swap-horiz"
-                        size={16}
-                        color={
-                          selectedCategory && selectedCategory !== "Transfer"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "Transfer" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        TRANSFER
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "Tarik Tunai" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "Tarik Tunai"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("Tarik Tunai button pressed");
-                        handleCategorySelect("Tarik Tunai");
-                      }}
-                      disabled={
-                        !!(
-                          selectedCategory && selectedCategory !== "Tarik Tunai"
-                        )
-                      }
-                    >
-                      <MaterialIcons
-                        name="local-atm"
-                        size={16}
-                        color={
-                          selectedCategory && selectedCategory !== "Tarik Tunai"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "Tarik Tunai" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        TARIK TUNAI
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "Setor Tunai" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "Setor Tunai"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("Setor Tunai button pressed");
-                        handleCategorySelect("Setor Tunai");
-                      }}
-                      disabled={
-                        !!(
-                          selectedCategory && selectedCategory !== "Setor Tunai"
-                        )
-                      }
-                    >
-                      <MaterialIcons
-                        name="account-balance-wallet"
-                        size={16}
-                        color={
-                          selectedCategory && selectedCategory !== "Setor Tunai"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "Setor Tunai" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        SETOR TUNAI
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "Mobile Tunai" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "Mobile Tunai"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("Mobile Tunai button pressed");
-                        handleCategorySelect("Mobile Tunai");
-                      }}
-                      disabled={
-                        !!(
-                          selectedCategory &&
-                          selectedCategory !== "Mobile Tunai"
-                        )
-                      }
-                    >
-                      <MaterialIcons
-                        name="phone-android"
-                        size={16}
-                        color={
-                          selectedCategory &&
-                          selectedCategory !== "Mobile Tunai"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "Mobile Tunai" && {
-                              color: "#999",
-                            },
-                        ]}
-                      >
-                        MOBILE TUNAI
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "BI Fast" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "BI Fast"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("BI Fast button pressed");
-                        handleCategorySelect("BI Fast");
-                      }}
-                      disabled={
-                        !!(selectedCategory && selectedCategory !== "BI Fast")
-                      }
-                    >
-                      <MaterialIcons
-                        name="flash-on"
-                        size={16}
-                        color={
-                          selectedCategory && selectedCategory !== "BI Fast"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "BI Fast" && { color: "#999" },
-                        ]}
-                      >
-                        BI FAST
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "Dispute" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "Dispute"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("Dispute button pressed");
-                        handleCategorySelect("Dispute");
-                      }}
-                      disabled={
-                        !!(selectedCategory && selectedCategory !== "Dispute")
-                      }
-                    >
-                      <MaterialIcons
-                        name="report-problem"
-                        size={16}
-                        color={
-                          selectedCategory && selectedCategory !== "Dispute"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "Dispute" && { color: "#999" },
-                        ]}
-                      >
-                        DISPUTE
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryButton,
-                        selectedCategory &&
-                          selectedCategory !== "Lainnya" &&
-                          styles.disabledCategoryButton,
-                      ]}
-                      activeOpacity={
-                        selectedCategory && selectedCategory !== "Lainnya"
-                          ? 1
-                          : 0.7
-                      }
-                      onPress={() => {
-                        console.log("Lainnya button pressed");
-                        handleCategorySelect("Lainnya");
-                      }}
-                      disabled={
-                        !!(selectedCategory && selectedCategory !== "Lainnya")
-                      }
-                    >
-                      <MaterialIcons
-                        name="more-horiz"
-                        size={16}
-                        color={
-                          selectedCategory && selectedCategory !== "Lainnya"
-                            ? "#999"
-                            : "#FFF"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.buttonText,
-                          selectedCategory &&
-                            selectedCategory !== "Lainnya" && { color: "#999" },
-                        ]}
-                      >
-                        LAINNYA
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+                !editFormSelected && (() => {
+                  // Get filtered categories based on selected channel using the hook
+                  const selectedChannelObj = channels.find(c => {
+                    if (!selectedChannel) return false;
+                    
+                    const channelUpper = selectedChannel.toUpperCase();
+                    const channelCode = channelUpper.replace(/\s+/g, '_');
+                    
+                    return (
+                      c.channel_name === selectedChannel ||
+                      c.channel_code === selectedChannel ||
+                      c.channel_code === channelUpper ||
+                      c.channel_code === channelCode ||
+                      c.channel_name?.toUpperCase() === channelUpper ||
+                      // Handle specific mappings
+                      (selectedChannel === 'MTUNAI ALFAMART' && c.channel_code === 'MTUNAI_ALFAMART') ||
+                      (selectedChannel === 'DISPUTE DEBIT' && c.channel_code === 'DISPUTE_DEBIT') ||
+                      (selectedChannel === 'QRIS DEBIT' && c.channel_code === 'QRIS_DEBIT') ||
+                      (selectedChannel === 'TAPCASH' && c.channel_code === 'TAPCASH')
+                    );
+                  });
+                  
+                  // Use getFilteredCategories from hook to get categories based on selected channel
+                  let availableCategories = getFilteredCategories(selectedChannelObj || null);
+                  
+                  // If no categories available, show first 9 categories as fallback
+                  if (!availableCategories || availableCategories.length === 0) {
+                    availableCategories = categories.slice(0, 9);
+                  }
+                  
+                  // Map categories to display names
+                  const categoryDisplayMap: Record<string, { name: string; icon: string }> = {
+                    'PEMBAYARAN_KARTU_KREDIT_BNI': { name: 'PEMBAYARAN KK BNI', icon: 'payment' },
+                    'PEMBAYARAN_KARTU_KREDIT_BANK_LAIN': { name: 'PEMBAYARAN KK LAIN', icon: 'payment' },
+                    'PEMBAYARAN_PLN_VIA_ATM_BANK_LAIN': { name: 'PEMBAYARAN PLN', icon: 'flash-on' },
+                    'PEMBAYARAN_SAMSAT': { name: 'PEMBAYARAN SAMSAT', icon: 'directions-car' },
+                    'PEMBAYARAN_TELKOM_TELKOMSEL_INDOSAT_PROVIDER_LAINNYA': { name: 'PEMBAYARAN TELKOM', icon: 'phone' },
+                    'PEMBAYARAN_MPNG2': { name: 'PEMBAYARAN MPNG2', icon: 'payment' },
+                    'PEMBAYARAN_MPNG3': { name: 'PEMBAYARAN MPNG3', icon: 'payment' },
+                    'PEMBAYARAN_MPNG4': { name: 'PEMBAYARAN MPNG4', icon: 'payment' },
+                    'TOP_UP_DANA': { name: 'TOP UP DANA', icon: 'account-balance-wallet' },
+                    'TOP_UP_GOPAY': { name: 'TOP UP GOPAY', icon: 'account-balance-wallet' },
+                    'TOP_UP_OVO': { name: 'TOP UP OVO', icon: 'account-balance-wallet' },
+                    'TOP_UP_SHOPEE_PAY': { name: 'TOP UP SHOPEE PAY', icon: 'account-balance-wallet' },
+                    'TOP_UP_LINKAJA': { name: 'TOP UP LINKAJA', icon: 'account-balance-wallet' },
+                    'TOP_UP_E_MONEY': { name: 'TOP UP E-MONEY', icon: 'account-balance-wallet' },
+                    'TOP_UP_PULSA': { name: 'TOP UP PULSA', icon: 'phone-android' },
+                    'TOP_UP_PULSA_VIA_ATM_BANK_LAIN': { name: 'TOP UP PULSA ATM', icon: 'phone-android' },
+                    'TRANSFER_ATM_ALTO_DANA_TDK_MASUK': { name: 'TRANSFER ALTO GAGAL', icon: 'swap-horiz' },
+                    'TRANSFER_ATM_BERSAMA_DANA_TDK_MASUK': { name: 'TRANSFER BERSAMA GAGAL', icon: 'swap-horiz' },
+                    'TRANSFER_ATM_LINK_DANA_TDK_MASUK': { name: 'TRANSFER LINK GAGAL', icon: 'swap-horiz' },
+                    'TRANSFER_ATM_PRIMA_DANA_TDK_MASUK': { name: 'TRANSFER PRIMA GAGAL', icon: 'swap-horiz' },
+                    'TRANSFER_ANTAR_REKENING_BNI': { name: 'TRANSFER BNI', icon: 'swap-horiz' },
+                    'TRANSFER_ATM_ALTO_BILATERAL': { name: 'TRANSFER ALTO BILATERAL', icon: 'swap-horiz' },
+                    'TRANSFER_ATM_BERSAMA_BILATERAL': { name: 'TRANSFER BERSAMA BILATERAL', icon: 'swap-horiz' },
+                    'TRANSFER_ATM_ALTO_LINK_BILATERAL': { name: 'TRANSFER ALTO LINK BILATERAL', icon: 'swap-horiz' },
+                    'TRANSFER_ATM_PRIMA_BILATERAL': { name: 'TRANSFER PRIMA BILATERAL', icon: 'swap-horiz' },
+                    'TARIK_TUNAI_DI_MESIN_ATM_BNI': { name: 'TARIK TUNAI BNI', icon: 'local-atm' },
+                    'TARIK_TUNAI_DI_ATM_LINK': { name: 'TARIK TUNAI LINK', icon: 'local-atm' },
+                    'TARIK_TUNAI_DI_JARINGAN_ALTO': { name: 'TARIK TUNAI ALTO', icon: 'local-atm' },
+                    'TARIK_TUNAI_DI_JARINGAN_BERSAMA': { name: 'TARIK TUNAI BERSAMA', icon: 'local-atm' },
+                    'TARIK_TUNAI_DI_ATM_CIRRUS': { name: 'TARIK TUNAI CIRRUS', icon: 'local-atm' },
+                    'SETOR_TUNAI_DI_MESIN_ATM_CRM': { name: 'SETOR TUNAI CRM', icon: 'account-balance-wallet' },
+                    'MOBILE_TUNAI_ALFAMIDI': { name: 'MOBILE TUNAI ALFAMIDI', icon: 'store' },
+                    'MOBILE_TUNAI_INDOMARET': { name: 'MOBILE TUNAI INDOMARET', icon: 'store' },
+                    'MOBILE_TUNAI': { name: 'MOBILE TUNAI', icon: 'phone-android' },
+                    'MOBILE_TUNAI_ALFAMART': { name: 'MOBILE TUNAI ALFAMART', icon: 'store' },
+                    'BI_FAST_DANA_TIDAK_MASUK': { name: 'BI FAST GAGAL', icon: 'flash-on' },
+                    'BI_FAST_BILATERAL': { name: 'BI FAST BILATERAL', icon: 'flash-on' },
+                    'BI_FAST_GAGAL_HAPUS_AKUN': { name: 'BI FAST HAPUS AKUN', icon: 'flash-on' },
+                    'BI_FAST_GAGAL_MIGRASI_AKUN': { name: 'BI FAST MIGRASI AKUN', icon: 'flash-on' },
+                    'BI_FAST_GAGAL_SUSPEND_AKUN': { name: 'BI FAST SUSPEND AKUN', icon: 'flash-on' },
+                    'BI_FAST_GAGAL_UPDATE_AKUN': { name: 'BI FAST UPDATE AKUN', icon: 'flash-on' },
+                    'DISPUTE': { name: 'DISPUTE', icon: 'report-problem' },
+                    '2ND_CHARGEBACK': { name: '2ND CHARGEBACK', icon: 'report-problem' },
+                    'DISPUTE_QRIS_KARTU_DEBIT': { name: 'DISPUTE QRIS DEBIT', icon: 'qr-code' },
+                    '2ND_CHARGEBACK_QRIS_DEBIT': { name: '2ND CHARGEBACK QRIS', icon: 'qr-code' },
+                    'PERMINTAAN_CCTV_ATM_BNI': { name: 'PERMINTAAN CCTV', icon: 'videocam' },
+                    'TAPCASH_TOP_UP': { name: 'TAPCASH TOP UP', icon: 'credit-card' },
+                    'TAPCASH_SALDO': { name: 'TAPCASH SALDO', icon: 'credit-card' },
+                    'TAPCASH_TRANSAKSI': { name: 'TAPCASH TRANSAKSI', icon: 'credit-card' },
+                  };
+                  
+                  return (
+                    <View style={styles.categoryButtonContainer}>
+                      {availableCategories.slice(0, 9).map((category) => {
+                        const displayInfo = categoryDisplayMap[category.complaint_code] || 
+                          { name: category.complaint_name.substring(0, 15), icon: 'help' };
+                        
+                        return (
+                          <TouchableOpacity
+                            key={category.complaint_id}
+                            style={[
+                              styles.categoryButton,
+                              selectedCategory &&
+                                selectedCategory !== displayInfo.name &&
+                                styles.disabledCategoryButton,
+                            ]}
+                            activeOpacity={
+                              selectedCategory && selectedCategory !== displayInfo.name
+                                ? 1
+                                : 0.7
+                            }
+                            onPress={() => {
+                              // Map back to general category for chatbot
+                              let generalCategory = displayInfo.name;
+                              
+                              // Map specific categories back to general ones for chatbot
+                              if (category.complaint_code.includes('PEMBAYARAN')) {
+                                generalCategory = 'PEMBAYARAN';
+                              } else if (category.complaint_code.includes('TOP_UP')) {
+                                generalCategory = 'TOP UP';
+                              } else if (category.complaint_code.includes('TRANSFER')) {
+                                generalCategory = 'TRANSFER';
+                              } else if (category.complaint_code.includes('TARIK_TUNAI')) {
+                                generalCategory = 'TARIK TUNAI';
+                              } else if (category.complaint_code.includes('SETOR_TUNAI')) {
+                                generalCategory = 'SETOR TUNAI';
+                              } else if (category.complaint_code.includes('MOBILE_TUNAI')) {
+                                generalCategory = 'MOBILE TUNAI';
+                              } else if (category.complaint_code.includes('BI_FAST')) {
+                                generalCategory = 'BI FAST';
+                              } else if (category.complaint_code.includes('DISPUTE') || category.complaint_code.includes('CHARGEBACK')) {
+                                generalCategory = 'DISPUTE';
+                              } else if (category.complaint_code.includes('TAPCASH')) {
+                                generalCategory = 'TAPCASH';
+                              }
+                              
+                              handleCategorySelect(generalCategory);
+                            }}
+                            disabled={
+                              !!(selectedCategory && selectedCategory !== displayInfo.name)
+                            }
+                          >
+                            <MaterialIcons
+                              name={displayInfo.icon as any}
+                              size={14}
+                              color={
+                                selectedCategory && selectedCategory !== displayInfo.name
+                                  ? "#999"
+                                  : "#FFF"
+                              }
+                            />
+                            <Text
+                              style={[
+                                styles.buttonText,
+                                { 
+                                  fontSize: 8,
+                                  textAlign: 'center',
+                                  lineHeight: 9,
+                                  fontWeight: '600'
+                                },
+                                selectedCategory &&
+                                  selectedCategory !== displayInfo.name && {
+                                    color: "#999",
+                                  },
+                              ]}
+                              numberOfLines={2}
+                              adjustsFontSizeToFit
+                            >
+                              {displayInfo.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  );
+                })()}
             </View>
           ))}
 
@@ -3517,13 +3349,13 @@ const styles = StyleSheet.create({
     pointerEvents: "auto", // Ensure touch events are captured
   },
   categoryButton: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     backgroundColor: "#4CAF50",
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    borderRadius: 16,
-    gap: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 2,
     minWidth: "30%",
     maxWidth: "32%",
     justifyContent: "center",
@@ -3532,6 +3364,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
+    minHeight: 42,
   },
 
   editButton: {
