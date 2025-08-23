@@ -19,7 +19,7 @@ const INACTIVE_COLOR = "#999999";
 const ACTIVE_BG = "#FFF1E8";
 
 // Tinggi bar kustom (sinkron dengan style di CustomTabBar)
-const BAR_HEIGHT = Platform.OS === "ios" ? 95 : 70;
+const BAR_HEIGHT = Platform.OS === "ios" ? 95 : 80;
 
 // Warna “backdrop” yang mengisi sudut membulat tabbar agar tidak hitam di dark-mode OS
 const TABBAR_BACKDROP = "#FFFFFF";
@@ -124,6 +124,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                         backgroundColor: ACTIVE_BG,
                         paddingHorizontal: 14,
                         paddingVertical: 8,
+                        borderRadius: 999,
                       },
                     ]}
                   >

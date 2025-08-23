@@ -38,13 +38,14 @@ export default function WelcomePage() {
           team easily.
         </Text>
       </View>
-
-      <TouchableOpacity
-        style={styles.startButton}
-        onPress={() => router.push("/onboarding")}
-      >
-        <Text style={styles.startButtonText}>Mulai Sekarang</Text>
-      </TouchableOpacity>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={() => router.push("/onboarding")}
+        >
+          <Text style={styles.startButtonText}>Mulai Sekarang</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -58,18 +59,17 @@ const styles = StyleSheet.create({
   },
 
   logoWrapper: {
-    width: "100%",
-    alignItems: "flex-start",
-    // marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
     zIndex: 10,
-    position: "relative",
     paddingHorizontal: 24,
+    paddingTop: 12,
   },
 
   logo: {
     width: 100,
-    height: 100,
-    marginTop: -42,
+    height: 40,
   },
 
   headerContainer: {
@@ -80,13 +80,13 @@ const styles = StyleSheet.create({
   },
 
   illustration: {
-    width: "170%",
-    height: "170%",
+    width: Platform.OS === "ios" ? "180%" : "180%",
+    height: Platform.OS === "ios" ? "180%" : "180%",
   },
 
   textSection: {
     marginHorizontal: 24,
-    marginTop: 151,
+    marginTop: 161,
     alignItems: "center",
   },
 
@@ -106,11 +106,17 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
   },
 
+  buttonContainer: { 
+    flex: 1, 
+    justifyContent: "flex-end", 
+    marginBottom: Platform.OS === "ios" ? 0 : 32,
+  },
+
   startButton: {
     backgroundColor: Colors.light.primaryGreen,
     paddingVertical: 12,
     borderRadius: 5,
-    marginTop: 45,
+    marginBottom: Platform.OS === "ios" ? 16 : 0,
     marginHorizontal: 24,
     alignItems: "center",
     justifyContent: "center",

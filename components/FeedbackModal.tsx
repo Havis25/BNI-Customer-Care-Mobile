@@ -17,6 +17,7 @@ import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFeedback } from "@/hooks/useFeedback";
 import { router } from "expo-router";
+import { triggerAndroidNotification } from "@/utils/androidNotification";
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -43,6 +44,9 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
     const success = await submitFeedback(ticketId, { score, comment });
     
     if (success) {
+      // Trigger notification for both iOS and Android
+      await triggerAndroidNotification();
+      
       setScore(0);
       setComment("");
       onSuccess?.();

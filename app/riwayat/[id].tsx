@@ -5,18 +5,18 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import {
-    SafeAreaView,
-    useSafeAreaInsets,
+  SafeAreaView,
+  useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
 export default function RiwayatDetailScreen() {
@@ -44,7 +44,7 @@ export default function RiwayatDetailScreen() {
   }, [id, fetchTicketDetail]);
 
   useEffect(() => {
-    if (ticketDetail) {
+    if (ticketDetail?.customer_status?.customer_status_code) {
       const isCompleted =
         ticketDetail.customer_status.customer_status_code === "CLOSED";
       const hasFeedback = !!ticketDetail.feedback;
@@ -71,9 +71,7 @@ export default function RiwayatDetailScreen() {
 
   // Komponen header + spacer supaya menyatu dengan status bar
   const Header = () => (
-    <>
-      {/* spacer setinggi notch/status bar, warnanya sama dengan header */}
-      <View style={{ height: insets.top, backgroundColor: "#fff" }} />
+    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <MaterialIcons name="arrow-back" size={24} color="#333" />
@@ -81,7 +79,7 @@ export default function RiwayatDetailScreen() {
         <Text style={styles.headerTitle}>Detail Laporan</Text>
         <View style={{ width: 24 }} />
       </View>
-    </>
+    </View>
   );
 
   if (isLoading) {
@@ -186,7 +184,8 @@ export default function RiwayatDetailScreen() {
             />
           }
         >
-          {ticketDetail.customer_status.customer_status_code === "DECLINED" && (
+          {ticketDetail.customer_status?.customer_status_code ===
+            "DECLINED" && (
             <View style={styles.warningContainer}>
               <MaterialIcons name="error-outline" size={24} color="#E24646" />
               <Text style={styles.warningText}>
@@ -198,7 +197,7 @@ export default function RiwayatDetailScreen() {
           <View
             style={[
               styles.complaintContainer,
-              ticketDetail.customer_status.customer_status_code ===
+              ticketDetail.customer_status?.customer_status_code ===
                 "DECLINED" && styles.complaintContainerDeclined,
             ]}
           >
@@ -211,7 +210,8 @@ export default function RiwayatDetailScreen() {
             </View>
 
             <Text style={styles.detailTitle}>
-              {ticketDetail.issue_channel?.channel_name || "Channel tidak tersedia"}
+              {ticketDetail.issue_channel?.channel_name ||
+                "Channel tidak tersedia"}
             </Text>
 
             <View style={styles.descriptionSection}>
@@ -227,7 +227,7 @@ export default function RiwayatDetailScreen() {
             <View
               style={[
                 styles.progressCard,
-                ticketDetail.customer_status.customer_status_code ===
+                ticketDetail.customer_status?.customer_status_code ===
                   "DECLINED" && styles.progressCardDeclined,
               ]}
             >
@@ -241,7 +241,7 @@ export default function RiwayatDetailScreen() {
                           styles.progressDot,
                           step.completed &&
                             (ticketDetail.customer_status
-                              .customer_status_code === "DECLINED"
+                              ?.customer_status_code === "DECLINED"
                               ? styles.progressDotDeclined
                               : styles.progressDotCompleted),
                         ]}
@@ -252,7 +252,7 @@ export default function RiwayatDetailScreen() {
                             styles.progressLine,
                             step.completed &&
                               (ticketDetail.customer_status
-                                .customer_status_code === "DECLINED"
+                                ?.customer_status_code === "DECLINED"
                                 ? styles.progressLineDeclined
                                 : styles.progressLineCompleted),
                           ]}
@@ -286,7 +286,7 @@ export default function RiwayatDetailScreen() {
           </View>
 
           {ticketDetail.feedback &&
-            ticketDetail.customer_status.customer_status_code === "CLOSED" && (
+            ticketDetail.customer_status?.customer_status_code === "CLOSED" && (
               <View style={styles.feedbackContainer}>
                 <View style={styles.feedbackSection}>
                   <Text style={styles.feedbackTitle}>Feedback Anda</Text>
@@ -303,7 +303,7 @@ export default function RiwayatDetailScreen() {
             )}
         </ScrollView>
 
-        {ticketDetail.customer_status.customer_status_code !== "DECLINED" && (
+        {ticketDetail.customer_status?.customer_status_code !== "DECLINED" && (
           <View style={styles.liveChatCard}>
             <TouchableOpacity
               style={styles.liveChatButton}
@@ -386,6 +386,15 @@ function DetailSkeleton() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
 
+  headerContainer: {
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -394,11 +403,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
     backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 }, // lebih halus
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
   },
   headerTitle: {
     fontSize: 18,
@@ -406,7 +410,11 @@ const styles = StyleSheet.create({
     color: "black",
   },
 
-  content: { flex: 1, marginTop: 24, paddingHorizontal: 24 },
+  content: {
+    flex: 1,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+  },
 
   detailHeader: {
     flexDirection: "row",
@@ -414,17 +422,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  detailId: { fontSize: 16, fontFamily: Fonts.medium, color: "#555555" },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16 },
-  statusText: { fontSize: 12, fontFamily: Fonts.medium },
+  detailId: {
+    fontSize: 16,
+    fontFamily: Fonts.medium,
+    color: "#555555",
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+  },
   detailTitle: {
     fontSize: 18,
     fontFamily: Fonts.bold,
     color: "black",
     marginBottom: 8,
   },
-  detailDateTime: { fontSize: 14, fontFamily: Fonts.regular, color: "#555555" },
-  descriptionSection: { marginBottom: 0 },
+  detailDateTime: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: "#555555",
+  },
+  descriptionSection: {
+    marginBottom: 0,
+  },
   sectionTitle: {
     fontSize: 16,
     fontFamily: Fonts.medium,
@@ -460,9 +485,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: "#E24646",
   },
-  complaintContainerDeclined: { borderColor: "#E24646" },
+  complaintContainerDeclined: {
+    borderColor: "#E24646",
+  },
 
-  progressSection: { marginBottom: 20 },
+  progressSection: {
+    marginBottom: 20,
+  },
   progressTitle: {
     fontSize: 18,
     fontFamily: Fonts.medium,
@@ -481,7 +510,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF1F1",
     borderLeftColor: "#E24646",
   },
-  progressStep: { flexDirection: "row", marginBottom: 20 },
+  progressStep: {
+    flexDirection: "row",
+    marginBottom: 20,
+  },
 
   liveChatCard: {
     position: "absolute",
@@ -493,10 +525,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: Platform.OS === "ios" ? 42 : 24, // ruang untuk home indicator
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 12,
   },
   liveChatButton: {
     backgroundColor: "#52B5AB",
@@ -507,8 +539,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 8,
   },
-  chatIcon: { marginRight: 4 },
-  liveChatText: { color: "#fff", fontSize: 14, fontFamily: Fonts.medium },
+  chatIcon: {
+    marginRight: 4,
+  },
+  liveChatText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+  },
 
   progressStepLeft: {
     alignItems: "center",
@@ -521,8 +559,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#E5E5E5",
   },
-  progressDotCompleted: { backgroundColor: "#71DAD3" },
-  progressDotDeclined: { backgroundColor: "#E24646" },
+  progressDotCompleted: {
+    backgroundColor: "#71DAD3",
+  },
+  progressDotDeclined: {
+    backgroundColor: "#E24646",
+  },
   progressLine: {
     width: 2,
     height: "100%",
@@ -530,17 +572,25 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 18,
   },
-  progressLineCompleted: { backgroundColor: "#71DAD3" },
-  progressLineDeclined: { backgroundColor: "#E24646" },
+  progressLineCompleted: {
+    backgroundColor: "#71DAD3",
+  },
+  progressLineDeclined: {
+    backgroundColor: "#E24646",
+  },
 
-  progressStepContent: { flex: 1 },
+  progressStepContent: {
+    flex: 1,
+  },
   progressStepTitle: {
     fontSize: 16,
     fontFamily: Fonts.medium,
     color: "#999",
     marginBottom: 4,
   },
-  progressStepTitleCompleted: { color: "black" },
+  progressStepTitleCompleted: {
+    color: "black",
+  },
   progressStepDate: {
     fontSize: 12,
     fontFamily: Fonts.medium,
@@ -562,8 +612,13 @@ const styles = StyleSheet.create({
     marginTop: 50,
   },
 
-  feedbackContainer: { marginBottom: Platform.OS === "ios" ? 80 : 0 },
-  feedbackSection: { marginBottom: 20 },
+  feedbackContainer: {
+    marginBottom: 80,
+  },
+
+  feedbackSection: {
+    marginBottom: 20,
+  },
   feedbackTitle: {
     fontSize: 18,
     fontFamily: Fonts.medium,
@@ -588,14 +643,19 @@ const styles = StyleSheet.create({
     color: "#333",
     marginRight: 8,
   },
-  feedbackStars: { flexDirection: "row", alignItems: "center" },
+  feedbackStars: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   feedbackScore: {
     fontSize: 12,
     fontFamily: Fonts.regular,
     color: "#666",
     marginLeft: 8,
   },
-  feedbackComment: { marginBottom: 12 },
+  feedbackComment: {
+    marginBottom: 12,
+  },
   feedbackCommentLabel: {
     fontSize: 14,
     fontFamily: Fonts.medium,
@@ -608,7 +668,11 @@ const styles = StyleSheet.create({
     color: "#666",
     lineHeight: 20,
   },
-  feedbackDate: { fontSize: 12, fontFamily: Fonts.regular, color: "#999" },
+  feedbackDate: {
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    color: "#999",
+  },
 
   // Skeleton styles
   skeletonTicketId: {
