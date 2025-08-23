@@ -9,6 +9,8 @@ type JSONValue = any;
 
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
+let refreshFailCount = 0;
+const MAX_REFRESH_ATTEMPTS = 3;
 
 // Refresh token function with better error handling
 const refreshToken = async (): Promise<string | null> => {
@@ -29,43 +31,57 @@ const refreshToken = async (): Promise<string | null> => {
 };
 
 const performTokenRefresh = async (): Promise<string | null> => {
-  try {
-    const storedRefreshToken = await SecureStore.getItemAsync("refresh_token");
-    if (!storedRefreshToken) {
-      throw new Error("No refresh token available");
-    }
-
-    const response = await fetch(`${API_BASE}/v1/auth/refresh-token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${storedRefreshToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (data.access_token) {
-      await SecureStore.setItemAsync("access_token", data.access_token);
-      if (data.refresh_token) {
-        await SecureStore.setItemAsync("refresh_token", data.refresh_token);
+  let attempts = 0;
+  
+  while (attempts < MAX_REFRESH_ATTEMPTS) {
+    try {
+      const storedRefreshToken = await SecureStore.getItemAsync("refresh_token");
+      if (!storedRefreshToken) {
+        throw new Error("No refresh token available");
       }
-      console.log("✅ Token refreshed successfully");
-      return data.access_token;
-    }
 
-    throw new Error(data.message || "Invalid response format");
-  } catch (error) {
-    console.error("Token refresh error:", error);
-    // Clear invalid tokens
-    await SecureStore.deleteItemAsync("access_token").catch(() => {});
-    await SecureStore.deleteItemAsync("refresh_token").catch(() => {});
-    return null;
+      console.log(`🔄 Attempting token refresh (${attempts + 1}/${MAX_REFRESH_ATTEMPTS}):`, `${API_BASE}/v1/auth/refresh`);
+      const response = await fetch(`${API_BASE}/v1/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refresh_token: storedRefreshToken,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.access_token) {
+        await SecureStore.setItemAsync("access_token", data.access_token);
+        if (data.refresh_token) {
+          await SecureStore.setItemAsync("refresh_token", data.refresh_token);
+        }
+        console.log("✅ Token refreshed successfully");
+        return data.access_token;
+      }
+
+      throw new Error(data.message || "Invalid response format");
+    } catch (error) {
+      attempts++;
+      console.error(`Token refresh error (${attempts}/${MAX_REFRESH_ATTEMPTS}):`, error);
+      
+      if (attempts >= MAX_REFRESH_ATTEMPTS) {
+        console.log("❌ Max refresh attempts reached");
+        return null;
+      }
+      
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+    }
   }
+  
+  return null;
 };
 
 export async function api<T = JSONValue>(
@@ -119,12 +135,9 @@ export async function api<T = JSONValue>(
       });
       console.log("✅ Request retried with new token");
     } else {
-      console.log("❌ Token refresh failed");
-      // Redirect to login
-      import("expo-router").then(({ router }) => {
-        router.replace("/login");
-      });
-      throw new Error("Authentication failed - please login again");
+      console.log("❌ Token refresh failed - silently continue");
+      // Don't throw error, let UI handle gracefully
+      return undefined as T;
     }
   }
 
