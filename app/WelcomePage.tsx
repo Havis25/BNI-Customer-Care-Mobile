@@ -1,11 +1,17 @@
+import Splashscreen from "@/components/Splashscreen";
+import { Fonts } from "@/constants/Fonts";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../constants/Colors";
-import { Fonts } from "@/constants/Fonts";
 
 export default function WelcomePage() {
+  const [splashDone, setSplashDone] = useState(false);
+
+  if (!splashDone) {
+    return <Splashscreen onFinish={() => setSplashDone(true)} />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
