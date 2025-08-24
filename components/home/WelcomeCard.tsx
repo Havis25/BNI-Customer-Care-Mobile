@@ -1,9 +1,10 @@
 import { ThemedText } from "@/components/ThemedText";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
 import { Fonts } from "@/constants/Fonts";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 
 export default function WelcomeCard() {
   const [userName, setUserName] = useState("User");
@@ -34,9 +35,12 @@ export default function WelcomeCard() {
           Ada yang bisa kami bantu?
         </ThemedText>
       </View>
-      <View style={styles.profileContainer}>
+      <TouchableOpacity 
+        style={styles.profileContainer}
+        onPress={() => router.push('/(tabs)/profile')}
+      >
         <MaterialIcons name="account-circle" size={55} color="#333" />
-      </View>
+      </TouchableOpacity>
     </View>
   );
 }

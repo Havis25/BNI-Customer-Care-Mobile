@@ -115,9 +115,20 @@ export default function FAQScreen() {
               ))}
             </>
           ) : error ? (
-            <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.errorContainer}>
+              <MaterialIcons name="error-outline" size={48} color="#E24646" />
+              <Text style={styles.errorTitle}>Gagal Memuat FAQ</Text>
+              <Text style={styles.errorDescription}>Terjadi kesalahan saat mengambil data FAQ. Periksa koneksi internet Anda dan coba lagi.</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={fetchFaqs}>
+                <Text style={styles.retryText}>Coba Lagi</Text>
+              </TouchableOpacity>
+            </View>
           ) : filteredData.length === 0 ? (
-            <Text style={styles.noResult}>Tidak ada hasil ditemukan</Text>
+            <View style={styles.emptyContainer}>
+              <MaterialIcons name="help-outline" size={48} color="#999" />
+              <Text style={styles.emptyTitle}>Tidak Ada Hasil</Text>
+              <Text style={styles.emptyDescription}>Tidak ditemukan FAQ yang sesuai dengan pencarian Anda.</Text>
+            </View>
           ) : (
             filteredData.map((item, index) => {
               const isExpanded = expandedItems.includes(item.faq_id);
@@ -226,12 +237,55 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     marginBottom: 16,
   },
-  noResult: {
+  errorContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.semiBold,
+    color: "#E24646",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorDescription: {
     textAlign: "center",
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: "#999",
-    padding: 16,
+    color: "#666",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  retryButton: {
+    backgroundColor: "#52B5AB",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.semiBold,
+    color: "#333",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyDescription: {
+    textAlign: "center",
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: "#666",
+    lineHeight: 20,
   },
   faqItem: {
     paddingVertical: 14,
