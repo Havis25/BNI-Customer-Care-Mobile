@@ -173,6 +173,25 @@ export default function ChatScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTerminal, setSelectedTerminal] = useState<string | null>(null);
   const [editFormSelected, setEditFormSelected] = useState(false);
+  
+  // Check if input should be disabled when buttons are active
+  const isInputDisabled = useMemo(() => {
+    if (isLiveChat) return false; // Always allow input in live chat
+    if (ticketCreatedInSession) return false; // Allow input after ticket created
+    
+    // Check if there are active button selections that haven't been completed
+    const hasActiveChannelButtons = messages.some(msg => 
+      msg.hasChannelButtons && !selectedChannel
+    );
+    const hasActiveCategoryButtons = messages.some(msg => 
+      msg.hasCategoryButtons && !selectedCategory
+    );
+    const hasActiveTerminalButtons = messages.some(msg => 
+      msg.hasTerminalButtons && !selectedTerminal
+    );
+    
+    return hasActiveChannelButtons || hasActiveCategoryButtons || hasActiveTerminalButtons;
+  }, [messages, selectedChannel, selectedCategory, selectedTerminal, isLiveChat, ticketCreatedInSession]);
 
   // Store collected info from chatbot for form preset
   const [collectedInfo, setCollectedInfo] = useState<{
@@ -848,10 +867,11 @@ Sekarang Anda dapat melanjutkan:`;
           });
         }
       } catch (error) {
-        // Add error message
+        console.error('Chatbot API error:', error);
+        // Add error message with retry option
         const errorMessage: MessageType = {
           id: getUniqueId(),
-          text: "Maaf, terjadi kesalahan dalam sistem. Silakan coba lagi.",
+          text: "Maaf, terjadi kesalahan dalam sistem. Silakan coba lagi atau ketik 'help' untuk bantuan.",
           isBot: true,
           timestamp: new Date().toLocaleTimeString("id-ID", {
             hour: "2-digit",
@@ -1750,7 +1770,7 @@ Sekarang Anda dapat melanjutkan:`;
   }, [ACTIVE_ROOM, uid, socket]);
 
   const handleSendMessage = useCallback(() => {
-    if (inputText.trim()) {
+    if (inputText.trim() && !isInputDisabled) {
       const userMessage = inputText.trim();
       const now = Date.now();
 
@@ -1824,11 +1844,11 @@ Sekarang Anda dapat melanjutkan:`;
             }, 1000);
           }, 500);
         } else {
-          // Invalid date format, ask again
+          // Invalid date format, ask again with better guidance
           setTimeout(() => {
             const errorMessage: MessageType = {
               id: getUniqueId(),
-              text: "Mohon masukkan tanggal dengan format yang benar (DD/MM/YYYY atau DD-MM-YYYY). Contoh: 15/01/2024 atau 15-01-2024",
+              text: "Format tanggal tidak sesuai. Mohon gunakan format DD/MM/YYYY atau DD-MM-YYYY.\n\nContoh yang benar:\n• 15/01/2024\n• 15-01-2024\n• 01/12/2024",
               isBot: true,
               timestamp: new Date().toLocaleTimeString("id-ID", {
                 hour: "2-digit",
@@ -1954,19 +1974,18 @@ Sekarang Anda dapat melanjutkan:`;
             }
           }, 500);
         } else {
-          // Invalid amount format, show detailed error message
-          let errorText =
-            "Format tidak sesuai. Mohon masukkan nominal yang valid. ";
+          // Invalid amount format, show detailed error message with better guidance
+          let errorText = "Format nominal tidak sesuai. ";
 
           if (!isNumeric) {
-            errorText += "Gunakan angka saja. ";
+            errorText += "Gunakan angka saja tanpa huruf atau simbol. ";
           } else if (amount <= 0) {
             errorText += "Nominal harus lebih dari 0. ";
           } else if (amount >= 999999999999) {
-            errorText += "Nominal terlalu besar. ";
+            errorText += "Nominal terlalu besar (maksimal 999 miliar). ";
           }
 
-          errorText += "Contoh: 100000, 250000, atau Rp 1.500.000";
+          errorText += "\n\nContoh yang benar:\n• 100000\n• 250000\n• 1500000";
 
           setTimeout(() => {
             const errorMessage: MessageType = {
@@ -1986,6 +2005,33 @@ Sekarang Anda dapat melanjutkan:`;
           }, 500);
         }
       } else if (!isLiveChat) {
+        // Handle help command
+        if (userMessage.toLowerCase() === 'help' || userMessage.toLowerCase() === 'bantuan') {
+          setTimeout(() => {
+            const helpMessage: MessageType = {
+              id: getUniqueId(),
+              text: "Bantuan:\n\n• Untuk memulai keluhan baru, ceritakan masalah Anda\n• Pilih channel dan kategori sesuai petunjuk\n• Masukkan nominal dan tanggal jika diminta\n• Gunakan tombol yang tersedia saat diminta\n\nJika mengalami kesulitan, ketik 'reset' untuk memulai ulang.",
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, helpMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+          }, 500);
+          return;
+        }
+        
+        // Handle reset command
+        if (userMessage.toLowerCase() === 'reset' || userMessage.toLowerCase() === 'mulai ulang') {
+          clearChatHistory();
+          return;
+        }
+        
         // Normal chatbot flow
         sendToChatbot(userMessage);
       } else {
@@ -2900,10 +2946,22 @@ Sekarang Anda dapat melanjutkan:`;
                         }
                       } catch (error) {
                         console.error("Error creating ticket:", error);
-                        Alert.alert(
-                          "Error",
-                          "Gagal membuat tiket. Silakan coba lagi."
-                        );
+                        
+                        // Show error message in chat instead of alert
+                        const errorMessage: MessageType = {
+                          id: getUniqueId(),
+                          text: "Maaf, gagal membuat tiket. Silakan coba lagi atau hubungi customer service jika masalah berlanjut.",
+                          isBot: true,
+                          timestamp: new Date().toLocaleTimeString("id-ID", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }),
+                        };
+                        setMessages((prev) => {
+                          const newMessages = [...prev, errorMessage];
+                          AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                          return newMessages;
+                        });
                       }
                     }}
                   >
@@ -3682,21 +3740,24 @@ Sekarang Anda dapat melanjutkan:`;
             />
           </TouchableOpacity>
           <TextInput
-            style={styles.textInput}
-            placeholder="Ketik pesan Anda..."
+            style={[
+              styles.textInput,
+              isInputDisabled && styles.disabledTextInput
+            ]}
+            placeholder={isInputDisabled ? "Pilih dari tombol di atas..." : "Ketik pesan Anda..."}
             value={inputText}
             onChangeText={setInputText}
-            editable={true}
+            editable={!isInputDisabled}
             multiline
           />
           <TouchableOpacity
             onPress={handleSendMessage}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || isInputDisabled}
           >
             <MaterialIcons
               name="send"
               size={20}
-              color={inputText.trim() ? "#FF8636" : "#CCC"}
+              color={inputText.trim() && !isInputDisabled ? "#FF8636" : "#CCC"}
             />
           </TouchableOpacity>
         </View>
@@ -4280,5 +4341,9 @@ const styles = StyleSheet.create({
   },
   disabledTerminalButton: {
     backgroundColor: "#E0E0E0",
+  },
+  disabledTextInput: {
+    backgroundColor: "#F0F0F0",
+    color: "#999",
   },
 });
