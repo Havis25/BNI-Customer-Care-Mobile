@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActionSheetIOS,
@@ -40,6 +40,7 @@ type TicketPayload = {
   related_card_id?: number;
   amount?: number;
   terminal_id?: number;
+  transaction_date?: string;
 };
 
 /** SelectField: iOS pakai ActionSheet, Android/Web pakai Picker dropdown */
@@ -48,11 +49,13 @@ function SelectField({
   value,
   options,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (v: string) => void;
+  disabled?: boolean;
 }) {
   if (Platform.OS === "ios") {
     const openSheet = () => {
@@ -72,12 +75,30 @@ function SelectField({
       <View style={styles.fieldContainer}>
         <Text style={styles.label}>{label}</Text>
         <Pressable
-          style={[styles.textInput, styles.selectInput]}
-          onPress={openSheet}
+          style={[
+            styles.textInput,
+            styles.selectInput,
+            disabled && styles.disabledInput,
+          ]}
+          onPress={disabled ? undefined : openSheet}
+          disabled={disabled}
         >
-          <Text style={styles.selectText}>{value}</Text>
-          <MaterialIcons name="arrow-drop-down" size={24} color="#666" />
+          <Text
+            style={[styles.selectText, disabled && styles.disabledSelectText]}
+          >
+            {value}
+          </Text>
+          <MaterialIcons
+            name="arrow-drop-down"
+            size={24}
+            color={disabled ? "#999" : "#666"}
+          />
         </Pressable>
+        {disabled && (
+          <Text style={styles.lockedHelper}>
+            ✓ Dipilih otomatis dari chatbot
+          </Text>
+        )}
       </View>
     );
   }
@@ -85,18 +106,22 @@ function SelectField({
   return (
     <View style={styles.fieldContainer}>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.pickerWrapper}>
+      <View style={[styles.pickerWrapper, disabled && styles.disabledInput]}>
         <Picker
           selectedValue={value}
-          onValueChange={(v) => onChange(String(v))}
-          dropdownIconColor="#666"
+          onValueChange={(v) => !disabled && onChange(String(v))}
+          dropdownIconColor={disabled ? "#999" : "#666"}
           mode="dropdown"
+          enabled={!disabled}
         >
           {options.map((opt) => (
             <Picker.Item key={opt} label={opt} value={opt} />
           ))}
         </Picker>
       </View>
+      {disabled && (
+        <Text style={styles.lockedHelper}>✓ Dipilih otomatis dari chatbot</Text>
+      )}
     </View>
   );
 }
@@ -114,6 +139,16 @@ export default function ConfirmationScreen() {
   } = useChannelsAndCategories();
   const { terminals } = useTerminals();
 
+  // Get parameters from chatbot if available
+  const {
+    presetChannel,
+    presetCategory,
+    presetDescription,
+    presetAmount,
+    presetTransactionDate,
+    mode,
+  } = useLocalSearchParams();
+
   const full_nameauto = (user?.full_name || "").trim() || "User Complain";
 
   // Editable
@@ -122,11 +157,21 @@ export default function ConfirmationScreen() {
   const [terminal, setTerminal] = useState<any>(null);
   const [description, setdescription] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
+  const [transactionDate, setTransactionDate] = useState<string>("");
 
   // UI
   const [isChecked, setIsChecked] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Control field states from preset data
+  const [fieldStates, setFieldStates] = useState({
+    channelLocked: false,
+    categoryLocked: false,
+    descriptionLocked: false,
+    amountLocked: false,
+    transactionDateLocked: false,
+  });
 
   // ====== PENTING: tinggi footer aktual agar ScrollView bisa scroll di atas keyboard ======
   const [footerHeight, setFooterHeight] = useState(120); // perkiraan awal; nanti diganti oleh onLayout
@@ -189,6 +234,10 @@ export default function ConfirmationScreen() {
   const requiresAmount =
     category && transactionCategories.includes(category.complaint_code);
 
+  // Check if current category requires transaction date
+  const requiresTransactionDate =
+    category && transactionCategories.includes(category.complaint_code);
+
   // Update state when API data loads
   useEffect(() => {
     if (channels.length > 0 && !channel) {
@@ -200,6 +249,7 @@ export default function ConfirmationScreen() {
     if (categories.length > 0 && !category) {
       setCategory(categories[0]);
       setAmount(""); // Reset amount when initial category is set
+      setTransactionDate(""); // Reset transaction date when initial category is set
     }
   }, [categories]);
 
@@ -214,6 +264,7 @@ export default function ConfirmationScreen() {
       ) {
         setCategory(filteredCategories[0]);
         setAmount(""); // Reset amount when category changes
+        setTransactionDate(""); // Reset transaction date when category changes
       }
     }
 
@@ -231,10 +282,84 @@ export default function ConfirmationScreen() {
     filteredTerminals,
   ]);
 
-  // Reset amount when category changes
+  // Reset amount and transaction date when category changes
   useEffect(() => {
     setAmount("");
+    setTransactionDate("");
   }, [category?.complaint_id]);
+
+  // Handle preset data from chatbot
+  useEffect(() => {
+    if (mode === "create" && channels.length > 0 && categories.length > 0) {
+      const newFieldStates = { ...fieldStates };
+
+      // Set preset channel
+      if (presetChannel && typeof presetChannel === "string") {
+        const foundChannel = channels.find(
+          (c) => c.channel_name.toLowerCase() === presetChannel.toLowerCase()
+        );
+        if (foundChannel) {
+          setChannel(foundChannel);
+          newFieldStates.channelLocked = true;
+        }
+      }
+
+      // Set preset category
+      if (presetCategory && typeof presetCategory === "string") {
+        const foundCategory = categories.find(
+          (c) =>
+            c.complaint_name
+              .toLowerCase()
+              .includes(presetCategory.toLowerCase()) ||
+            presetCategory
+              .toLowerCase()
+              .includes(c.complaint_name.toLowerCase())
+        );
+        if (foundCategory) {
+          setCategory(foundCategory);
+          newFieldStates.categoryLocked = true;
+        }
+      }
+
+      // Set preset description
+      if (presetDescription && typeof presetDescription === "string") {
+        setdescription(presetDescription);
+        newFieldStates.descriptionLocked = true;
+      }
+
+      // Set preset amount
+      if (presetAmount && typeof presetAmount === "string") {
+        console.log("Setting preset amount:", presetAmount);
+        const numericAmount = presetAmount.replace(/[^0-9]/g, "");
+        console.log("Numeric amount:", numericAmount);
+        if (numericAmount) {
+          setAmount(numericAmount);
+          newFieldStates.amountLocked = true;
+        }
+      }
+
+      // Set preset transaction date
+      if (presetTransactionDate && typeof presetTransactionDate === "string") {
+        console.log("Setting preset transaction date:", presetTransactionDate);
+        // Validate date format before setting
+        if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(presetTransactionDate)) {
+          setTransactionDate(presetTransactionDate);
+          newFieldStates.transactionDateLocked = true;
+        }
+      }
+
+      setFieldStates(newFieldStates);
+    }
+  }, [
+    mode,
+    channels,
+    categories,
+    presetChannel,
+    presetCategory,
+    presetDescription,
+    presetAmount,
+    presetTransactionDate,
+  ]);
 
   const isValid =
     isChecked &&
@@ -248,7 +373,11 @@ export default function ConfirmationScreen() {
     category?.complaint_id &&
     (!requiresAmount ||
       (requiresAmount && amount.trim() && parseInt(amount) > 0)) &&
-    (!requiresTerminal || (requiresTerminal && !!terminal));
+    (!requiresTerminal || (requiresTerminal && !!terminal)) &&
+    (!requiresTransactionDate ||
+      (requiresTransactionDate &&
+        transactionDate.trim() &&
+        /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(transactionDate.trim())));
 
   // Get account and card IDs from user data
   const getRelatedIds = () => {
@@ -279,6 +408,28 @@ export default function ConfirmationScreen() {
 
   const { related_account_id, related_card_id } = getRelatedIds();
 
+  // Format transaction date from DD/MM/YYYY to YYYY-MM-DD for API
+  const formatTransactionDate = (dateString: string): string => {
+    console.log("Formatting transaction date:", dateString);
+    if (!dateString || !dateString.trim()) return "";
+
+    // Handle both DD/MM/YYYY and DD-MM-YYYY formats
+    const cleanDate = dateString.trim().replace(/-/g, "/");
+    const parts = cleanDate.split("/");
+
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, "0");
+      const month = parts[1].padStart(2, "0");
+      const year = parts[2];
+      const formatted = `${year}-${month}-${day}`;
+      console.log("Formatted date:", formatted);
+      return formatted;
+    }
+
+    console.log("Date format unexpected, returning as-is:", dateString.trim());
+    return dateString.trim(); // Return as-is if format is unexpected
+  };
+
   const payload: TicketPayload = {
     description: description.trim(),
     issue_channel_id: channel?.channel_id || 0,
@@ -288,6 +439,10 @@ export default function ConfirmationScreen() {
     related_card_id,
     ...(requiresAmount && amount.trim() && { amount: parseInt(amount) }),
     ...(requiresTerminal && terminal && { terminal_id: terminal.terminal_id }),
+    ...(requiresTransactionDate &&
+      transactionDate.trim() && {
+        transaction_date: formatTransactionDate(transactionDate),
+      }),
   };
 
   const handleSubmit = async () => {
@@ -301,6 +456,9 @@ export default function ConfirmationScreen() {
         router.replace("/login");
         return;
       }
+
+      // Debug payload before sending
+      console.log("Final payload:", JSON.stringify(payload, null, 2));
 
       // API call akan otomatis menambahkan Authorization header
       const response = await api(API_URL, {
@@ -444,11 +602,14 @@ export default function ConfirmationScreen() {
                   }
                   options={channels.map((c) => c.channel_name)}
                   onChange={(v) => {
-                    const selectedChannel = channels.find(
-                      (c) => c.channel_name === v
-                    );
-                    if (selectedChannel) setChannel(selectedChannel);
+                    if (!fieldStates.channelLocked) {
+                      const selectedChannel = channels.find(
+                        (c) => c.channel_name === v
+                      );
+                      if (selectedChannel) setChannel(selectedChannel);
+                    }
                   }}
+                  disabled={fieldStates.channelLocked}
                 />
               )}
 
@@ -480,11 +641,14 @@ export default function ConfirmationScreen() {
                   }
                   options={filteredCategories.map((c) => c.complaint_name)}
                   onChange={(v) => {
-                    const selectedCategory = filteredCategories.find(
-                      (c) => c.complaint_name === v
-                    );
-                    if (selectedCategory) setCategory(selectedCategory);
+                    if (!fieldStates.categoryLocked) {
+                      const selectedCategory = filteredCategories.find(
+                        (c) => c.complaint_name === v
+                      );
+                      if (selectedCategory) setCategory(selectedCategory);
+                    }
                   }}
+                  disabled={fieldStates.categoryLocked}
                 />
               )}
 
@@ -516,22 +680,88 @@ export default function ConfirmationScreen() {
                 <View style={styles.fieldContainer}>
                   <Text style={styles.label}>Nominal Transaksi</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[
+                      styles.textInput,
+                      fieldStates.amountLocked && styles.disabledInput,
+                    ]}
                     value={amount}
                     onChangeText={(text) => {
-                      // Only allow numbers
-                      const numericText = text.replace(/[^0-9]/g, "");
-                      setAmount(numericText);
+                      if (!fieldStates.amountLocked) {
+                        // Only allow numbers
+                        const numericText = text.replace(/[^0-9]/g, "");
+                        setAmount(numericText);
+                      }
                     }}
                     placeholder="Masukkan nominal transaksi"
                     keyboardType="numeric"
                     returnKeyType="done"
+                    editable={!fieldStates.amountLocked}
                   />
                   <Text style={styles.helper}>
                     {amount && `Rp ${parseInt(amount).toLocaleString("id-ID")}`}
                     {!amount &&
+                      !fieldStates.amountLocked &&
                       "Masukkan nominal dalam Rupiah (contoh: 100000)"}
                   </Text>
+                  {fieldStates.amountLocked && (
+                    <Text style={styles.lockedHelper}>
+                      ✓ Dipilih otomatis dari chatbot
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* Transaction Date - only show for transaction categories that require date */}
+              {requiresTransactionDate && (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Tanggal Transaksi</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      fieldStates.transactionDateLocked && styles.disabledInput,
+                    ]}
+                    value={transactionDate}
+                    onChangeText={(text) => {
+                      if (!fieldStates.transactionDateLocked) {
+                        // Format and validate date input
+                        let formattedText = text.replace(/[^\d\/\-]/g, "");
+
+                        // Auto-format with slashes
+                        if (
+                          formattedText.length === 2 &&
+                          !formattedText.includes("/") &&
+                          !formattedText.includes("-")
+                        ) {
+                          formattedText += "/";
+                        } else if (
+                          formattedText.length === 5 &&
+                          formattedText.split(/[\/\-]/).length === 2
+                        ) {
+                          formattedText += "/";
+                        }
+
+                        setTransactionDate(formattedText);
+                      }
+                    }}
+                    placeholder="DD/MM/YYYY"
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    maxLength={10}
+                    editable={!fieldStates.transactionDateLocked}
+                  />
+                  <Text style={styles.helper}>
+                    {transactionDate &&
+                    /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(transactionDate)
+                      ? "Format tanggal valid ✓"
+                      : !fieldStates.transactionDateLocked
+                      ? "Masukkan tanggal dalam format DD/MM/YYYY (contoh: 15/08/2024)"
+                      : ""}
+                  </Text>
+                  {fieldStates.transactionDateLocked && (
+                    <Text style={styles.lockedHelper}>
+                      ✓ Dipilih otomatis dari chatbot
+                    </Text>
+                  )}
                 </View>
               )}
 
@@ -539,19 +769,33 @@ export default function ConfirmationScreen() {
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Description</Text>
                 <TextInput
-                  style={[styles.textInput, styles.textArea]}
+                  style={[
+                    styles.textInput,
+                    styles.textArea,
+                    fieldStates.descriptionLocked && styles.disabledInput,
+                  ]}
                   value={description}
-                  onChangeText={setdescription}
+                  onChangeText={(text) => {
+                    if (!fieldStates.descriptionLocked) {
+                      setdescription(text);
+                    }
+                  }}
                   multiline
                   placeholder="Tulis kronologi keluhan (min. 8 karakter)…"
                   maxLength={1000}
                   textAlignVertical="top"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
+                  editable={!fieldStates.descriptionLocked}
                 />
                 <Text style={styles.helper}>
                   {description.trim().length}/1000
                 </Text>
+                {fieldStates.descriptionLocked && (
+                  <Text style={styles.lockedHelper}>
+                    ✓ Dipilih otomatis dari chatbot
+                  </Text>
+                )}
               </View>
 
               {/* Checkbox */}
@@ -775,6 +1019,22 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: "#D32F2F",
+    fontFamily: "Poppins",
+  },
+
+  disabledInput: {
+    backgroundColor: "#F8F8F8",
+    borderWidth: 1,
+    borderColor: "#52B5AB",
+  },
+  disabledSelectText: {
+    color: "#666",
+  },
+  lockedHelper: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#52B5AB",
+    fontWeight: "500",
     fontFamily: "Poppins",
   },
 });

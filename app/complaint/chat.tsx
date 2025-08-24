@@ -168,10 +168,20 @@ export default function ChatScreen() {
   const [amountRequested, setAmountRequested] = useState(false);
   const [transactionDateRequested, setTransactionDateRequested] =
     useState(false);
+  const [confirmedAmount, setConfirmedAmount] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTerminal, setSelectedTerminal] = useState<string | null>(null);
   const [editFormSelected, setEditFormSelected] = useState(false);
+
+  // Store collected info from chatbot for form preset
+  const [collectedInfo, setCollectedInfo] = useState<{
+    channel?: string;
+    category?: string;
+    amount?: string | number;
+    description?: string;
+    ai_generated_description?: string;
+  } | null>(null);
 
   // Track which button groups have been selected to disable other options
   const [buttonGroupStates, setButtonGroupStates] = useState<{
@@ -309,6 +319,11 @@ export default function ChatScreen() {
           );
         }
 
+        // Update collected info from chatbot response
+        if (response.collected_info) {
+          setCollectedInfo(response.collected_info);
+        }
+
         // Handle amount confirmation - check if transaction date is also needed
         if (
           amountRequested &&
@@ -317,6 +332,47 @@ export default function ChatScreen() {
             response.message.toLowerCase().includes("apakah data") ||
             response.message.toLowerCase().includes("sudah benar"))
         ) {
+          // Get the most recent amount input from user messages
+          const amountMessages = messages.filter(
+            (msg) =>
+              !msg.isBot &&
+              msg.text &&
+              !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text) &&
+              /^[0-9.,\s]+$/.test(msg.text.replace(/[Rp\s]/g, "")) &&
+              msg.text.replace(/[^0-9]/g, "").length <= 10 &&
+              parseInt(msg.text.replace(/[^0-9]/g, "")) < 999999999
+          );
+
+          let displayAmount = "Tidak tersedia";
+          let confirmedAmountValue = null;
+          if (amountMessages.length > 0) {
+            const lastAmount = amountMessages[amountMessages.length - 1];
+            const numericAmount = lastAmount.text.replace(/[^0-9]/g, "");
+            if (numericAmount && parseInt(numericAmount) > 0) {
+              displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
+              confirmedAmountValue = numericAmount;
+            }
+          }
+
+          // Save the confirmed amount to state
+          setConfirmedAmount(confirmedAmountValue);
+
+          const confirmationMessage: MessageType = {
+            id: getUniqueId(),
+            text: `Baik, saya catat nominal transaksi Anda: Rp ${displayAmount}. Apakah nominal ini sudah benar?`,
+            isBot: true,
+            timestamp: new Date().toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          };
+
+          setMessages((prev) => {
+            const newMessages = [...prev, confirmationMessage];
+            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+            return newMessages;
+          });
+
           // Check if category also needs transaction date
           const needsTransactionDate =
             response.collected_info?.category &&
@@ -329,7 +385,7 @@ export default function ChatScreen() {
             setTimeout(() => {
               const transactionDateMessage: MessageType = {
                 id: getUniqueId(),
-                text: "Mohon masukkan tanggal transaksi (format: DD/MM/YYYY atau DD-MM-YYYY):",
+                text: "Terima kasih. Sekarang mohon masukkan tanggal transaksi (DD/MM/YYYY):",
                 isBot: true,
                 timestamp: new Date().toLocaleTimeString("id-ID", {
                   hour: "2-digit",
@@ -342,32 +398,65 @@ export default function ChatScreen() {
                 return newMessages;
               });
               setTransactionDateRequested(true);
-            }, 1000);
+            }, 1500);
             return;
           } else {
-            // No transaction date needed, show summary
-            setMessages((currentMessages) => {
-              const amountMessages = currentMessages.filter(
-                (msg) =>
-                  !msg.isBot &&
-                  msg.text &&
-                  /^[0-9]+$/.test(msg.text.replace(/[^0-9]/g, ""))
-              );
+            // No transaction date needed, show summary after delay
+            setTimeout(() => {
+              setMessages((currentMessages) => {
+                console.log(
+                  "Amount confirmation - Using confirmed amount:",
+                  confirmedAmount
+                );
 
-              let displayAmount = "Tidak tersedia";
-              if (amountMessages.length > 0) {
-                const lastAmountMsg = amountMessages[amountMessages.length - 1];
-                const numericAmount = lastAmountMsg.text.replace(/[^0-9]/g, "");
-                displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
-              } else if (response.collected_info?.amount) {
-                displayAmount = parseInt(
-                  response.collected_info.amount
-                    .toString()
-                    .replace(/[^0-9]/g, "")
-                ).toLocaleString("id-ID");
-              }
+                let displayAmount = "Tidak tersedia";
+                // Use the confirmed amount first (priority)
+                if (confirmedAmount) {
+                  console.log("Using confirmed amount:", confirmedAmount);
+                  displayAmount =
+                    parseInt(confirmedAmount).toLocaleString("id-ID");
+                } else if (response.collected_info?.amount) {
+                  console.log(
+                    "Using amount from collected_info:",
+                    response.collected_info.amount
+                  );
+                  displayAmount =
+                    typeof response.collected_info.amount === "number"
+                      ? response.collected_info.amount.toLocaleString("id-ID")
+                      : response.collected_info.amount.toString();
+                } else {
+                  // Fallback to message filtering (should not happen if confirmedAmount is set)
+                  const amountMessages = currentMessages.filter(
+                    (msg) =>
+                      !msg.isBot &&
+                      msg.text &&
+                      !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text) &&
+                      /^[0-9.,\s]+$/.test(msg.text.replace(/[Rp\s]/g, "")) &&
+                      msg.text.replace(/[^0-9]/g, "").length <= 10 &&
+                      parseInt(msg.text.replace(/[^0-9]/g, "")) < 999999999
+                  );
 
-              const summaryText = `📋 RINGKASAN KELUHAN ANDA
+                  if (amountMessages.length > 0) {
+                    const lastAmount =
+                      amountMessages[amountMessages.length - 1];
+                    const numericAmount = lastAmount.text.replace(
+                      /[^0-9]/g,
+                      ""
+                    );
+                    if (numericAmount) {
+                      console.log(
+                        "Fallback: Using amount from message:",
+                        lastAmount.text,
+                        "->",
+                        numericAmount
+                      );
+                      displayAmount =
+                        parseInt(numericAmount).toLocaleString("id-ID");
+                    }
+                  }
+                }
+
+                const summaryText = `📋 RINGKASAN KELUHAN ANDA
 
 📍 Channel: ${response.collected_info?.channel || "Tidak tersedia"}
 
@@ -376,29 +465,30 @@ export default function ChatScreen() {
 💰 Nominal: Rp ${displayAmount}
 
 📝 Deskripsi: ${
-                response.collected_info?.ai_generated_description ||
-                response.collected_info?.description ||
-                "Tidak tersedia"
-              }
+                  response.collected_info?.ai_generated_description ||
+                  response.collected_info?.description ||
+                  "Tidak tersedia"
+                }
 
 Sekarang Anda dapat melanjutkan:`;
 
-              const summaryMessage: MessageType = {
-                id: getUniqueId(),
-                text: summaryText,
-                isBot: true,
-                timestamp: new Date().toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                hasButtons: true,
-                buttonSelected: undefined,
-              };
+                const summaryMessage: MessageType = {
+                  id: getUniqueId(),
+                  text: summaryText,
+                  isBot: true,
+                  timestamp: new Date().toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                  hasButtons: true,
+                  buttonSelected: undefined,
+                };
 
-              const newMessages = [...currentMessages, summaryMessage];
-              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-              return newMessages;
-            });
+                const newMessages = [...currentMessages, summaryMessage];
+                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                return newMessages;
+              });
+            }, 1500);
             return;
           }
         }
@@ -411,13 +501,6 @@ Sekarang Anda dapat melanjutkan:`;
             response.message.toLowerCase().includes("sudah benar"))
         ) {
           setMessages((currentMessages) => {
-            const amountMessages = currentMessages.filter(
-              (msg) =>
-                !msg.isBot &&
-                msg.text &&
-                /^[0-9]+$/.test(msg.text.replace(/[^0-9]/g, ""))
-            );
-
             const dateMessages = currentMessages.filter(
               (msg) =>
                 !msg.isBot &&
@@ -425,15 +508,55 @@ Sekarang Anda dapat melanjutkan:`;
                 /\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text)
             );
 
+            console.log(
+              "Transaction date summary - Using confirmed amount:",
+              confirmedAmount
+            );
+            console.log(
+              "Transaction date summary - Date messages found:",
+              dateMessages.map((m) => m.text)
+            );
+
             let displayAmount = "Tidak tersedia";
-            if (amountMessages.length > 0) {
-              const lastAmountMsg = amountMessages[amountMessages.length - 1];
-              const numericAmount = lastAmountMsg.text.replace(/[^0-9]/g, "");
-              displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
+            // Use the confirmed amount first (priority), then fallback to filtering
+            if (confirmedAmount) {
+              console.log("Using confirmed amount:", confirmedAmount);
+              displayAmount = parseInt(confirmedAmount).toLocaleString("id-ID");
             } else if (response.collected_info?.amount) {
+              console.log(
+                "Using amount from collected_info:",
+                response.collected_info.amount
+              );
               displayAmount = parseInt(
                 response.collected_info.amount.toString().replace(/[^0-9]/g, "")
               ).toLocaleString("id-ID");
+            } else {
+              // Fallback to message filtering (should not happen if confirmedAmount is set)
+              const amountMessages = currentMessages.filter(
+                (msg) =>
+                  !msg.isBot &&
+                  msg.text &&
+                  // Exclude date patterns (DD/MM/YYYY or DD-MM-YYYY)
+                  !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text) &&
+                  // Only include pure numbers or currency-like patterns
+                  /^[0-9.,\s]+$/.test(msg.text.replace(/[Rp\s]/g, "")) &&
+                  // Ensure it's not just date digits
+                  msg.text.replace(/[^0-9]/g, "").length <= 10 &&
+                  // Must have reasonable amount value
+                  parseInt(msg.text.replace(/[^0-9]/g, "")) < 999999999
+              );
+
+              if (amountMessages.length > 0) {
+                const lastAmountMsg = amountMessages[amountMessages.length - 1];
+                const numericAmount = lastAmountMsg.text.replace(/[^0-9]/g, "");
+                console.log(
+                  "Fallback: Using amount from message:",
+                  lastAmountMsg.text,
+                  "->",
+                  numericAmount
+                );
+                displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
+              }
             }
 
             let displayTransactionDate = "Tidak tersedia";
@@ -559,6 +682,7 @@ Sekarang Anda dapat melanjutkan:`;
               amountRequested,
               transactionDateRequested,
               selectedTerminal,
+              confirmedAmount,
             })
           );
         }
@@ -753,6 +877,7 @@ Sekarang Anda dapat melanjutkan:`;
       amountRequested,
       transactionDateRequested,
       messages,
+      confirmedAmount,
     ]
   );
 
@@ -943,15 +1068,57 @@ Sekarang Anda dapat melanjutkan:`;
           },
         });
       } else {
+        // For create mode, include collected info from chatbot as preset data
+        const params: any = {
+          mode: "create",
+        };
+
+        // Add collected info as parameters if available
+        if (collectedInfo) {
+          if (collectedInfo.channel) {
+            params.presetChannel = collectedInfo.channel;
+          }
+          if (collectedInfo.category) {
+            params.presetCategory = collectedInfo.category;
+          }
+          if (collectedInfo.amount) {
+            params.presetAmount = collectedInfo.amount.toString();
+          }
+          if (
+            collectedInfo.description ||
+            collectedInfo.ai_generated_description
+          ) {
+            params.presetDescription =
+              collectedInfo.ai_generated_description ||
+              collectedInfo.description;
+          }
+        }
+
+        // Extract transaction date from user messages if transaction date was requested
+        if (transactionDateRequested) {
+          const dateMessages = messages.filter(
+            (msg) =>
+              !msg.isBot &&
+              msg.text &&
+              /\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text)
+          );
+
+          if (dateMessages.length > 0) {
+            const latestDateMsg = dateMessages[dateMessages.length - 1];
+            console.log("Setting presetTransactionDate:", latestDateMsg.text);
+            params.presetTransactionDate = latestDateMsg.text;
+          }
+        }
+
+        console.log("Chat params being sent to confirmation:", params);
+
         router.push({
           pathname: "/complaint/confirmation",
-          params: {
-            mode: "create",
-          },
+          params,
         });
       }
     },
-    [currentTicketId, router]
+    [currentTicketId, router, collectedInfo, transactionDateRequested, messages]
   );
 
   const handleUploadSuccess = (
@@ -1244,6 +1411,9 @@ Sekarang Anda dapat melanjutkan:`;
             }
             if (session.selectedTerminal !== undefined) {
               setSelectedTerminal(session.selectedTerminal);
+            }
+            if (session.confirmedAmount !== undefined) {
+              setConfirmedAmount(session.confirmedAmount);
             }
           } catch {
             console.log("Error parsing session data");
@@ -1554,6 +1724,7 @@ Sekarang Anda dapat melanjutkan:`;
       setTicketCreatedInSession(false);
       setAmountRequested(false);
       setTransactionDateRequested(false);
+      setConfirmedAmount(null);
       setSelectedChannel(null);
       setSelectedCategory(null);
       setSelectedTerminal(null);
@@ -1611,8 +1782,47 @@ Sekarang Anda dapat melanjutkan:`;
         // Validate transaction date input
         const datePattern = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/;
         if (datePattern.test(userMessage.trim())) {
-          // Send transaction date to chatbot to update session
-          sendToChatbot(`Tanggal transaksi: ${userMessage.trim()}`);
+          // Show date confirmation and final summary
+          setTimeout(() => {
+            const dateConfirmMessage: MessageType = {
+              id: getUniqueId(),
+              text: `Baik, saya catat tanggal transaksi: ${userMessage.trim()}`,
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, dateConfirmMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+
+            // Show final summary with both amount and transaction date
+            setTimeout(() => {
+              const displayAmount = confirmedAmount ? parseInt(confirmedAmount).toLocaleString("id-ID") : "Tidak tersedia";
+              const summaryText = `📋 RINGKASAN KELUHAN ANDA\n\n📍 Channel: ${collectedInfo?.channel || "Tidak tersedia"}\n\n📂 Kategori: ${collectedInfo?.category || "Tidak tersedia"}\n\n💰 Nominal: Rp ${displayAmount}\n\n📅 Tanggal Transaksi: ${userMessage.trim()}\n\n📝 Deskripsi: ${collectedInfo?.ai_generated_description || collectedInfo?.description || "Tidak tersedia"}\n\nSekarang Anda dapat melanjutkan:`;
+
+              const summaryMessage: MessageType = {
+                id: getUniqueId(),
+                text: summaryText,
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                hasButtons: true,
+                buttonSelected: undefined,
+              };
+
+              setMessages((prev) => {
+                const newMessages = [...prev, summaryMessage];
+                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                return newMessages;
+              });
+            }, 1000);
+          }, 500);
         } else {
           // Invalid date format, ask again
           setTimeout(() => {
@@ -1635,17 +1845,133 @@ Sekarang Anda dapat melanjutkan:`;
       }
       // Check if this is amount input after summary
       else if (amountRequested && summaryShown && !isLiveChat) {
-        // Validate amount input
-        const numericAmount = userMessage.replace(/[^0-9]/g, "");
-        if (numericAmount && parseInt(numericAmount) > 0) {
-          // Send amount to chatbot to update session
-          sendToChatbot(`Nominal transaksi: ${numericAmount}`);
-        } else {
-          // Invalid amount, ask again
+        // Validate amount input with more comprehensive checks
+        const cleanInput = userMessage.trim();
+
+        // Check if input contains date pattern (should not be amount)
+        const datePattern = /\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/;
+        if (datePattern.test(cleanInput)) {
+          // Input looks like a date, show error
           setTimeout(() => {
             const errorMessage: MessageType = {
               id: getUniqueId(),
-              text: "Mohon masukkan nominal yang valid (hanya angka). Contoh: 100000",
+              text: "Format tidak sesuai. Mohon masukkan nominal dalam angka saja (tanpa format tanggal). Contoh: 250000 atau Rp 250.000",
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, errorMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+          }, 500);
+          return;
+        }
+
+        // Remove common currency symbols and separators
+        const numericAmount = cleanInput.replace(/[Rp\s.,]/g, "");
+
+        // Check if result is purely numeric and within reasonable range
+        const isNumeric = /^[0-9]+$/.test(numericAmount);
+        const amount = parseInt(numericAmount);
+
+        if (
+          isNumeric &&
+          numericAmount.length > 0 &&
+          amount > 0 &&
+          amount < 999999999999
+        ) {
+          // Valid amount, save to confirmed amount
+          setConfirmedAmount(numericAmount);
+          
+          // Show amount confirmation immediately
+          const displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
+          setTimeout(() => {
+            const confirmationMessage: MessageType = {
+              id: getUniqueId(),
+              text: `Baik, saya catat nominal transaksi Anda: Rp ${displayAmount}`,
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, confirmationMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+
+            // Check if category also needs transaction date
+            const needsTransactionDate = collectedInfo?.category &&
+              checkIfCategoryNeedsTransactionDate(collectedInfo.category);
+
+            if (needsTransactionDate) {
+              // Ask for transaction date next
+              setTimeout(() => {
+                const transactionDateMessage: MessageType = {
+                  id: getUniqueId(),
+                  text: "Sekarang mohon masukkan tanggal transaksi (DD/MM/YYYY):",
+                  isBot: true,
+                  timestamp: new Date().toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                };
+                setMessages((prev) => {
+                  const newMessages = [...prev, transactionDateMessage];
+                  AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                  return newMessages;
+                });
+                setTransactionDateRequested(true);
+              }, 1000);
+            } else {
+              // No transaction date needed, show final summary
+              setTimeout(() => {
+                const summaryText = `📋 RINGKASAN KELUHAN ANDA\n\n📍 Channel: ${collectedInfo?.channel || "Tidak tersedia"}\n\n📂 Kategori: ${collectedInfo?.category || "Tidak tersedia"}\n\n💰 Nominal: Rp ${displayAmount}\n\n📝 Deskripsi: ${collectedInfo?.ai_generated_description || collectedInfo?.description || "Tidak tersedia"}\n\nSekarang Anda dapat melanjutkan:`;
+
+                const summaryMessage: MessageType = {
+                  id: getUniqueId(),
+                  text: summaryText,
+                  isBot: true,
+                  timestamp: new Date().toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                  hasButtons: true,
+                  buttonSelected: undefined,
+                };
+
+                setMessages((prev) => {
+                  const newMessages = [...prev, summaryMessage];
+                  AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                  return newMessages;
+                });
+              }, 1500);
+            }
+          }, 500);
+        } else {
+          // Invalid amount format, show detailed error message
+          let errorText =
+            "Format tidak sesuai. Mohon masukkan nominal yang valid. ";
+
+          if (!isNumeric) {
+            errorText += "Gunakan angka saja. ";
+          } else if (amount <= 0) {
+            errorText += "Nominal harus lebih dari 0. ";
+          } else if (amount >= 999999999999) {
+            errorText += "Nominal terlalu besar. ";
+          }
+
+          errorText += "Contoh: 100000, 250000, atau Rp 1.500.000";
+
+          setTimeout(() => {
+            const errorMessage: MessageType = {
+              id: getUniqueId(),
+              text: errorText,
               isBot: true,
               timestamp: new Date().toLocaleTimeString("id-ID", {
                 hour: "2-digit",
@@ -1678,6 +2004,8 @@ Sekarang Anda dapat melanjutkan:`;
     transactionDateRequested,
     summaryShown,
     sendToChatbot,
+    collectedInfo,
+    confirmedAmount,
   ]);
 
   const quickDM = useCallback(() => {
@@ -2270,22 +2598,43 @@ Sekarang Anda dapat melanjutkan:`;
                           actualDescription
                         );
 
-                        // Check if we have amount from frontend flow
+                        // Check if we have amount - prioritize confirmedAmount first
                         let finalAmount = null;
-                        if (collectedInfo.amount) {
+                        if (confirmedAmount && parseInt(confirmedAmount) > 0) {
+                          // Use confirmed amount from user input (highest priority)
+                          finalAmount = parseInt(confirmedAmount);
+                          console.log("Using confirmedAmount for ticket:", finalAmount);
+                        } else if (collectedInfo.amount) {
                           finalAmount = parseInt(
                             collectedInfo.amount
                               .toString()
                               .replace(/[^0-9]/g, "")
                           );
+                          console.log("Using collectedInfo.amount for ticket:", finalAmount);
                         } else {
-                          // Check if amount was collected through frontend flow
+                          // Fallback to message filtering
                           const amountMessages = messages.filter(
                             (msg) =>
                               !msg.isBot &&
                               msg.text &&
-                              /^[0-9]+$/.test(msg.text.replace(/[^0-9]/g, ""))
+                              // Exclude date patterns (DD/MM/YYYY or DD-MM-YYYY)
+                              !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text) &&
+                              // Only include pure numbers or currency-like patterns
+                              /^[0-9.,\s]+$/.test(
+                                msg.text.replace(/[Rp\s]/g, "")
+                              ) &&
+                              // Ensure it's not just date digits
+                              msg.text.replace(/[^0-9]/g, "").length <= 10 &&
+                              // Must have reasonable amount value
+                              parseInt(msg.text.replace(/[^0-9]/g, "")) <
+                                999999999
                           );
+
+                          console.log(
+                            "Amount messages found:",
+                            amountMessages.map((m) => m.text)
+                          );
+
                           if (amountMessages.length > 0) {
                             const lastAmountMsg =
                               amountMessages[amountMessages.length - 1];
@@ -2295,6 +2644,7 @@ Sekarang Anda dapat melanjutkan:`;
                             );
                             if (numericAmount && parseInt(numericAmount) > 0) {
                               finalAmount = parseInt(numericAmount);
+                              console.log("Using fallback amount for ticket:", finalAmount);
                             }
                           }
                         }
@@ -2307,9 +2657,20 @@ Sekarang Anda dapat melanjutkan:`;
                             msg.text &&
                             /\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text)
                         );
+
+                        console.log(
+                          "Date messages found:",
+                          dateMessages.map((m) => m.text)
+                        );
+
                         if (dateMessages.length > 0) {
                           const lastDateMsg =
                             dateMessages[dateMessages.length - 1];
+                          console.log(
+                            "Processing date message:",
+                            lastDateMsg.text
+                          );
+
                           // Convert DD/MM/YYYY or DD-MM-YYYY to YYYY-MM-DD format
                           const dateStr = lastDateMsg.text.trim();
                           const dateParts = dateStr.split(/[\/\-]/);
@@ -2318,6 +2679,10 @@ Sekarang Anda dapat melanjutkan:`;
                             const month = dateParts[1].padStart(2, "0");
                             const year = dateParts[2];
                             finalTransactionDate = `${year}-${month}-${day}`;
+                            console.log(
+                              "Formatted transaction date:",
+                              finalTransactionDate
+                            );
                           }
                         }
 
