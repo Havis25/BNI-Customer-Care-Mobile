@@ -41,7 +41,7 @@ export default function WelcomePage() {
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.startButton}
-          onPress={() => router.push("/onboarding")}
+          onPress={() => router.replace("/onboarding")}
         >
           <Text style={styles.startButtonText}>Mulai Sekarang</Text>
         </TouchableOpacity>

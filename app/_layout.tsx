@@ -10,10 +10,11 @@ import { StatusBar as RNStatusBar } from "react-native";
 import "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect } from "react";
-
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function RootLayout() {
+  useAuthGuard();
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
