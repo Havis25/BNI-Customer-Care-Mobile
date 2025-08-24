@@ -3,10 +3,7 @@ import CallModal from "@/components/modals/CallModal";
 import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
 import UploadModal from "@/components/modals/UploadModal";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  useChannelsAndCategories,
-  Channel,
-} from "@/hooks/useChannelsAndCategories";
+import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
 import { useTerminals } from "@/hooks/useTerminals";
 import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
@@ -85,7 +82,7 @@ const MAX_MSG = 200;
 // Initial welcome message from bot
 const initialBotMessage: MessageType = {
   id: 1,
-  text: "Halo! Saya BNI Assistant. Saya siap membantu Anda dengan keluhan atau masalah perbankan. Ceritakan masalah yang Anda alami, dan saya akan membantu membuat summary tiket untuk Anda.",
+  text: "Halo saya BNI Assistant siap membantu Anda.",
   isBot: true,
   timestamp: new Date().toLocaleTimeString("id-ID", {
     hour: "2-digit",
@@ -173,25 +170,36 @@ export default function ChatScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTerminal, setSelectedTerminal] = useState<string | null>(null);
   const [editFormSelected, setEditFormSelected] = useState(false);
-  
+
   // Check if input should be disabled when buttons are active
   const isInputDisabled = useMemo(() => {
     if (isLiveChat) return false; // Always allow input in live chat
     if (ticketCreatedInSession) return false; // Allow input after ticket created
-    
+
     // Check if there are active button selections that haven't been completed
-    const hasActiveChannelButtons = messages.some(msg => 
-      msg.hasChannelButtons && !selectedChannel
+    const hasActiveChannelButtons = messages.some(
+      (msg) => msg.hasChannelButtons && !selectedChannel
     );
-    const hasActiveCategoryButtons = messages.some(msg => 
-      msg.hasCategoryButtons && !selectedCategory
+    const hasActiveCategoryButtons = messages.some(
+      (msg) => msg.hasCategoryButtons && !selectedCategory
     );
-    const hasActiveTerminalButtons = messages.some(msg => 
-      msg.hasTerminalButtons && !selectedTerminal
+    const hasActiveTerminalButtons = messages.some(
+      (msg) => msg.hasTerminalButtons && !selectedTerminal
     );
-    
-    return hasActiveChannelButtons || hasActiveCategoryButtons || hasActiveTerminalButtons;
-  }, [messages, selectedChannel, selectedCategory, selectedTerminal, isLiveChat, ticketCreatedInSession]);
+
+    return (
+      hasActiveChannelButtons ||
+      hasActiveCategoryButtons ||
+      hasActiveTerminalButtons
+    );
+  }, [
+    messages,
+    selectedChannel,
+    selectedCategory,
+    selectedTerminal,
+    isLiveChat,
+    ticketCreatedInSession,
+  ]);
 
   // Store collected info from chatbot for form preset
   const [collectedInfo, setCollectedInfo] = useState<{
@@ -867,7 +875,7 @@ Sekarang Anda dapat melanjutkan:`;
           });
         }
       } catch (error) {
-        console.error('Chatbot API error:', error);
+        console.error("Chatbot API error:", error);
         // Add error message with retry option
         const errorMessage: MessageType = {
           id: getUniqueId(),
@@ -1044,10 +1052,32 @@ Sekarang Anda dapat melanjutkan:`;
         }));
       }
 
+      // Map display name back to general category for chatbot
+      let generalCategory = category;
+      if (category.includes("PEMBAYARAN")) {
+        generalCategory = "PEMBAYARAN";
+      } else if (category.includes("TAPCASH")) {
+        generalCategory = "TAPCASH";
+      } else if (category.includes("TOP UP")) {
+        generalCategory = "TOP UP";
+      } else if (category.includes("TRANSFER")) {
+        generalCategory = "TRANSFER";
+      } else if (category.includes("TARIK TUNAI")) {
+        generalCategory = "TARIK TUNAI";
+      } else if (category.includes("SETOR TUNAI")) {
+        generalCategory = "SETOR TUNAI";
+      } else if (category.includes("MOBILE TUNAI")) {
+        generalCategory = "MOBILE TUNAI";
+      } else if (category.includes("BI FAST")) {
+        generalCategory = "BI FAST";
+      } else if (category.includes("DISPUTE") || category.includes("CHARGEBACK")) {
+        generalCategory = "DISPUTE";
+      }
+
       // Add user message showing selected category
       const userMessage: MessageType = {
         id: getUniqueId(),
-        text: category,
+        text: generalCategory, // Use general category for display
         isBot: false,
         timestamp: new Date().toLocaleTimeString("id-ID", {
           hour: "2-digit",
@@ -1062,7 +1092,7 @@ Sekarang Anda dapat melanjutkan:`;
       });
 
       // Send to chatbot API
-      sendToChatbot(category);
+      sendToChatbot(generalCategory);
     },
     [sendToChatbot, storageKey, selectedCategory]
   );
@@ -1080,12 +1110,50 @@ Sekarang Anda dapat melanjutkan:`;
       }));
 
       if (editType === "edit") {
+        // For edit mode, include collected info from chatbot as preset data
+        const params: any = {
+          mode: "edit",
+        };
+
+        // Add collected info as parameters if available
+        if (collectedInfo) {
+          if (collectedInfo.channel) {
+            params.presetChannel = collectedInfo.channel;
+          }
+          if (collectedInfo.category) {
+            params.presetCategory = collectedInfo.category;
+          }
+          if (collectedInfo.amount) {
+            params.presetAmount = collectedInfo.amount.toString();
+          }
+          if (collectedInfo.description) {
+            params.presetDescription = collectedInfo.description;
+          }
+        }
+
+        // Extract transaction date from user messages if transaction date was requested
+        if (transactionDateRequested) {
+          const dateMessages = messages.filter(
+            (msg) =>
+              !msg.isBot &&
+              msg.text &&
+              /\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text)
+          );
+
+          if (dateMessages.length > 0) {
+            const latestDateMsg = dateMessages[dateMessages.length - 1];
+            params.presetTransactionDate = latestDateMsg.text;
+          }
+        }
+
+        // Extract amount from confirmed amount or messages if available
+        if (confirmedAmount && parseInt(confirmedAmount) > 0) {
+          params.presetAmount = confirmedAmount;
+        }
+
         router.push({
           pathname: "/complaint/confirmation",
-          params: {
-            ticketId: currentTicketId || "",
-            mode: "edit",
-          },
+          params,
         });
       } else {
         // For create mode, include collected info from chatbot as preset data
@@ -1821,8 +1889,17 @@ Sekarang Anda dapat melanjutkan:`;
 
             // Show final summary with both amount and transaction date
             setTimeout(() => {
-              const displayAmount = confirmedAmount ? parseInt(confirmedAmount).toLocaleString("id-ID") : "Tidak tersedia";
-              const summaryText = `📋 RINGKASAN KELUHAN ANDA\n\n📍 Channel: ${collectedInfo?.channel || "Tidak tersedia"}\n\n📂 Kategori: ${collectedInfo?.category || "Tidak tersedia"}\n\n💰 Nominal: Rp ${displayAmount}\n\n📅 Tanggal Transaksi: ${userMessage.trim()}\n\n📝 Deskripsi: ${collectedInfo?.ai_generated_description || collectedInfo?.description || "Tidak tersedia"}\n\nSekarang Anda dapat melanjutkan:`;
+              const displayAmount = confirmedAmount
+                ? parseInt(confirmedAmount).toLocaleString("id-ID")
+                : "Tidak tersedia";
+              const summaryText = `📋 RINGKASAN KELUHAN ANDA\n\n📍 Channel: ${
+                collectedInfo?.channel || "Tidak tersedia"
+              }\n\n📂 Kategori: ${
+                collectedInfo?.category || "Tidak tersedia"
+              }\n\n💰 Nominal: Rp ${displayAmount}\n\n📅 Tanggal Transaksi: ${userMessage.trim()}\n\n📝 Deskripsi: ${
+                collectedInfo?.description ||
+                "Tidak tersedia"
+              }\n\nSekarang Anda dapat melanjutkan:`;
 
               const summaryMessage: MessageType = {
                 id: getUniqueId(),
@@ -1906,7 +1983,7 @@ Sekarang Anda dapat melanjutkan:`;
         ) {
           // Valid amount, save to confirmed amount
           setConfirmedAmount(numericAmount);
-          
+
           // Show amount confirmation immediately
           const displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
           setTimeout(() => {
@@ -1926,7 +2003,8 @@ Sekarang Anda dapat melanjutkan:`;
             });
 
             // Check if category also needs transaction date
-            const needsTransactionDate = collectedInfo?.category &&
+            const needsTransactionDate =
+              collectedInfo?.category &&
               checkIfCategoryNeedsTransactionDate(collectedInfo.category);
 
             if (needsTransactionDate) {
@@ -1951,7 +2029,14 @@ Sekarang Anda dapat melanjutkan:`;
             } else {
               // No transaction date needed, show final summary
               setTimeout(() => {
-                const summaryText = `📋 RINGKASAN KELUHAN ANDA\n\n📍 Channel: ${collectedInfo?.channel || "Tidak tersedia"}\n\n📂 Kategori: ${collectedInfo?.category || "Tidak tersedia"}\n\n💰 Nominal: Rp ${displayAmount}\n\n📝 Deskripsi: ${collectedInfo?.ai_generated_description || collectedInfo?.description || "Tidak tersedia"}\n\nSekarang Anda dapat melanjutkan:`;
+                const summaryText = `📋 RINGKASAN KELUHAN ANDA\n\n📍 Channel: ${
+                  collectedInfo?.channel || "Tidak tersedia"
+                }\n\n📂 Kategori: ${
+                  collectedInfo?.category || "Tidak tersedia"
+                }\n\n💰 Nominal: Rp ${displayAmount}\n\n📝 Deskripsi: ${
+                  collectedInfo?.description ||
+                  "Tidak tersedia"
+                }\n\nSekarang Anda dapat melanjutkan:`;
 
                 const summaryMessage: MessageType = {
                   id: getUniqueId(),
@@ -2006,7 +2091,10 @@ Sekarang Anda dapat melanjutkan:`;
         }
       } else if (!isLiveChat) {
         // Handle help command
-        if (userMessage.toLowerCase() === 'help' || userMessage.toLowerCase() === 'bantuan') {
+        if (
+          userMessage.toLowerCase() === "help" ||
+          userMessage.toLowerCase() === "bantuan"
+        ) {
           setTimeout(() => {
             const helpMessage: MessageType = {
               id: getUniqueId(),
@@ -2025,13 +2113,16 @@ Sekarang Anda dapat melanjutkan:`;
           }, 500);
           return;
         }
-        
+
         // Handle reset command
-        if (userMessage.toLowerCase() === 'reset' || userMessage.toLowerCase() === 'mulai ulang') {
+        if (
+          userMessage.toLowerCase() === "reset" ||
+          userMessage.toLowerCase() === "mulai ulang"
+        ) {
           clearChatHistory();
           return;
         }
-        
+
         // Normal chatbot flow
         sendToChatbot(userMessage);
       } else {
@@ -2523,13 +2614,10 @@ Sekarang Anda dapat melanjutkan:`;
                           return updatedMessages;
                         });
 
-                        // Get session info to extract collected data
-                        const sessionResponse = await api(`/chat/${sessionId}`);
-                        const collectedInfo =
-                          sessionResponse?.collected_info || {};
+                        // Use the collectedInfo from state instead of making API call
+                        const botCollectedInfo = collectedInfo || {};
 
-                        console.log("Full session response:", sessionResponse);
-                        console.log("Raw collected info:", collectedInfo);
+                        console.log("Bot collected info from state:", botCollectedInfo);
                         console.log("Available channels from hook:", channels);
                         console.log(
                           "Available categories from hook:",
@@ -2537,46 +2625,39 @@ Sekarang Anda dapat melanjutkan:`;
                         );
 
                         // Map bot channel to actual channel ID using utility
-                        const channelId = collectedInfo.channel
+                        const channelId = botCollectedInfo.channel
                           ? mapChatbotChannelToDatabase(
-                              collectedInfo.channel,
+                              botCollectedInfo.channel,
                               channels
                             )
                           : channels[0]?.channel_id || 1;
 
                         console.log(
                           "Channel mapping - Input:",
-                          collectedInfo.channel,
+                          botCollectedInfo.channel,
                           "Mapped ID:",
                           channelId
                         );
 
                         // Create ticket payload matching the confirmation endpoint structure
-                        // Extract the actual user description - prioritize AI generated description
+                        // Extract the actual user description - prioritize user input over AI description
                         let actualDescription = "Keluhan dari chat bot";
 
-                        // First priority: use AI generated description if available
+                        // First priority: use user's actual description if available
                         if (
-                          collectedInfo.ai_generated_description &&
-                          collectedInfo.ai_generated_description.trim() !== ""
-                        ) {
-                          actualDescription =
-                            collectedInfo.ai_generated_description;
-                        } else if (
-                          collectedInfo.description &&
-                          collectedInfo.description !==
-                            collectedInfo.ai_generated_description &&
-                          !collectedInfo.description
+                          botCollectedInfo.description &&
+                          botCollectedInfo.description.trim() !== "" &&
+                          !botCollectedInfo.description
                             .toLowerCase()
                             .includes("selamat siang") &&
-                          !collectedInfo.description
+                          !botCollectedInfo.description
                             .toLowerCase()
                             .includes("customer service") &&
-                          !collectedInfo.description
+                          !botCollectedInfo.description
                             .toLowerCase()
                             .includes("selamat sore")
                         ) {
-                          actualDescription = collectedInfo.description;
+                          actualDescription = botCollectedInfo.description;
                         } else {
                           // Fallback to conversation messages
                           const userMessages = messages.filter(
@@ -2616,9 +2697,9 @@ Sekarang Anda dapat melanjutkan:`;
                         }
 
                         // Map bot category to actual complaint ID using utility
-                        const complaintId = collectedInfo.category
+                        const complaintId = botCollectedInfo.category
                           ? mapChatbotCategoryToDatabase(
-                              collectedInfo.category,
+                              botCollectedInfo.category,
                               actualDescription,
                               categories
                             )
@@ -2626,18 +2707,14 @@ Sekarang Anda dapat melanjutkan:`;
 
                         console.log(
                           "Category mapping - Input:",
-                          collectedInfo.category,
+                          botCollectedInfo.category,
                           "Mapped ID:",
                           complaintId
                         );
 
                         console.log(
-                          "AI generated description (priority 1):",
-                          collectedInfo.ai_generated_description
-                        );
-                        console.log(
-                          "Bot collected description (priority 2):",
-                          collectedInfo.description
+                          "Bot collected description:",
+                          botCollectedInfo.description
                         );
                         console.log(
                           "Final selected description:",
@@ -2649,14 +2726,20 @@ Sekarang Anda dapat melanjutkan:`;
                         if (confirmedAmount && parseInt(confirmedAmount) > 0) {
                           // Use confirmed amount from user input (highest priority)
                           finalAmount = parseInt(confirmedAmount);
-                          console.log("Using confirmedAmount for ticket:", finalAmount);
-                        } else if (collectedInfo.amount) {
+                          console.log(
+                            "Using confirmedAmount for ticket:",
+                            finalAmount
+                          );
+                        } else if (botCollectedInfo.amount) {
                           finalAmount = parseInt(
-                            collectedInfo.amount
+                            botCollectedInfo.amount
                               .toString()
                               .replace(/[^0-9]/g, "")
                           );
-                          console.log("Using collectedInfo.amount for ticket:", finalAmount);
+                          console.log(
+                            "Using botCollectedInfo.amount for ticket:",
+                            finalAmount
+                          );
                         } else {
                           // Fallback to message filtering
                           const amountMessages = messages.filter(
@@ -2690,7 +2773,10 @@ Sekarang Anda dapat melanjutkan:`;
                             );
                             if (numericAmount && parseInt(numericAmount) > 0) {
                               finalAmount = parseInt(numericAmount);
-                              console.log("Using fallback amount for ticket:", finalAmount);
+                              console.log(
+                                "Using fallback amount for ticket:",
+                                finalAmount
+                              );
                             }
                           }
                         }
@@ -2813,16 +2899,16 @@ Sekarang Anda dapat melanjutkan:`;
                           "Final payload:",
                           JSON.stringify(ticketPayload, null, 2)
                         );
-                        console.log("Collected info from bot:", collectedInfo);
+                        console.log("Collected info from bot:", botCollectedInfo);
                         console.log(
                           "Channel mapping - Input:",
-                          collectedInfo.channel,
+                          botCollectedInfo.channel,
                           "Mapped ID:",
                           channelId
                         );
                         console.log(
                           "Category mapping - Input:",
-                          collectedInfo.category,
+                          botCollectedInfo.category,
                           "Mapped ID:",
                           complaintId
                         );
@@ -2946,7 +3032,7 @@ Sekarang Anda dapat melanjutkan:`;
                         }
                       } catch (error) {
                         console.error("Error creating ticket:", error);
-                        
+
                         // Show error message in chat instead of alert
                         const errorMessage: MessageType = {
                           id: getUniqueId(),
@@ -2959,7 +3045,10 @@ Sekarang Anda dapat melanjutkan:`;
                         };
                         setMessages((prev) => {
                           const newMessages = [...prev, errorMessage];
-                          AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                          AsyncStorage.setItem(
+                            storageKey,
+                            JSON.stringify(newMessages)
+                          );
                           return newMessages;
                         });
                       }
@@ -3189,7 +3278,7 @@ Sekarang Anda dapat melanjutkan:`;
                     const channelUpper = selectedChannel.toUpperCase();
                     const channelCode = channelUpper.replace(/\s+/g, "_");
 
-                    return (
+                      return (
                       c.channel_name === selectedChannel ||
                       c.channel_code === selectedChannel ||
                       c.channel_code === channelUpper ||
@@ -3209,13 +3298,15 @@ Sekarang Anda dapat melanjutkan:`;
                   let availableCategories = getFilteredCategories(
                     selectedChannelObj || null
                   );
+                  
 
-                  // If no categories available, show first 9 categories as fallback
+
+                  // If no categories available, show all categories as fallback
                   if (
                     !availableCategories ||
                     availableCategories.length === 0
                   ) {
-                    availableCategories = categories.slice(0, 9);
+                    availableCategories = categories;
                   }
 
                   // Map categories to display names
@@ -3412,7 +3503,7 @@ Sekarang Anda dapat melanjutkan:`;
 
                   return (
                     <View style={styles.categoryButtonContainer}>
-                      {availableCategories.slice(0, 9).map((category) => {
+                      {availableCategories.map((category) => {
                         const displayInfo = categoryDisplayMap[
                           category.complaint_code
                         ] || {
@@ -3430,66 +3521,28 @@ Sekarang Anda dapat melanjutkan:`;
                           selectedCategory &&
                           selectedCategory !== displayInfo.name;
 
+                        // Determine button style based on selection state
+                        const getButtonStyle = () => {
+                          if (isThisSelected || (selectedCategory && selectedCategory === displayInfo.name)) {
+                            return [styles.categoryButton, styles.selectedCategoryButton];
+                          } else if (isOtherSelected || globalCategorySelected) {
+                            return [styles.categoryButton, styles.disabledCategoryButton];
+                          }
+                          return styles.categoryButton;
+                        };
+
                         return (
                           <TouchableOpacity
                             key={category.complaint_id}
-                            style={[
-                              styles.categoryButton,
-                              (isOtherSelected || globalCategorySelected) &&
-                                styles.disabledCategoryButton,
-                            ]}
+                            style={getButtonStyle()}
                             activeOpacity={
                               isOtherSelected || globalCategorySelected
                                 ? 1
                                 : 0.7
                             }
                             onPress={() => {
-                              // Map back to general category for chatbot
-                              let generalCategory = displayInfo.name;
-
-                              // Map specific categories back to general ones for chatbot
-                              if (
-                                category.complaint_code.includes("PEMBAYARAN")
-                              ) {
-                                generalCategory = "PEMBAYARAN";
-                              } else if (
-                                category.complaint_code ===
-                                "TOP_UP_PRA_MIGRASI_DANA_GAGAL_TERKOREKSI"
-                              ) {
-                                generalCategory = "TAPCASH";
-                              } else if (
-                                category.complaint_code.includes("TOP_UP")
-                              ) {
-                                generalCategory = "TOP UP";
-                              } else if (
-                                category.complaint_code.includes("TRANSFER")
-                              ) {
-                                generalCategory = "TRANSFER";
-                              } else if (
-                                category.complaint_code.includes("TARIK_TUNAI")
-                              ) {
-                                generalCategory = "TARIK TUNAI";
-                              } else if (
-                                category.complaint_code.includes("SETOR_TUNAI")
-                              ) {
-                                generalCategory = "SETOR TUNAI";
-                              } else if (
-                                category.complaint_code.includes("MOBILE_TUNAI")
-                              ) {
-                                generalCategory = "MOBILE TUNAI";
-                              } else if (
-                                category.complaint_code.includes("BI_FAST")
-                              ) {
-                                generalCategory = "BI FAST";
-                              } else if (
-                                category.complaint_code.includes("DISPUTE") ||
-                                category.complaint_code.includes("CHARGEBACK")
-                              ) {
-                                generalCategory = "DISPUTE";
-                              }
-
                               handleCategorySelect(
-                                generalCategory,
+                                displayInfo.name,
                                 String(message.id)
                               );
                             }}
@@ -3742,9 +3795,13 @@ Sekarang Anda dapat melanjutkan:`;
           <TextInput
             style={[
               styles.textInput,
-              isInputDisabled && styles.disabledTextInput
+              isInputDisabled && styles.disabledTextInput,
             ]}
-            placeholder={isInputDisabled ? "Pilih dari tombol di atas..." : "Ketik pesan Anda..."}
+            placeholder={
+              isInputDisabled
+                ? "Pilih dari tombol di atas..."
+                : "Ketik pesan Anda..."
+            }
             value={inputText}
             onChangeText={setInputText}
             editable={!isInputDisabled}
@@ -4318,6 +4375,9 @@ const styles = StyleSheet.create({
   },
   disabledCategoryButton: {
     backgroundColor: "#E0E0E0",
+  },
+  selectedCategoryButton: {
+    backgroundColor: "#2E7D32", // Darker green for selected state
   },
   terminalButtonContainer: {
     flexDirection: "row",
