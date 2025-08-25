@@ -35,14 +35,38 @@ export default function FilterModal({
   hasFilters,
 }: FilterModalProps) {
   const slideAnim = useRef(new Animated.Value(300)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(slideAnim, {
-      toValue: visible ? 0 : 300,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [visible, slideAnim]);
+    if (visible) {
+      // Background appears immediately
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      
+      // Filter slides up from bottom
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // Filter slides down first, then background fades
+      Animated.timing(slideAnim, {
+        toValue: 300,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [visible, slideAnim, opacityAnim]);
 
   const toggleStatus = (status: string) => {
     setSelectedStatus((prev) =>
@@ -51,12 +75,15 @@ export default function FilterModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={onClose}
+    <Modal visible={visible} transparent animationType="none">
+      <Animated.View 
+        style={[styles.modalOverlay, { opacity: opacityAnim }]}
       >
+        <TouchableOpacity
+          style={styles.touchableOverlay}
+          activeOpacity={1}
+          onPress={onClose}
+        />
         <Animated.View
           style={[
             styles.bottomSheet,
@@ -170,7 +197,7 @@ export default function FilterModal({
             </TouchableOpacity>
           </View>
         </Animated.View>
-      </TouchableOpacity>
+      </Animated.View>
     </Modal>
   );
 }
@@ -180,6 +207,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
+  },
+  touchableOverlay: {
+    flex: 1,
   },
   bottomSheet: {
     backgroundColor: "#fff",
