@@ -10,6 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.bni.bcare",
       "splash": {
         "image": "./assets/images/bcare-transparant.png",
         "resizeMode": "contain",
@@ -18,7 +19,9 @@
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "NSCameraUsageDescription": "B-Care needs access to your camera for video calls with agents",
+        "NSMicrophoneUsageDescription": "B-Care needs access to your microphone for audio and video calls"
       }
     },
     "android": {
@@ -32,7 +35,17 @@
         "backgroundColor": "#E0EE59"
       },
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "package": "com.bni.bcare",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -51,7 +64,21 @@
         }
       ],
       "expo-font",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow B-Care to access your camera for video calls",
+          "microphonePermission": "Allow B-Care to access your microphone for calls",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow B-Care to access your microphone for audio calls"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

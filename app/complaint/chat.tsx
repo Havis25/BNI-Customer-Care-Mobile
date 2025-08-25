@@ -20,6 +20,7 @@ import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { Audio } from "expo-av";
 import { router, useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
@@ -75,7 +76,7 @@ type MessageType = {
 };
 
 type Peer = { sid: string; userId: string };
-type CallStatus = "idle" | "ringing" | "in-call";
+type CallStatus = "idle" | "ringing" | "in-call" | "audio-call";
 
 const MAX_MSG = 200;
 
@@ -155,6 +156,12 @@ export default function ChatScreen() {
   const camRef = useRef<React.ElementRef<typeof CameraView> | null>(null);
   const frameTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const FPS = 1.5;
+  
+  // Audio call states
+  const [audioRecording, setAudioRecording] = useState<Audio.Recording | null>(null);
+  const [audioSound, setAudioSound] = useState<Audio.Sound | null>(null);
+  const [isAudioCall, setIsAudioCall] = useState(false);
+  const [audioPermission, setAudioPermission] = useState<boolean>(false);
   const [inputText, setInputText] = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
@@ -1703,6 +1710,13 @@ Sekarang Anda dapat melanjutkan:`;
       setCallStartTime(Date.now());
       startStreaming();
     };
+    
+    const onAudioCallAccepted = () => {
+      setCallStatus("audio-call");
+      setIsAudioCall(true);
+      setCallStartTime(Date.now());
+      startAudioCall();
+    };
     const onDeclined = () => {
       setCallStatus("idle");
       setShowCallModal(false);
@@ -1731,9 +1745,11 @@ Sekarang Anda dapat melanjutkan:`;
         setCallStartTime(null);
       }
       stopStreaming();
+      stopAudioCall();
       setCallStatus("idle");
       setRemoteFrame(null);
       setShowCallModal(false);
+      setIsAudioCall(false);
     };
     const onFrame = ({ data }: { data: string }) => setRemoteFrame(data);
 
@@ -1758,6 +1774,8 @@ Sekarang Anda dapat melanjutkan:`;
     s.on("call:declined", onDeclined);
     s.on("call:ended", onEnded);
     s.on("call:frame", onFrame);
+    s.on("audio:accepted", onAudioCallAccepted);
+    s.on("audio:data", onAudioData);
     s.on("ticket:context", onTicketContext);
 
     if (uid) {
@@ -1776,6 +1794,8 @@ Sekarang Anda dapat melanjutkan:`;
       s.off("call:declined", onDeclined);
       s.off("call:ended", onEnded);
       s.off("call:frame", onFrame);
+      s.off("audio:accepted", onAudioCallAccepted);
+      s.off("audio:data", onAudioData);
       s.off("ticket:context", onTicketContext);
       if (uid) s.emit("leave", { room: ACTIVE_ROOM, userId: uid });
     };
@@ -2170,24 +2190,106 @@ Sekarang Anda dapat melanjutkan:`;
       const r = await requestPermission();
       if (!r.granted) return Alert.alert("Izin kamera ditolak");
     }
-    frameTimer.current = setInterval(async () => {
-      try {
-        const cam: any = camRef.current;
-        if (!cam?.takePictureAsync) return;
-        const photo = await cam.takePictureAsync({
-          quality: Platform.OS === "ios" ? 0.2 : 0.15,
-          base64: true,
-          skipProcessing: true,
-        });
-        if (photo?.base64)
-          socket.emit("call:frame", { room: ACTIVE_ROOM, data: photo.base64 });
-      } catch {}
-    }, 1000 / FPS);
+    // Real-time video streaming without capture
+    frameTimer.current = setInterval(() => {
+      socket.emit("call:stream", { room: ACTIVE_ROOM, isStreaming: true });
+    }, 1000);
   }, [permission?.granted, requestPermission, ACTIVE_ROOM, socket]);
 
   const stopStreaming = useCallback(() => {
     if (frameTimer.current) clearInterval(frameTimer.current);
     frameTimer.current = null;
+  }, []);
+
+  // Audio call functions
+  const requestAudioPermission = useCallback(async () => {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      setAudioPermission(status === 'granted');
+      return status === 'granted';
+    } catch (error) {
+      console.error('Error requesting audio permission:', error);
+      return false;
+    }
+  }, []);
+
+  const startAudioCall = useCallback(async () => {
+    try {
+      if (!audioPermission) {
+        const granted = await requestAudioPermission();
+        if (!granted) {
+          Alert.alert('Izin Audio Ditolak', 'Aplikasi memerlukan izin mikrofon untuk panggilan suara.');
+          return;
+        }
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setAudioRecording(recording);
+
+      // Start sending audio data to socket
+      const audioInterval = setInterval(async () => {
+        try {
+          if (recording) {
+            const status = await recording.getStatusAsync();
+            if (status.isRecording) {
+              socket.emit('audio:data', { 
+                room: ACTIVE_ROOM, 
+                timestamp: Date.now(),
+                isTransmitting: true 
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error in audio transmission:', error);
+        }
+      }, 100);
+
+      (recording as any).audioInterval = audioInterval;
+
+    } catch (error) {
+      console.error('Error starting audio call:', error);
+      Alert.alert('Error', 'Gagal memulai panggilan suara');
+    }
+  }, [audioPermission, requestAudioPermission, socket, ACTIVE_ROOM]);
+
+  const stopAudioCall = useCallback(async () => {
+    try {
+      if (audioRecording) {
+        if ((audioRecording as any).audioInterval) {
+          clearInterval((audioRecording as any).audioInterval);
+        }
+        
+        await audioRecording.stopAndUnloadAsync();
+        setAudioRecording(null);
+      }
+      
+      if (audioSound) {
+        await audioSound.unloadAsync();
+        setAudioSound(null);
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: false,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      });
+    } catch (error) {
+      console.error('Error stopping audio call:', error);
+    }
+  }, [audioRecording, audioSound]);
+
+  const onAudioData = useCallback(({ data, timestamp }: { data: any, timestamp: number }) => {
+    console.log('Received audio data at:', timestamp);
   }, []);
 
   const placeCall = () => {
@@ -2202,18 +2304,43 @@ Sekarang Anda dapat melanjutkan:`;
     setCallStatus("ringing");
   };
 
+  const placeAudioCall = () => {
+    if (peerCount < 2) {
+      Alert.alert(
+        "Peer tidak tersedia",
+        "Pastikan ada 2 user yang login untuk audio call."
+      );
+      return;
+    }
+    socket.emit("audio:invite", { room: ACTIVE_ROOM });
+    setCallStatus("ringing");
+    setIsAudioCall(true);
+  };
+
   const acceptCall = () => {
-    socket.emit("call:accept", { room: ACTIVE_ROOM });
-    setCallStatus("in-call");
-    setShowCallModal(true);
-    setCallStartTime(Date.now());
-    startStreaming();
+    if (isAudioCall) {
+      socket.emit("audio:accept", { room: ACTIVE_ROOM });
+      setCallStatus("audio-call");
+      setCallStartTime(Date.now());
+      startAudioCall();
+    } else {
+      socket.emit("call:accept", { room: ACTIVE_ROOM });
+      setCallStatus("in-call");
+      setShowCallModal(true);
+      setCallStartTime(Date.now());
+      startStreaming();
+    }
   };
 
   const declineCall = () => {
-    socket.emit("call:decline", { room: ACTIVE_ROOM });
+    if (isAudioCall) {
+      socket.emit("audio:decline", { room: ACTIVE_ROOM });
+    } else {
+      socket.emit("call:decline", { room: ACTIVE_ROOM });
+    }
     setCallStatus("idle");
     setShowCallModal(false);
+    setIsAudioCall(false);
   };
 
   const hangupCall = () => {
@@ -2225,9 +2352,10 @@ Sekarang Anda dapat melanjutkan:`;
         .toString()
         .padStart(2, "0")}`;
 
+      const callType = isAudioCall ? "🎤 Panggilan suara" : "📞 Panggilan video";
       const callEndMessage = {
         id: getUniqueId(),
-        text: `📞 Panggilan selesai • Durasi: ${durationText}`,
+        text: `${callType} selesai • Durasi: ${durationText}`,
         isBot: true,
         timestamp: new Date().toLocaleTimeString("id-ID", {
           hour: "2-digit",
@@ -2238,15 +2366,23 @@ Sekarang Anda dapat melanjutkan:`;
       setMessages((prev) => [...prev, callEndMessage]);
       setCallStartTime(null);
     }
-    socket.emit("call:hangup", { room: ACTIVE_ROOM });
-    stopStreaming();
+    
+    if (isAudioCall) {
+      socket.emit("audio:hangup", { room: ACTIVE_ROOM });
+      stopAudioCall();
+    } else {
+      socket.emit("call:hangup", { room: ACTIVE_ROOM });
+      stopStreaming();
+    }
+    
     setCallStatus("idle");
     setRemoteFrame(null);
+    setIsAudioCall(false);
   };
 
   // Handler for validation button selection
   const handleValidationSelect = useCallback(
-    (validationType: "call" | "chat", messageId: string) => {
+    (validationType: "call" | "chat" | "audio", messageId: string) => {
       // Update button group states to disable other options
       setButtonGroupStates((prev) => ({
         ...prev,
@@ -2258,6 +2394,8 @@ Sekarang Anda dapat melanjutkan:`;
 
       if (validationType === "call") {
         placeCall();
+      } else if (validationType === "audio") {
+        placeAudioCall();
       } else {
         setIsLiveChat(true);
 
@@ -2504,28 +2642,45 @@ Sekarang Anda dapat melanjutkan:`;
 
                   <Text style={styles.timestamp}>{message.timestamp}</Text>
                 </View>
-                {/* Call icon only for bot messages when live chat is active */}
+                {/* Call icons only for bot messages when live chat is active */}
                 {isLiveChat &&
                   message.isBot &&
                   !message.hasButtons &&
                   !message.hasValidationButtons &&
                   !message.hasLiveChatButtons &&
                   !message.isCallLog && (
-                    <TouchableOpacity
-                      style={styles.callIcon}
-                      onPress={() => {
-                        if (peerCount >= 2) {
-                          placeCall();
-                        } else {
-                          Alert.alert(
-                            "Agent tidak tersedia",
-                            "Sedang mencari agent untuk panggilan..."
-                          );
-                        }
-                      }}
-                    >
-                      <MaterialIcons name="call" size={20} color="#4CAF50" />
-                    </TouchableOpacity>
+                    <View style={styles.callIconsContainer}>
+                      <TouchableOpacity
+                        style={styles.callIcon}
+                        onPress={() => {
+                          if (peerCount >= 2) {
+                            placeCall();
+                          } else {
+                            Alert.alert(
+                              "Agent tidak tersedia",
+                              "Sedang mencari agent untuk panggilan video..."
+                            );
+                          }
+                        }}
+                      >
+                        <MaterialIcons name="videocam" size={20} color="#4CAF50" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.callIcon}
+                        onPress={() => {
+                          if (peerCount >= 2) {
+                            placeAudioCall();
+                          } else {
+                            Alert.alert(
+                              "Agent tidak tersedia",
+                              "Sedang mencari agent untuk panggilan suara..."
+                            );
+                          }
+                        }}
+                      >
+                        <MaterialIcons name="mic" size={20} color="#FF8636" />
+                      </TouchableOpacity>
+                    </View>
                   )}
               </View>
               {message.hasButtons && (
@@ -3123,7 +3278,7 @@ Sekarang Anda dapat melanjutkan:`;
                     }}
                   >
                     <MaterialIcons
-                      name="call"
+                      name="videocam"
                       size={16}
                       color={
                         buttonGroupStates[String(message.id)]?.selectedValue ===
@@ -3140,7 +3295,55 @@ Sekarang Anda dapat melanjutkan:`;
                           "chat" && { color: "#999" },
                       ]}
                     >
-                      Call
+                      Video
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.audioButton,
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                        "chat" && styles.disabledButton,
+                    ]}
+                    activeOpacity={
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                      "chat"
+                        ? 1
+                        : 0.7
+                    }
+                    disabled={
+                      buttonGroupStates[String(message.id)]?.selectedValue ===
+                      "chat"
+                    }
+                    onPress={() => {
+                      if (peerCount < 2) {
+                        Alert.alert(
+                          "Agent Tidak Tersedia",
+                          "Tidak ada agent yang tersedia untuk panggilan suara saat ini."
+                        );
+                        return;
+                      }
+                      handleValidationSelect("audio", String(message.id));
+                    }}
+                  >
+                    <MaterialIcons
+                      name="mic"
+                      size={16}
+                      color={
+                        buttonGroupStates[String(message.id)]?.selectedValue ===
+                        "chat"
+                          ? "#999"
+                          : "#FFF"
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        { fontSize: 12 },
+                        buttonGroupStates[String(message.id)]?.selectedValue ===
+                          "chat" && { color: "#999" },
+                      ]}
+                    >
+                      Audio
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -4118,6 +4321,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 4,
+  },
+  callIconsContainer: {
+    flexDirection: "column",
+    gap: 4,
+  },
+  audioButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF8636",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 4,
   },
   callButton: {
     flexDirection: "row",
