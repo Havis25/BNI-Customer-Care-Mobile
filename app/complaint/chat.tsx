@@ -447,174 +447,8 @@ export default function ChatScreen() {
           setCollectedInfo(response.collected_info);
         }
 
-        // Handle amount confirmation - check if transaction date is also needed
-        if (
-          amountRequested &&
-          !transactionDateRequested &&
-          (response.message.toLowerCase().includes("mohon konfirmasi") ||
-            response.message.toLowerCase().includes("apakah data") ||
-            response.message.toLowerCase().includes("sudah benar"))
-        ) {
-          // Get the most recent amount input from user messages
-          const amountMessages = messages.filter(
-            (msg) =>
-              !msg.isBot &&
-              msg.text &&
-              !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text) &&
-              /^[0-9.,\s]+$/.test(msg.text.replace(/[Rp\s]/g, "")) &&
-              msg.text.replace(/[^0-9]/g, "").length <= 10 &&
-              parseInt(msg.text.replace(/[^0-9]/g, "")) < 999999999
-          );
-
-          let displayAmount = "Tidak tersedia";
-          let confirmedAmountValue = null;
-          if (amountMessages.length > 0) {
-            const lastAmount = amountMessages[amountMessages.length - 1];
-            const numericAmount = lastAmount.text.replace(/[^0-9]/g, "");
-            if (numericAmount && parseInt(numericAmount) > 0) {
-              displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
-              confirmedAmountValue = numericAmount;
-            }
-          }
-
-          // Save the confirmed amount to state
-          setConfirmedAmount(confirmedAmountValue);
-
-          const confirmationMessage: MessageType = {
-            id: getUniqueId(),
-            text: `Baik, saya catat nominal transaksi Anda: Rp ${displayAmount}. Apakah nominal ini sudah benar?`,
-            isBot: true,
-            timestamp: new Date().toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          };
-
-          setMessages((prev) => {
-            const newMessages = [...prev, confirmationMessage];
-            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-            return newMessages;
-          });
-
-          // Check if category also needs transaction date
-          const needsTransactionDate =
-            response.collected_info?.category &&
-            checkIfCategoryNeedsTransactionDate(
-              response.collected_info.category
-            );
-
-          if (needsTransactionDate) {
-            // Ask for transaction date next
-            setTimeout(() => {
-              const transactionDateMessage: MessageType = {
-                id: getUniqueId(),
-                text: "Terima kasih. Sekarang mohon masukkan tanggal transaksi (DD/MM/YYYY):",
-                isBot: true,
-                timestamp: new Date().toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-              };
-              setMessages((prev) => {
-                const newMessages = [...prev, transactionDateMessage];
-                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-                return newMessages;
-              });
-              setTransactionDateRequested(true);
-            }, 1500);
-            return;
-          } else {
-            // No transaction date needed, show summary after delay
-            setTimeout(() => {
-              setMessages((currentMessages) => {
-                console.log(
-                  "Amount confirmation - Using confirmed amount:",
-                  confirmedAmount
-                );
-
-                let displayAmount = "Tidak tersedia";
-                // Use the confirmed amount first (priority)
-                if (confirmedAmount) {
-                  console.log("Using confirmed amount:", confirmedAmount);
-                  displayAmount =
-                    parseInt(confirmedAmount).toLocaleString("id-ID");
-                } else if (response.collected_info?.amount) {
-                  console.log(
-                    "Using amount from collected_info:",
-                    response.collected_info.amount
-                  );
-                  displayAmount =
-                    typeof response.collected_info.amount === "number"
-                      ? response.collected_info.amount.toLocaleString("id-ID")
-                      : response.collected_info.amount.toString();
-                } else {
-                  // Fallback to message filtering (should not happen if confirmedAmount is set)
-                  const amountMessages = currentMessages.filter(
-                    (msg) =>
-                      !msg.isBot &&
-                      msg.text &&
-                      !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text) &&
-                      /^[0-9.,\s]+$/.test(msg.text.replace(/[Rp\s]/g, "")) &&
-                      msg.text.replace(/[^0-9]/g, "").length <= 10 &&
-                      parseInt(msg.text.replace(/[^0-9]/g, "")) < 999999999
-                  );
-
-                  if (amountMessages.length > 0) {
-                    const lastAmount =
-                      amountMessages[amountMessages.length - 1];
-                    const numericAmount = lastAmount.text.replace(
-                      /[^0-9]/g,
-                      ""
-                    );
-                    if (numericAmount) {
-                      console.log(
-                        "Fallback: Using amount from message:",
-                        lastAmount.text,
-                        "->",
-                        numericAmount
-                      );
-                      displayAmount =
-                        parseInt(numericAmount).toLocaleString("id-ID");
-                    }
-                  }
-                }
-
-                const summaryText = `📋 RINGKASAN KELUHAN ANDA
-
-📍 Channel: ${response.collected_info?.channel || "Tidak tersedia"}
-
-📂 Kategori: ${response.collected_info?.category || "Tidak tersedia"}
-
-💰 Nominal: Rp ${displayAmount}
-
-📝 Deskripsi: ${
-                  response.collected_info?.ai_generated_description ||
-                  response.collected_info?.description ||
-                  "Tidak tersedia"
-                }
-
-Sekarang Anda dapat melanjutkan:`;
-
-                const summaryMessage: MessageType = {
-                  id: getUniqueId(),
-                  text: summaryText,
-                  isBot: true,
-                  timestamp: new Date().toLocaleTimeString("id-ID", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }),
-                  hasButtons: true,
-                  buttonSelected: undefined,
-                };
-
-                const newMessages = [...currentMessages, summaryMessage];
-                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-                return newMessages;
-              });
-            }, 1500);
-            return;
-          }
-        }
+        // Skip amount confirmation logic here - will be handled in handleSendMessage
+        // This prevents duplicate processing of amount confirmation
 
         // Handle transaction date confirmation - create summary with all info
         if (
@@ -744,6 +578,9 @@ Sekarang Anda dapat melanjutkan:`;
           validationSelected: undefined,
         };
 
+        // Handle direct channel/category detection from bot response
+        const messageText = response.message?.toLowerCase() || "";
+
         setMessages((prev) => {
           const newMessages = [...prev, botMessage];
           // Save messages to storage
@@ -751,23 +588,39 @@ Sekarang Anda dapat melanjutkan:`;
           return newMessages;
         });
 
-        // Add buttons directly to summary message (no separate follow-up)
-        if (
-          !summaryShown &&
-          (response.next_step === "summary_complete" ||
-            response.action === "summary_complete" ||
-            response.action === "ready_for_confirmation" ||
-            response.message.toLowerCase().includes("summary") ||
-            response.message.toLowerCase().includes("ringkasan") ||
-            response.message.toLowerCase().includes("kategori:") ||
-            response.message.toLowerCase().includes("deskripsi:"))
-        ) {
+        // Handle summary detection and amount flow
+        const isSummaryMessage = 
+          response.next_step === "summary_complete" ||
+          response.action === "summary_complete" ||
+          response.action === "ready_for_confirmation" ||
+          response.message.toLowerCase().includes("summary") ||
+          response.message.toLowerCase().includes("ringkasan") ||
+          response.message.toLowerCase().includes("kategori:") ||
+          response.message.toLowerCase().includes("deskripsi:");
+
+        // Check if bot is asking for description after category selection
+        const isDescriptionRequest = 
+          messageText.includes("deskripsi") ||
+          messageText.includes("ceritakan") ||
+          messageText.includes("jelaskan") ||
+          messageText.includes("detail") ||
+          (messageText.includes("masalah") && messageText.includes("anda"));
+
+        if (isDescriptionRequest && selectedChannel && selectedCategory && !summaryShown) {
+          console.log("Bot is asking for description after channel and category selection");
+          // Don't add any special handling - let user type description freely
+          return;
+        }
+
+        if (isSummaryMessage && !summaryShown) {
           setSummaryShown(true);
 
           // Check if category requires amount using mapping utility
           const needsAmount =
             response.collected_info?.category &&
             checkIfCategoryNeedsAmount(response.collected_info.category);
+
+          console.log("Summary detected - needsAmount:", needsAmount, "amountRequested:", amountRequested);
 
           if (needsAmount && !amountRequested) {
             // Ask for amount first, don't show buttons yet
@@ -788,12 +641,21 @@ Sekarang Anda dapat melanjutkan:`;
               });
               setAmountRequested(true);
             }, 1000);
+            return; // Exit early to prevent showing buttons
           } else if (!needsAmount) {
             // Only show buttons if no amount is needed
-            botMessage.hasButtons = true;
-            botMessage.buttonSelected = undefined;
+            setTimeout(() => {
+              setMessages((prev) => {
+                const updatedMessages = prev.map((msg) =>
+                  msg.id === botMessage.id
+                    ? { ...msg, hasButtons: true, buttonSelected: undefined }
+                    : msg
+                );
+                AsyncStorage.setItem(storageKey, JSON.stringify(updatedMessages));
+                return updatedMessages;
+              });
+            }, 500);
           }
-          // If amount is needed but already requested, don't show buttons yet
 
           // Save updated session state
           await AsyncStorage.setItem(
@@ -802,16 +664,13 @@ Sekarang Anda dapat melanjutkan:`;
               sessionId,
               summaryShown: true,
               ticketCreatedInSession,
-              amountRequested,
+              amountRequested: needsAmount ? true : amountRequested,
               transactionDateRequested,
               selectedTerminal,
               confirmedAmount,
             })
           );
         }
-
-        // Handle direct channel/category detection from bot response
-        const messageText = response.message?.toLowerCase() || "";
 
         // Check if bot is asking for amount (before summary)
         if (
@@ -822,6 +681,8 @@ Sekarang Anda dapat melanjutkan:`;
           (messageText.includes("transaksi") &&
             (messageText.includes("berapa") || messageText.includes("nominal")))
         ) {
+          console.log("Bot is asking for amount - setting amountRequested to true");
+          setAmountRequested(true);
           // Don't add any buttons for amount input - let user type freely
           return;
         }
@@ -1956,6 +1817,18 @@ Sekarang Anda dapat melanjutkan:`;
       const userMessage = inputText.trim();
       const now = Date.now();
 
+      console.log("=== HANDLE SEND MESSAGE ===");
+      console.log("User message:", userMessage);
+      console.log("Current state:", {
+        amountRequested,
+        transactionDateRequested,
+        summaryShown,
+        isLiveChat,
+        selectedChannel,
+        selectedCategory,
+        collectedInfo
+      });
+
       // Add user message to chat immediately
       const outgoing: MessageType = {
         id: `m_${now}`,
@@ -1980,7 +1853,7 @@ Sekarang Anda dapat melanjutkan:`;
       setInputText("");
 
       // Check if this is transaction date input
-      if (transactionDateRequested && summaryShown && !isLiveChat) {
+      if (transactionDateRequested && !isLiveChat) {
         // Validate transaction date input
         const datePattern = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/;
         if (datePattern.test(userMessage.trim())) {
@@ -2011,7 +1884,9 @@ Sekarang Anda dapat melanjutkan:`;
               }\n\n📂 Kategori: ${
                 collectedInfo?.category || "Tidak tersedia"
               }\n\n💰 Nominal: Rp ${displayAmount}\n\n📅 Tanggal Transaksi: ${userMessage.trim()}\n\n📝 Deskripsi: ${
-                collectedInfo?.description || "Tidak tersedia"
+                collectedInfo?.ai_generated_description ||
+                collectedInfo?.description ||
+                "Tidak tersedia"
               }\n\nSekarang Anda dapat melanjutkan:`;
 
               const summaryMessage: MessageType = {
@@ -2054,7 +1929,7 @@ Sekarang Anda dapat melanjutkan:`;
         }
       }
       // Check if this is amount input after summary
-      else if (amountRequested && summaryShown && !isLiveChat) {
+      else if (amountRequested && !isLiveChat && !transactionDateRequested) {
         // Validate amount input with more comprehensive checks
         const cleanInput = userMessage.trim();
 
@@ -2147,7 +2022,9 @@ Sekarang Anda dapat melanjutkan:`;
                 }\n\n📂 Kategori: ${
                   collectedInfo?.category || "Tidak tersedia"
                 }\n\n💰 Nominal: Rp ${displayAmount}\n\n📝 Deskripsi: ${
-                  collectedInfo?.description || "Tidak tersedia"
+                  collectedInfo?.ai_generated_description ||
+                  collectedInfo?.description ||
+                  "Tidak tersedia"
                 }\n\nSekarang Anda dapat melanjutkan:`;
 
                 const summaryMessage: MessageType = {
@@ -2201,6 +2078,12 @@ Sekarang Anda dapat melanjutkan:`;
             });
           }, 500);
         }
+      }
+      // Handle description input after channel and category selection
+      else if (selectedChannel && selectedCategory && !summaryShown && !amountRequested && !isLiveChat) {
+        console.log("Processing description input after channel and category selection");
+        // Send description to chatbot - this should trigger summary
+        sendToChatbot(userMessage);
       } else if (!isLiveChat) {
         // Handle help command
         if (
@@ -2255,6 +2138,10 @@ Sekarang Anda dapat melanjutkan:`;
     sendToChatbot,
     collectedInfo,
     confirmedAmount,
+    selectedChannel,
+    selectedCategory,
+    clearChatHistory,
+    isInputDisabled,
   ]);
 
   const quickDM = useCallback(() => {
