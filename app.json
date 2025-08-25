@@ -24,6 +24,11 @@
         "foregroundImage": "./assets/images/bcare-transparant.png",
         "backgroundColor": "#E0EE59"
       },
+      "splash": {
+        "image": "./assets/images/bcare-transparant.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#E0EE59"
+      },
       "edgeToEdgeEnabled": true,
       "usesCleartextTraffic": true,
       "package": "com.bni.bcare",
