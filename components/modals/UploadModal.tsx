@@ -2,9 +2,10 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Alert,
+  Animated,
   Image,
   Linking,
   Modal,
@@ -43,6 +44,39 @@ export default function UploadModal({
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [fileType, setFileType] = useState<'image' | 'document' | null>(null);
   const [uploading, setUploading] = useState(false);
+  const slideAnim = useRef(new Animated.Value(300)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      // Background appears immediately
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      
+      // Modal slides up from bottom
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // Modal slides down first, then background fades
+      Animated.timing(slideAnim, {
+        toValue: 300,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [visible, slideAnim, opacityAnim]);
 
   const handleImageSelect = async () => {
     try {
@@ -340,10 +374,21 @@ export default function UploadModal({
     <Modal
       visible={visible}
       transparent={true}
-      animationType="slide"
+      animationType="none"
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.uploadModal}>
+      <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
+        <TouchableOpacity
+          style={styles.touchableOverlay}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
+        <Animated.View 
+          style={[
+            styles.uploadModal,
+            { transform: [{ translateY: slideAnim }] }
+          ]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.uploadHeader}>
             <Text style={styles.uploadTitle}>Upload File</Text>
             <TouchableOpacity onPress={handleClose}>
@@ -455,8 +500,8 @@ export default function UploadModal({
               </View>
             </View>
           )}
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -466,6 +511,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
+  },
+  touchableOverlay: {
+    flex: 1,
   },
   uploadModal: {
     backgroundColor: "#FFF",

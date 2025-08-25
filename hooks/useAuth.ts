@@ -81,7 +81,12 @@ export function useAuth() {
 
   const login = useCallback(async (email: string, password: string) => {
     if (!email || !password) {
-      Alert.alert("Error", "Email dan password harus diisi");
+      Alert.alert("Login Gagal", "Email dan password harus diisi");
+      return;
+    }
+    
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      Alert.alert("Login Gagal", "Format email tidak valid");
       return;
     }
 
@@ -133,12 +138,19 @@ export function useAuth() {
       setUser(fullUserData);
       router.replace("/(tabs)");
     } catch (error: any) {
-      const msg =
-        typeof error?.message === "string" &&
-        (error.message.includes("401") || /unauthorized|invalid/i.test(error.message))
-          ? "Email atau password salah"
-          : "Gagal login. Periksa koneksi atau coba lagi.";
-      Alert.alert("Error", msg);
+      let msg = "Gagal login. Periksa koneksi atau coba lagi.";
+      
+      if (typeof error?.message === "string") {
+        if (error.message.includes("401") || /unauthorized|invalid|wrong|incorrect/i.test(error.message)) {
+          msg = "Email atau password salah";
+        } else if (error.message.includes("404") || /not found|user not found/i.test(error.message)) {
+          msg = "Email tidak terdaftar";
+        } else if (error.message.includes("400") || /bad request|validation/i.test(error.message)) {
+          msg = "Format email atau password tidak valid";
+        }
+      }
+      
+      Alert.alert("Login Gagal", msg);
     } finally {
       setIsLoading(false);
       setIsLoginInProgress(false);
