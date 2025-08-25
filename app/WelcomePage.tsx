@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../constants/Colors";
 
 export default function WelcomePage() {
-  const [splashDone, setSplashDone] = useState(Platform.OS === 'ios');
+  const [splashDone, setSplashDone] = useState(true); // Disable custom splash - use native only
 
   if (!splashDone) {
     return <Splashscreen onFinish={() => setSplashDone(true)} />;
