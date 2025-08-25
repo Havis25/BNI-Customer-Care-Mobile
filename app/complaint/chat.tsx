@@ -1,5 +1,5 @@
 import BottomSheet from "@/components/modals/BottomSheet";
-import CallModal from "@/components/modals/CallModal";
+// CallModal removed - using simple modal for audio calls
 import TicketSummaryModal from "@/components/modals/TicketSummaryModal";
 import UploadModal from "@/components/modals/UploadModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +19,7 @@ import {
 import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CameraView, useCameraPermissions } from "expo-camera";
+// Camera removed - audio only implementation
 import WebRTCService from "@/src/services/webrtc";
 import { router, useLocalSearchParams } from "expo-router";
 import React, {
@@ -148,20 +148,12 @@ export default function ChatScreen() {
   const [activePeers, setActivePeers] = useState<Peer[]>([]);
   const [peerCount, setPeerCount] = useState(1);
   const [showLiveChatModal, setShowLiveChatModal] = useState(false);
-  const [showCallModal, setShowCallModal] = useState(false);
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
   const [isLiveChat, setIsLiveChat] = useState(false);
-  const [remoteFrame, setRemoteFrame] = useState<string | null>(null);
-  const [permission, requestPermission] = useCameraPermissions();
-  const camRef = useRef<React.ElementRef<typeof CameraView> | null>(null);
-  const frameTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const FPS = 1.5;
-  
-  // Audio/Video call states
+
+  // Audio call states only
   const [isAudioCall, setIsAudioCall] = useState(false);
-  const [isVideoCall, setIsVideoCall] = useState(false);
   const [localStream, setLocalStream] = useState<any>(null);
-  const [remoteStream, setRemoteStream] = useState<any>(null);
   const [inputText, setInputText] = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
@@ -1077,7 +1069,10 @@ Sekarang Anda dapat melanjutkan:`;
         generalCategory = "MOBILE TUNAI";
       } else if (category.includes("BI FAST")) {
         generalCategory = "BI FAST";
-      } else if (category.includes("DISPUTE") || category.includes("CHARGEBACK")) {
+      } else if (
+        category.includes("DISPUTE") ||
+        category.includes("CHARGEBACK")
+      ) {
         generalCategory = "DISPUTE";
       }
 
@@ -1702,15 +1697,12 @@ Sekarang Anda dapat melanjutkan:`;
     // Call handlers
     const onRinging = () => {
       setCallStatus("ringing");
-      setShowCallModal(true);
     };
     const onAccepted = () => {
-      setCallStatus("in-call");
-      setShowCallModal(true);
+      setCallStatus("audio-call");
       setCallStartTime(Date.now());
-      startStreaming();
     };
-    
+
     const onAudioCallAccepted = () => {
       setCallStatus("audio-call");
       setIsAudioCall(true);
@@ -1719,8 +1711,6 @@ Sekarang Anda dapat melanjutkan:`;
     };
     const onDeclined = () => {
       setCallStatus("idle");
-      setShowCallModal(false);
-      setRemoteFrame(null);
     };
     const onEnded = () => {
       if (callStartTime) {
@@ -1744,14 +1734,11 @@ Sekarang Anda dapat melanjutkan:`;
         setMessages((prev) => [...prev, callEndMessage]);
         setCallStartTime(null);
       }
-      stopStreaming();
       stopCall();
       setCallStatus("idle");
-      setRemoteFrame(null);
-      setShowCallModal(false);
       setIsAudioCall(false);
     };
-    const onFrame = ({ data }: { data: string }) => setRemoteFrame(data);
+    // Frame handling removed - audio only
 
     const onTicketContext = ({
       ticketId,
@@ -1773,7 +1760,7 @@ Sekarang Anda dapat melanjutkan:`;
     s.on("call:accepted", onAccepted);
     s.on("call:declined", onDeclined);
     s.on("call:ended", onEnded);
-    s.on("call:frame", onFrame);
+    // s.on("call:frame", onFrame); // Removed - audio only
     s.on("audio:accepted", onAudioCallAccepted);
     // s.on("audio:data", onAudioData); // Removed - WebRTC handles audio directly
     s.on("ticket:context", onTicketContext);
@@ -1793,7 +1780,7 @@ Sekarang Anda dapat melanjutkan:`;
       s.off("call:accepted", onAccepted);
       s.off("call:declined", onDeclined);
       s.off("call:ended", onEnded);
-      s.off("call:frame", onFrame);
+      // s.off("call:frame", onFrame); // Removed - audio only
       s.off("audio:accepted", onAudioCallAccepted);
       // s.off("audio:data", onAudioData); // Removed - WebRTC handles audio directly
       s.off("ticket:context", onTicketContext);
@@ -1825,8 +1812,6 @@ Sekarang Anda dapat melanjutkan:`;
       setActivePeers([]);
       setPeerCount(1);
       setCallStatus("idle");
-      setRemoteFrame(null);
-      setShowCallModal(false);
       setCallStartTime(null);
       setSummaryShown(false);
       setTicketCreatedInSession(false);
@@ -1917,8 +1902,7 @@ Sekarang Anda dapat melanjutkan:`;
               }\n\n📂 Kategori: ${
                 collectedInfo?.category || "Tidak tersedia"
               }\n\n💰 Nominal: Rp ${displayAmount}\n\n📅 Tanggal Transaksi: ${userMessage.trim()}\n\n📝 Deskripsi: ${
-                collectedInfo?.description ||
-                "Tidak tersedia"
+                collectedInfo?.description || "Tidak tersedia"
               }\n\nSekarang Anda dapat melanjutkan:`;
 
               const summaryMessage: MessageType = {
@@ -2054,8 +2038,7 @@ Sekarang Anda dapat melanjutkan:`;
                 }\n\n📂 Kategori: ${
                   collectedInfo?.category || "Tidak tersedia"
                 }\n\n💰 Nominal: Rp ${displayAmount}\n\n📝 Deskripsi: ${
-                  collectedInfo?.description ||
-                  "Tidak tersedia"
+                  collectedInfo?.description || "Tidak tersedia"
                 }\n\nSekarang Anda dapat melanjutkan:`;
 
                 const summaryMessage: MessageType = {
@@ -2184,96 +2167,60 @@ Sekarang Anda dapat melanjutkan:`;
     socket.emit("dm:open", { toUserId: target.userId });
   }, [activePeers, socket, isFromTicketDetail, ACTIVE_ROOM]);
 
-  const startStreaming = useCallback(async () => {
-    if (frameTimer.current) return;
-    if (!permission?.granted) {
-      const r = await requestPermission();
-      if (!r.granted) return Alert.alert("Izin kamera ditolak");
-    }
-    // Real-time video streaming - emit stream events
-    frameTimer.current = setInterval(() => {
-      socket.emit("call:stream", { 
-        room: ACTIVE_ROOM, 
-        isStreaming: true,
-        timestamp: Date.now(),
-        from: uid
-      });
-    }, 100); // Faster streaming for realtime
-  }, [permission?.granted, requestPermission, ACTIVE_ROOM, socket, uid]);
+  // Video streaming removed - audio only implementation
 
-  const stopStreaming = useCallback(() => {
-    if (frameTimer.current) clearInterval(frameTimer.current);
-    frameTimer.current = null;
-  }, []);
-
-  // WebRTC call functions
-  const initializeWebRTCCall = useCallback(async (isVideo: boolean = false) => {
+  // WebRTC audio call functions
+  const initializeWebRTCAudioCall = useCallback(async () => {
     try {
-      const stream = await WebRTCService.initializeCall(isVideo);
+      const stream = await WebRTCService.initializeCall();
       setLocalStream(stream);
       return stream;
     } catch (error) {
-      console.error('Error initializing WebRTC call:', error);
-      Alert.alert('Error', 'Gagal menginisialisasi panggilan');
+      console.error("Error initializing WebRTC audio call:", error);
+      Alert.alert("Error", "Gagal menginisialisasi panggilan suara");
       return null;
     }
   }, []);
 
   const startAudioCall = useCallback(async () => {
     try {
-      const stream = await initializeWebRTCCall(false);
+      const stream = await initializeWebRTCAudioCall();
       if (stream) {
         setIsAudioCall(true);
         WebRTCService.setCurrentRoom(ACTIVE_ROOM);
         // Create offer for audio call
-        await WebRTCService.createOffer(ACTIVE_ROOM, true);
+        await WebRTCService.createOffer(ACTIVE_ROOM);
       }
     } catch (error) {
-      console.error('Error starting audio call:', error);
-      Alert.alert('Error', 'Gagal memulai panggilan suara');
+      console.error("Error starting audio call:", error);
+      Alert.alert("Error", "Gagal memulai panggilan suara");
     }
-  }, [initializeWebRTCCall, ACTIVE_ROOM]);
+  }, [initializeWebRTCAudioCall, ACTIVE_ROOM]);
 
-  const startVideoCall = useCallback(async () => {
-    try {
-      const stream = await initializeWebRTCCall(true);
-      if (stream) {
-        setIsVideoCall(true);
-        WebRTCService.setCurrentRoom(ACTIVE_ROOM);
-        // Create offer for video call
-        await WebRTCService.createOffer(ACTIVE_ROOM, false);
-      }
-    } catch (error) {
-      console.error('Error starting video call:', error);
-      Alert.alert('Error', 'Gagal memulai panggilan video');
-    }
-  }, [initializeWebRTCCall, ACTIVE_ROOM]);
+  // Video call functionality removed - audio only
 
   const stopCall = useCallback(() => {
     try {
       WebRTCService.endCall(ACTIVE_ROOM);
       setLocalStream(null);
-      setRemoteStream(null);
       setIsAudioCall(false);
-      setIsVideoCall(false);
     } catch (error) {
-      console.error('Error stopping call:', error);
+      console.error("Error stopping call:", error);
     }
   }, [ACTIVE_ROOM]);
 
   // WebRTC event handlers
   useEffect(() => {
-    const handleOffer = async ({ offer, room, audioOnly }: any) => {
+    const handleOffer = async ({ offer, room }: any) => {
       try {
         if (room === ACTIVE_ROOM) {
           WebRTCService.setCurrentRoom(room);
-          await initializeWebRTCCall(!audioOnly);
+          await initializeWebRTCAudioCall();
           await WebRTCService.createAnswer(room, offer);
-          setIsAudioCall(audioOnly);
-          setIsVideoCall(!audioOnly);
+          setIsAudioCall(true);
         }
       } catch (error) {
-        console.error('Error handling offer:', error);
+        console.error("Error handling offer:", error);
       }
     };
 
@@ -2281,7 +2228,7 @@ Sekarang Anda dapat melanjutkan:`;
       try {
         await WebRTCService.handleAnswer(answer);
       } catch (error) {
-        console.error('Error handling answer:', error);
+        console.error("Error handling answer:", error);
       }
     };
 
@@ -2289,7 +2236,7 @@ Sekarang Anda dapat melanjutkan:`;
       try {
         await WebRTCService.handleIceCandidate(candidate);
       } catch (error) {
-        console.error('Error handling ICE candidate:', error);
+        console.error("Error handling ICE candidate:", error);
       }
     };
 
@@ -2297,18 +2244,18 @@ Sekarang Anda dapat melanjutkan:`;
       stopCall();
     };
 
-    socket.on('webrtc:offer', handleOffer);
-    socket.on('webrtc:answer', handleAnswer);
-    socket.on('webrtc:ice-candidate', handleIceCandidate);
-    socket.on('webrtc:end-call', handleEndCall);
+    socket.on("webrtc:offer", handleOffer);
+    socket.on("webrtc:answer", handleAnswer);
+    socket.on("webrtc:ice-candidate", handleIceCandidate);
+    socket.on("webrtc:end-call", handleEndCall);
 
     return () => {
-      socket.off('webrtc:offer', handleOffer);
-      socket.off('webrtc:answer', handleAnswer);
-      socket.off('webrtc:ice-candidate', handleIceCandidate);
-      socket.off('webrtc:end-call', handleEndCall);
+      socket.off("webrtc:offer", handleOffer);
+      socket.off("webrtc:answer", handleAnswer);
+      socket.off("webrtc:ice-candidate", handleIceCandidate);
+      socket.off("webrtc:end-call", handleEndCall);
     };
-  }, [socket, ACTIVE_ROOM, initializeWebRTCCall, stopCall]);
+  }, [socket, ACTIVE_ROOM, initializeWebRTCAudioCall, stopCall]);
 
   const placeCall = () => {
     if (peerCount < 2) {
@@ -2318,9 +2265,10 @@ Sekarang Anda dapat melanjutkan:`;
       );
       return;
     }
-    socket.emit("call:invite", { room: ACTIVE_ROOM });
+    socket.emit("audio:invite", { room: ACTIVE_ROOM });
     setCallStatus("ringing");
-    startVideoCall();
+    setIsAudioCall(true);
+    startAudioCall();
   };
 
   const placeAudioCall = () => {
@@ -2337,28 +2285,15 @@ Sekarang Anda dapat melanjutkan:`;
   };
 
   const acceptCall = () => {
-    if (isAudioCall) {
-      socket.emit("audio:accept", { room: ACTIVE_ROOM });
-      setCallStatus("audio-call");
-      setCallStartTime(Date.now());
-      startAudioCall();
-    } else {
-      socket.emit("call:accept", { room: ACTIVE_ROOM });
-      setCallStatus("in-call");
-      setShowCallModal(true);
-      setCallStartTime(Date.now());
-      startVideoCall();
-    }
+    socket.emit("audio:accept", { room: ACTIVE_ROOM });
+    setCallStatus("audio-call");
+    setCallStartTime(Date.now());
+    startAudioCall();
   };
 
   const declineCall = () => {
-    if (isAudioCall) {
-      socket.emit("audio:decline", { room: ACTIVE_ROOM });
-    } else {
-      socket.emit("call:decline", { room: ACTIVE_ROOM });
-    }
+    socket.emit("audio:decline", { room: ACTIVE_ROOM });
     setCallStatus("idle");
-    setShowCallModal(false);
     setIsAudioCall(false);
   };
 
@@ -2371,7 +2306,7 @@ Sekarang Anda dapat melanjutkan:`;
         .toString()
         .padStart(2, "0")}`;
 
-      const callType = isAudioCall ? "🎤 Panggilan suara" : "📞 Panggilan video";
+      const callType = "🎤 Panggilan suara";
       const callEndMessage = {
         id: getUniqueId(),
         text: `${callType} selesai • Durasi: ${durationText}`,
@@ -2385,18 +2320,11 @@ Sekarang Anda dapat melanjutkan:`;
       setMessages((prev) => [...prev, callEndMessage]);
       setCallStartTime(null);
     }
-    
-    if (isAudioCall) {
-      socket.emit("audio:hangup", { room: ACTIVE_ROOM });
-    } else {
-      socket.emit("call:hangup", { room: ACTIVE_ROOM });
-    }
-    
+
+    socket.emit("audio:hangup", { room: ACTIVE_ROOM });
     stopCall();
-    stopStreaming();
-    
+
     setCallStatus("idle");
-    setRemoteFrame(null);
     setIsAudioCall(false);
   };
 
@@ -2412,9 +2340,7 @@ Sekarang Anda dapat melanjutkan:`;
         },
       }));
 
-      if (validationType === "call") {
-        placeCall();
-      } else if (validationType === "audio") {
+      if (validationType === "call" || validationType === "audio") {
         placeAudioCall();
       } else {
         setIsLiveChat(true);
@@ -2469,7 +2395,7 @@ Sekarang Anda dapat melanjutkan:`;
       }
     },
     [
-      placeCall,
+      placeAudioCall,
       currentTicketId,
       storageKey,
       chatUser,
@@ -2674,21 +2600,6 @@ Sekarang Anda dapat melanjutkan:`;
                         style={styles.callIcon}
                         onPress={() => {
                           if (peerCount >= 2) {
-                            placeCall();
-                          } else {
-                            Alert.alert(
-                              "Agent tidak tersedia",
-                              "Sedang mencari agent untuk panggilan video..."
-                            );
-                          }
-                        }}
-                      >
-                        <MaterialIcons name="videocam" size={20} color="#4CAF50" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.callIcon}
-                        onPress={() => {
-                          if (peerCount >= 2) {
                             placeAudioCall();
                           } else {
                             Alert.alert(
@@ -2698,7 +2609,7 @@ Sekarang Anda dapat melanjutkan:`;
                           }
                         }}
                       >
-                        <MaterialIcons name="mic" size={20} color="#FF8636" />
+                        <MaterialIcons name="phone" size={20} color="#4CAF50" />
                       </TouchableOpacity>
                     </View>
                   )}
@@ -2792,7 +2703,10 @@ Sekarang Anda dapat melanjutkan:`;
                         // Use the collectedInfo from state instead of making API call
                         const botCollectedInfo = collectedInfo || {};
 
-                        console.log("Bot collected info from state:", botCollectedInfo);
+                        console.log(
+                          "Bot collected info from state:",
+                          botCollectedInfo
+                        );
                         console.log("Available channels from hook:", channels);
                         console.log(
                           "Available categories from hook:",
@@ -3074,7 +2988,10 @@ Sekarang Anda dapat melanjutkan:`;
                           "Final payload:",
                           JSON.stringify(ticketPayload, null, 2)
                         );
-                        console.log("Collected info from bot:", botCollectedInfo);
+                        console.log(
+                          "Collected info from bot:",
+                          botCollectedInfo
+                        );
                         console.log(
                           "Channel mapping - Input:",
                           botCollectedInfo.channel,
@@ -3270,56 +3187,6 @@ Sekarang Anda dapat melanjutkan:`;
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
                     style={[
-                      styles.callButton,
-                      buttonGroupStates[String(message.id)]?.selectedValue ===
-                        "chat" && styles.disabledButton,
-                    ]}
-                    activeOpacity={
-                      buttonGroupStates[String(message.id)]?.selectedValue ===
-                      "chat"
-                        ? 1
-                        : 0.7
-                    }
-                    disabled={
-                      buttonGroupStates[String(message.id)]?.selectedValue ===
-                      "chat"
-                    }
-                    onPress={() => {
-                      // Validate agent availability for call
-                      if (peerCount < 2) {
-                        Alert.alert(
-                          "Agent Tidak Tersedia",
-                          "Tidak ada agent yang tersedia untuk panggilan saat ini. Silakan coba lagi nanti atau pilih opsi Chat."
-                        );
-                        return;
-                      }
-
-                      handleValidationSelect("call", String(message.id));
-                    }}
-                  >
-                    <MaterialIcons
-                      name="videocam"
-                      size={16}
-                      color={
-                        buttonGroupStates[String(message.id)]?.selectedValue ===
-                        "chat"
-                          ? "#999"
-                          : "#FFF"
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        buttonGroupStates[String(message.id)]?.selectedValue ===
-                          "chat" && { color: "#999" },
-                      ]}
-                    >
-                      Video
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
                       styles.audioButton,
                       buttonGroupStates[String(message.id)]?.selectedValue ===
                         "chat" && styles.disabledButton,
@@ -3346,7 +3213,7 @@ Sekarang Anda dapat melanjutkan:`;
                     }}
                   >
                     <MaterialIcons
-                      name="mic"
+                      name="phone"
                       size={16}
                       color={
                         buttonGroupStates[String(message.id)]?.selectedValue ===
@@ -3363,7 +3230,7 @@ Sekarang Anda dapat melanjutkan:`;
                           "chat" && { color: "#999" },
                       ]}
                     >
-                      Audio
+                      Call
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -3501,7 +3368,7 @@ Sekarang Anda dapat melanjutkan:`;
                     const channelUpper = selectedChannel.toUpperCase();
                     const channelCode = channelUpper.replace(/\s+/g, "_");
 
-                      return (
+                    return (
                       c.channel_name === selectedChannel ||
                       c.channel_code === selectedChannel ||
                       c.channel_code === channelUpper ||
@@ -3521,8 +3388,6 @@ Sekarang Anda dapat melanjutkan:`;
                   let availableCategories = getFilteredCategories(
                     selectedChannelObj || null
                   );
-                  
-
 
                   // If no categories available, show all categories as fallback
                   if (
@@ -3746,10 +3611,23 @@ Sekarang Anda dapat melanjutkan:`;
 
                         // Determine button style based on selection state
                         const getButtonStyle = () => {
-                          if (isThisSelected || (selectedCategory && selectedCategory === displayInfo.name)) {
-                            return [styles.categoryButton, styles.selectedCategoryButton];
-                          } else if (isOtherSelected || globalCategorySelected) {
-                            return [styles.categoryButton, styles.disabledCategoryButton];
+                          if (
+                            isThisSelected ||
+                            (selectedCategory &&
+                              selectedCategory === displayInfo.name)
+                          ) {
+                            return [
+                              styles.categoryButton,
+                              styles.selectedCategoryButton,
+                            ];
+                          } else if (
+                            isOtherSelected ||
+                            globalCategorySelected
+                          ) {
+                            return [
+                              styles.categoryButton,
+                              styles.disabledCategoryButton,
+                            ];
                           }
                           return styles.categoryButton;
                         };
@@ -3931,8 +3809,8 @@ Sekarang Anda dapat melanjutkan:`;
             <View style={styles.statusIndicator}>
               <MaterialIcons name="circle" size={8} color="#4CAF50" />
               <Text style={styles.liveChatStatusText}>
-                Live Chat Aktif • Peers: {peerCount} • Tap icon call untuk
-                panggilan
+                Live Chat Aktif • Peers: {peerCount} • Tap phone icon untuk
+                panggilan suara
               </Text>
             </View>
           </View>
@@ -4089,23 +3967,61 @@ Sekarang Anda dapat melanjutkan:`;
         />
 
         {/* Call Modal */}
-        <CallModal
-          visible={showCallModal}
-          callStatus={callStatus}
-          onStatusChange={(status: string) =>
-            setCallStatus(status as CallStatus)
-          }
-          onClose={() => {
-            setShowCallModal(false);
-            hangupCall();
-          }}
-          onAccept={acceptCall}
-          onDecline={declineCall}
-          remoteFrame={remoteFrame}
-          onHangup={hangupCall}
-          camRef={camRef as any}
-          permission={permission}
-        />
+        {/* Audio Call Modal - Simplified for audio only */}
+        <Modal
+          visible={callStatus === "ringing" || callStatus === "audio-call"}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.liveChatModal}>
+              <MaterialIcons name="phone" size={60} color="#4CAF50" />
+              <Text style={styles.modalTitle}>
+                {callStatus === "ringing"
+                  ? "Panggilan Masuk"
+                  : "Panggilan Aktif"}
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                {callStatus === "ringing"
+                  ? "Agent ingin melakukan panggilan suara"
+                  : "Panggilan suara sedang berlangsung"}
+              </Text>
+
+              {callStatus === "ringing" && (
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={styles.acceptCallButton}
+                    onPress={acceptCall}
+                  >
+                    <MaterialIcons name="phone" size={20} color="#FFF" />
+                    <Text style={styles.acceptCallText}>Terima</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.declineCallButton}
+                    onPress={declineCall}
+                  >
+                    <MaterialIcons
+                      name="phone-disabled"
+                      size={20}
+                      color="#FFF"
+                    />
+                    <Text style={styles.acceptCallText}>Tolak</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {callStatus === "audio-call" && (
+                <TouchableOpacity
+                  style={styles.hangupButton}
+                  onPress={hangupCall}
+                >
+                  <MaterialIcons name="call-end" size={20} color="#FFF" />
+                  <Text style={styles.acceptCallText}>Tutup</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Modal>
 
         <TicketSummaryModal
           visible={showTicketModal}
@@ -4397,15 +4313,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#4CAF50",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 4,
+  },
+  declineCallButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF4444",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 25,
+    gap: 4,
+  },
+  hangupButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF4444",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
     gap: 4,
   },
   acceptCallText: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#FFF",
     fontFamily: "Poppins",
+    fontWeight: "600",
   },
   endChatButton: {
     padding: 8,
