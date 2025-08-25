@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
+  Animated,
 } from "react-native";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -30,6 +31,36 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
   const [score, setScore] = useState(0);
   const [comment, setComment] = useState("");
   const { submitFeedback, isLoading } = useFeedback();
+  const slideAnim = useRef(new Animated.Value(300)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 300,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [visible, slideAnim, opacityAnim]);
 
   const handleClose = () => {
     Alert.alert("Peringatan", "Anda harus memberikan feedback terlebih dahulu untuk melanjutkan");
@@ -81,7 +112,7 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
     <Modal 
       visible={visible} 
       transparent 
-      animationType="slide"
+      animationType="none"
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView 
@@ -89,13 +120,19 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={styles.modalOverlay}>
+        <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
           <TouchableOpacity 
             style={styles.modalBackdrop}
             onPress={handleClose}
           />
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.feedbackSheet}>
+            <Animated.View 
+              style={[
+                styles.feedbackSheet,
+                { transform: [{ translateY: slideAnim }] }
+              ]}
+              onStartShouldSetResponder={() => true}
+            >
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Berikan Feedback</Text>
             {/* <TouchableOpacity onPress={handleClose}>
@@ -135,9 +172,9 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
               </Text>
             )}
           </TouchableOpacity>
-            </View>
+            </Animated.View>
           </TouchableWithoutFeedback>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
