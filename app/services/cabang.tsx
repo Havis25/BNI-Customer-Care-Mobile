@@ -299,8 +299,8 @@ export default function CabangScreen() {
 
       <FlatList
         style={styles.container}
-        data={activeTab === "cabang" ? filteredCabangData : filteredAtmData}
-        renderItem={activeTab === "cabang" ? renderCabang : renderATM}
+        data={activeTab === "cabang" ? filteredCabangData : (filteredAtmData as any)}
+        renderItem={activeTab === "cabang" ? renderCabang : (renderATM as any)}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
