@@ -173,6 +173,7 @@ export default function RiwayatDetailScreen() {
 
         <ScrollView
           style={styles.content}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled
           refreshControl={
@@ -414,6 +415,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 24,
     paddingHorizontal: 24,
+  },
+  scrollContent: {
+    paddingBottom: Platform.OS === "ios" ? 0 : 80,
   },
 
   detailHeader: {
