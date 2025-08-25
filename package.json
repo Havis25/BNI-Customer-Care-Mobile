@@ -25,9 +25,11 @@
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "expo": "~53.0.20",
+    "expo-av": "~15.1.7",
     "expo-blur": "~14.1.5",
     "expo-camera": "~16.1.11",
     "expo-constants": "~17.1.7",
+    "expo-dev-client": "~5.2.4",
     "expo-document-picker": "^13.1.6",
     "expo-font": "~13.3.2",
     "expo-haptics": "~14.1.4",
@@ -53,12 +55,10 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "^15.12.1",
     "react-native-web": "~0.20.0",
+    "react-native-webrtc": "^124.0.6",
     "react-native-webview": "13.13.5",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
-    "expo-av": "~15.1.7",
-    "expo-dev-client": "~5.2.4",
-    "react-native-webrtc": "^124.0.4"
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

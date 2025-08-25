@@ -11,11 +11,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bni.bcare",
-      "splash": {
-        "image": "./assets/images/bcare-transparant.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#E0EE59"
-      },
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
@@ -27,11 +22,6 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/bcare-transparant.png",
-        "backgroundColor": "#E0EE59"
-      },
-      "splash": {
-        "image": "./assets/images/bcare-transparant.png",
-        "resizeMode": "contain",
         "backgroundColor": "#E0EE59"
       },
       "edgeToEdgeEnabled": true,

@@ -20,11 +20,17 @@ class WebRTCService {
     ],
   };
 
-  async initializeCall(isVideo: boolean = false) {
+  async initializeCall() {
     try {
+      // Audio only with enhanced quality settings
       this.localStream = await mediaDevices.getUserMedia({
-        audio: true,
-        video: isVideo,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+        },
+        video: false,
       });
 
       this.peerConnection = new RTCPeerConnection(this.configuration);
@@ -34,16 +40,17 @@ class WebRTCService {
       });
 
       this.peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && this.currentRoom) {
           this.socket.emit('webrtc:ice-candidate', {
-            room: 'current-room', // Will be set dynamically
+            room: this.currentRoom,
             candidate: event.candidate
           });
         }
       };
 
       this.peerConnection.ontrack = (event) => {
-        console.log('Received remote stream');
+        console.log('Received remote audio stream');
+        // Remote audio will be played automatically by WebRTC
       };
 
       return this.localStream;
@@ -53,15 +60,15 @@ class WebRTCService {
     }
   }
 
-  async createOffer(room: string, audioOnly: boolean = false) {
+  async createOffer(room: string) {
     if (!this.peerConnection) throw new Error('Peer connection not initialized');
     
     const offer = await this.peerConnection.createOffer({
       offerToReceiveAudio: true,
-      offerToReceiveVideo: !audioOnly
+      offerToReceiveVideo: false
     });
     await this.peerConnection.setLocalDescription(offer);
-    this.socket.emit('webrtc:offer', { room, offer, audioOnly });
+    this.socket.emit('webrtc:offer', { room, offer, audioOnly: true });
     return offer;
   }
 
@@ -114,14 +121,7 @@ class WebRTCService {
     }
   }
 
-  toggleVideo(room: string, enabled: boolean) {
-    if (this.localStream) {
-      this.localStream.getVideoTracks().forEach(track => {
-        track.enabled = enabled;
-      });
-      this.socket.emit('webrtc:video-toggle', { room, enabled });
-    }
-  }
+  // Video functionality removed - audio only implementation
 }
 
 export default new WebRTCService();
