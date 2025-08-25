@@ -20,7 +20,7 @@ import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { Audio } from "expo-av";
+import WebRTCService from "@/src/services/webrtc";
 import { router, useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
@@ -157,11 +157,11 @@ export default function ChatScreen() {
   const frameTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const FPS = 1.5;
   
-  // Audio call states
-  const [audioRecording, setAudioRecording] = useState<Audio.Recording | null>(null);
-  const [audioSound, setAudioSound] = useState<Audio.Sound | null>(null);
+  // Audio/Video call states
   const [isAudioCall, setIsAudioCall] = useState(false);
-  const [audioPermission, setAudioPermission] = useState<boolean>(false);
+  const [isVideoCall, setIsVideoCall] = useState(false);
+  const [localStream, setLocalStream] = useState<any>(null);
+  const [remoteStream, setRemoteStream] = useState<any>(null);
   const [inputText, setInputText] = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
@@ -1745,7 +1745,7 @@ Sekarang Anda dapat melanjutkan:`;
         setCallStartTime(null);
       }
       stopStreaming();
-      stopAudioCall();
+      stopCall();
       setCallStatus("idle");
       setRemoteFrame(null);
       setShowCallModal(false);
@@ -1775,7 +1775,7 @@ Sekarang Anda dapat melanjutkan:`;
     s.on("call:ended", onEnded);
     s.on("call:frame", onFrame);
     s.on("audio:accepted", onAudioCallAccepted);
-    s.on("audio:data", onAudioData);
+    // s.on("audio:data", onAudioData); // Removed - WebRTC handles audio directly
     s.on("ticket:context", onTicketContext);
 
     if (uid) {
@@ -1795,7 +1795,7 @@ Sekarang Anda dapat melanjutkan:`;
       s.off("call:ended", onEnded);
       s.off("call:frame", onFrame);
       s.off("audio:accepted", onAudioCallAccepted);
-      s.off("audio:data", onAudioData);
+      // s.off("audio:data", onAudioData); // Removed - WebRTC handles audio directly
       s.off("ticket:context", onTicketContext);
       if (uid) s.emit("leave", { room: ACTIVE_ROOM, userId: uid });
     };
@@ -2190,107 +2190,125 @@ Sekarang Anda dapat melanjutkan:`;
       const r = await requestPermission();
       if (!r.granted) return Alert.alert("Izin kamera ditolak");
     }
-    // Real-time video streaming without capture
+    // Real-time video streaming - emit stream events
     frameTimer.current = setInterval(() => {
-      socket.emit("call:stream", { room: ACTIVE_ROOM, isStreaming: true });
-    }, 1000);
-  }, [permission?.granted, requestPermission, ACTIVE_ROOM, socket]);
+      socket.emit("call:stream", { 
+        room: ACTIVE_ROOM, 
+        isStreaming: true,
+        timestamp: Date.now(),
+        from: uid
+      });
+    }, 100); // Faster streaming for realtime
+  }, [permission?.granted, requestPermission, ACTIVE_ROOM, socket, uid]);
 
   const stopStreaming = useCallback(() => {
     if (frameTimer.current) clearInterval(frameTimer.current);
     frameTimer.current = null;
   }, []);
 
-  // Audio call functions
-  const requestAudioPermission = useCallback(async () => {
+  // WebRTC call functions
+  const initializeWebRTCCall = useCallback(async (isVideo: boolean = false) => {
     try {
-      const { status } = await Audio.requestPermissionsAsync();
-      setAudioPermission(status === 'granted');
-      return status === 'granted';
+      const stream = await WebRTCService.initializeCall(isVideo);
+      setLocalStream(stream);
+      return stream;
     } catch (error) {
-      console.error('Error requesting audio permission:', error);
-      return false;
+      console.error('Error initializing WebRTC call:', error);
+      Alert.alert('Error', 'Gagal menginisialisasi panggilan');
+      return null;
     }
   }, []);
 
   const startAudioCall = useCallback(async () => {
     try {
-      if (!audioPermission) {
-        const granted = await requestAudioPermission();
-        if (!granted) {
-          Alert.alert('Izin Audio Ditolak', 'Aplikasi memerlukan izin mikrofon untuk panggilan suara.');
-          return;
-        }
+      const stream = await initializeWebRTCCall(false);
+      if (stream) {
+        setIsAudioCall(true);
+        WebRTCService.setCurrentRoom(ACTIVE_ROOM);
+        // Create offer for audio call
+        await WebRTCService.createOffer(ACTIVE_ROOM, true);
       }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setAudioRecording(recording);
-
-      // Start sending audio data to socket
-      const audioInterval = setInterval(async () => {
-        try {
-          if (recording) {
-            const status = await recording.getStatusAsync();
-            if (status.isRecording) {
-              socket.emit('audio:data', { 
-                room: ACTIVE_ROOM, 
-                timestamp: Date.now(),
-                isTransmitting: true 
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error in audio transmission:', error);
-        }
-      }, 100);
-
-      (recording as any).audioInterval = audioInterval;
-
     } catch (error) {
       console.error('Error starting audio call:', error);
       Alert.alert('Error', 'Gagal memulai panggilan suara');
     }
-  }, [audioPermission, requestAudioPermission, socket, ACTIVE_ROOM]);
+  }, [initializeWebRTCCall, ACTIVE_ROOM]);
 
-  const stopAudioCall = useCallback(async () => {
+  const startVideoCall = useCallback(async () => {
     try {
-      if (audioRecording) {
-        if ((audioRecording as any).audioInterval) {
-          clearInterval((audioRecording as any).audioInterval);
-        }
-        
-        await audioRecording.stopAndUnloadAsync();
-        setAudioRecording(null);
+      const stream = await initializeWebRTCCall(true);
+      if (stream) {
+        setIsVideoCall(true);
+        WebRTCService.setCurrentRoom(ACTIVE_ROOM);
+        // Create offer for video call
+        await WebRTCService.createOffer(ACTIVE_ROOM, false);
       }
-      
-      if (audioSound) {
-        await audioSound.unloadAsync();
-        setAudioSound(null);
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: false,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-      });
     } catch (error) {
-      console.error('Error stopping audio call:', error);
+      console.error('Error starting video call:', error);
+      Alert.alert('Error', 'Gagal memulai panggilan video');
     }
-  }, [audioRecording, audioSound]);
+  }, [initializeWebRTCCall, ACTIVE_ROOM]);
 
-  const onAudioData = useCallback(({ data, timestamp }: { data: any, timestamp: number }) => {
-    console.log('Received audio data at:', timestamp);
-  }, []);
+  const stopCall = useCallback(() => {
+    try {
+      WebRTCService.endCall(ACTIVE_ROOM);
+      setLocalStream(null);
+      setRemoteStream(null);
+      setIsAudioCall(false);
+      setIsVideoCall(false);
+    } catch (error) {
+      console.error('Error stopping call:', error);
+    }
+  }, [ACTIVE_ROOM]);
+
+  // WebRTC event handlers
+  useEffect(() => {
+    const handleOffer = async ({ offer, room, audioOnly }: any) => {
+      try {
+        if (room === ACTIVE_ROOM) {
+          WebRTCService.setCurrentRoom(room);
+          await initializeWebRTCCall(!audioOnly);
+          await WebRTCService.createAnswer(room, offer);
+          setIsAudioCall(audioOnly);
+          setIsVideoCall(!audioOnly);
+        }
+      } catch (error) {
+        console.error('Error handling offer:', error);
+      }
+    };
+
+    const handleAnswer = async ({ answer }: any) => {
+      try {
+        await WebRTCService.handleAnswer(answer);
+      } catch (error) {
+        console.error('Error handling answer:', error);
+      }
+    };
+
+    const handleIceCandidate = async ({ candidate }: any) => {
+      try {
+        await WebRTCService.handleIceCandidate(candidate);
+      } catch (error) {
+        console.error('Error handling ICE candidate:', error);
+      }
+    };
+
+    const handleEndCall = () => {
+      stopCall();
+    };
+
+    socket.on('webrtc:offer', handleOffer);
+    socket.on('webrtc:answer', handleAnswer);
+    socket.on('webrtc:ice-candidate', handleIceCandidate);
+    socket.on('webrtc:end-call', handleEndCall);
+
+    return () => {
+      socket.off('webrtc:offer', handleOffer);
+      socket.off('webrtc:answer', handleAnswer);
+      socket.off('webrtc:ice-candidate', handleIceCandidate);
+      socket.off('webrtc:end-call', handleEndCall);
+    };
+  }, [socket, ACTIVE_ROOM, initializeWebRTCCall, stopCall]);
 
   const placeCall = () => {
     if (peerCount < 2) {
@@ -2302,6 +2320,7 @@ Sekarang Anda dapat melanjutkan:`;
     }
     socket.emit("call:invite", { room: ACTIVE_ROOM });
     setCallStatus("ringing");
+    startVideoCall();
   };
 
   const placeAudioCall = () => {
@@ -2328,7 +2347,7 @@ Sekarang Anda dapat melanjutkan:`;
       setCallStatus("in-call");
       setShowCallModal(true);
       setCallStartTime(Date.now());
-      startStreaming();
+      startVideoCall();
     }
   };
 
@@ -2369,11 +2388,12 @@ Sekarang Anda dapat melanjutkan:`;
     
     if (isAudioCall) {
       socket.emit("audio:hangup", { room: ACTIVE_ROOM });
-      stopAudioCall();
     } else {
       socket.emit("call:hangup", { room: ACTIVE_ROOM });
-      stopStreaming();
     }
+    
+    stopCall();
+    stopStreaming();
     
     setCallStatus("idle");
     setRemoteFrame(null);
