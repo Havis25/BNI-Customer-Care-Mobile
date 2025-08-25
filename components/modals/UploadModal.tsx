@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { api, API_BASE } from "@/lib/api";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 interface UploadModalProps {
   visible: boolean;
@@ -470,8 +471,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
-    minHeight: 300,
+    padding: wp(5),
+    minHeight: deviceType.isTablet ? hp(35) : hp(37.5),
   },
   uploadHeader: {
     flexDirection: "row",
@@ -480,7 +481,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   uploadTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "bold",
     color: "#333",
     fontFamily: "Poppins",
@@ -488,16 +489,16 @@ const styles = StyleSheet.create({
   uploadOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    marginBottom: 10,
+    paddingVertical: hp(1.9),
+    paddingHorizontal: wp(2.5),
+    marginBottom: hp(1.2),
     borderRadius: 10,
     backgroundColor: "#F5F5F5",
   },
   uploadOptionText: {
-    fontSize: 16,
+    fontSize: rf(16),
     color: "#333",
-    marginLeft: 15,
+    marginLeft: wp(4),
     fontFamily: "Poppins",
   },
   previewContainer: {

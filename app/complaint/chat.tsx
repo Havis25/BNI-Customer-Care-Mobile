@@ -44,6 +44,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 type MessageType = {
   id: string | number;
@@ -136,6 +137,10 @@ export default function ChatScreen() {
     [dmRoom, fallbackCallRoom]
   );
 
+  // Session persistence keys
+  const COMPLAINT_SESSION_KEY = 'complaint_chat_session';
+  const LIVE_CHAT_SESSION_KEY = `live_chat_session_${ticketId || 'general'}`;
+
   // Use ticket-specific storage key to maintain chat history per ticket
   const storageKey = useMemo(() => {
     if (isFromTicketDetail && ticketId) {
@@ -143,6 +148,14 @@ export default function ChatScreen() {
     }
     return `msgs:${ACTIVE_ROOM}`;
   }, [ACTIVE_ROOM, isFromTicketDetail, ticketId]);
+
+  // Session storage key for chat state
+  const sessionStorageKey = useMemo(() => {
+    if (isFromTicketDetail && ticketId) {
+      return LIVE_CHAT_SESSION_KEY;
+    }
+    return COMPLAINT_SESSION_KEY;
+  }, [isFromTicketDetail, ticketId, LIVE_CHAT_SESSION_KEY, COMPLAINT_SESSION_KEY]);
 
   // Presence & call
   const [activePeers, setActivePeers] = useState<Peer[]>([]);
@@ -256,8 +269,92 @@ export default function ChatScreen() {
     }
   }, []);
 
+  // Save session state
+  const saveSessionState = useCallback(async () => {
+    try {
+      const sessionState = {
+        messages,
+        sessionId,
+        collectedInfo,
+        selectedChannel,
+        selectedCategory,
+        selectedTerminal,
+        confirmedAmount,
+        amountRequested,
+        transactionDateRequested,
+        editFormSelected,
+        ticketCreatedInSession,
+        buttonGroupStates,
+        timestamp: Date.now()
+      };
+      await AsyncStorage.setItem(sessionStorageKey, JSON.stringify(sessionState));
+    } catch (error) {
+      console.log('Failed to save session state:', error);
+    }
+  }, [messages, sessionId, collectedInfo, selectedChannel, selectedCategory, selectedTerminal, confirmedAmount, amountRequested, transactionDateRequested, editFormSelected, ticketCreatedInSession, buttonGroupStates, sessionStorageKey]);
+
+  // Load session state
+  const loadSessionState = useCallback(async () => {
+    try {
+      const savedState = await AsyncStorage.getItem(sessionStorageKey);
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        // Check if session is not too old (24 hours)
+        const isValidSession = Date.now() - parsedState.timestamp < 24 * 60 * 60 * 1000;
+        
+        if (isValidSession && parsedState.messages?.length > 0) {
+          setMessages(parsedState.messages || []);
+          setSessionId(parsedState.sessionId || null);
+          setCollectedInfo(parsedState.collectedInfo || null);
+          setSelectedChannel(parsedState.selectedChannel || null);
+          setSelectedCategory(parsedState.selectedCategory || null);
+          setSelectedTerminal(parsedState.selectedTerminal || null);
+          setConfirmedAmount(parsedState.confirmedAmount || null);
+          setAmountRequested(parsedState.amountRequested || false);
+          setTransactionDateRequested(parsedState.transactionDateRequested || false);
+          setEditFormSelected(parsedState.editFormSelected || false);
+          setTicketCreatedInSession(parsedState.ticketCreatedInSession || false);
+          setButtonGroupStates(parsedState.buttonGroupStates || {});
+          return true; // Session restored
+        }
+      }
+    } catch (error) {
+      console.log('Failed to load session state:', error);
+    }
+    return false; // No session or failed to restore
+  }, [sessionStorageKey]);
+
+  // Clear session state
+  const clearSessionState = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(sessionStorageKey);
+      // Reset all states to initial values
+      setMessages([]);
+      setSessionId(null);
+      setCollectedInfo(null);
+      setSelectedChannel(null);
+      setSelectedCategory(null);
+      setSelectedTerminal(null);
+      setConfirmedAmount(null);
+      setAmountRequested(false);
+      setTransactionDateRequested(false);
+      setEditFormSelected(false);
+      setTicketCreatedInSession(false);
+      setButtonGroupStates({});
+    } catch (error) {
+      console.log('Failed to clear session state:', error);
+    }
+  }, [sessionStorageKey]);
+
   // Initialize chat with health check
   const initializeChat = useCallback(async () => {
+    // Try to restore session first
+    const sessionRestored = await loadSessionState();
+    
+    if (sessionRestored) {
+      return; // Skip initialization if session was restored
+    }
+
     const isHealthy = await checkApiHealth();
 
     if (!isHealthy) {
@@ -276,7 +373,7 @@ export default function ChatScreen() {
 
     // Start with initial bot message
     setMessages([initialBotMessage]);
-  }, [checkApiHealth]);
+  }, [checkApiHealth, loadSessionState]);
 
   // Function to send message to chatbot API
   const sendToChatbot = useCallback(
@@ -1462,6 +1559,18 @@ Sekarang Anda dapat melanjutkan:`;
     };
   }, [socket, uid, ACTIVE_ROOM]);
 
+  // Auto-save session state when important state changes
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveSessionState();
+    }
+  }, [messages, sessionId, collectedInfo, selectedChannel, selectedCategory, selectedTerminal, confirmedAmount, saveSessionState]);
+
+  // Initialize chat on component mount
+  useEffect(() => {
+    initializeChat();
+  }, [initializeChat]);
+
   // Load local messages per room
   useEffect(() => {
     (async () => {
@@ -2461,7 +2570,7 @@ Sekarang Anda dapat melanjutkan:`;
                   {
                     text: "Hapus",
                     style: "destructive",
-                    onPress: clearChatHistory,
+                    onPress: clearSessionState,
                   },
                 ]
               );
@@ -4054,8 +4163,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(3),
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
@@ -4080,7 +4189,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "bold",
     color: "#333",
     fontFamily: "Poppins",
@@ -4092,7 +4201,7 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1,
-    padding: 16,
+    padding: wp(4),
     backgroundColor: "#FFFFFF",
   },
   messageContainer: {
@@ -4105,8 +4214,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   messageBubble: {
-    maxWidth: "80%",
-    padding: 12,
+    maxWidth: deviceType.isTablet ? "70%" : "80%",
+    padding: wp(3),
     borderRadius: 18,
   },
   botBubble: {
@@ -4118,8 +4227,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   messageText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: rf(14),
+    lineHeight: rf(20),
     fontFamily: "Poppins",
   },
   botText: {
@@ -4137,7 +4246,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: "row",
-    padding: 16,
+    padding: wp(4),
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     borderTopWidth: 1,
@@ -4148,12 +4257,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E0E0E0",
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 12,
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(1.2),
+    marginRight: wp(3),
     backgroundColor: "#F5F5F5",
-    fontSize: 14,
-    maxHeight: 100,
+    fontSize: rf(14),
+    maxHeight: hp(12.5),
     fontFamily: "Poppins",
   },
   addFileButton: {

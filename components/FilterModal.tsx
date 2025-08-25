@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Fonts } from "@/constants/Fonts";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 interface FilterModalProps {
   visible: boolean;
@@ -184,10 +185,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: wp(5),
+    paddingTop: hp(2.5),
     paddingBottom: 0,
-    maxHeight: "70%",
+    maxHeight: deviceType.isTablet ? "60%" : "70%",
   },
   sheetHeader: {
     flexDirection: "row",
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontFamily: Fonts.semiBold,
     color: "#333",
   },
@@ -204,10 +205,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: Fonts.medium,
     color: "#333",
-    marginBottom: 12,
+    marginBottom: hp(1.5),
   },
   sortOption: {
     flexDirection: "row",
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   },
   optionText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: rf(14),
     fontFamily: Fonts.regular,
     color: "#333",
   },

@@ -21,6 +21,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 const getStatusColorBackground = (status: string) => {
   switch (status) {
@@ -390,14 +391,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fffefeff",
-    paddingHorizontal: 16,
-    marginBottom: Platform.OS === "ios" ? 50 : 0,
+    paddingHorizontal: wp(4),
+    marginBottom: Platform.OS === "ios" ? hp(6) : 0,
   },
   title: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontFamily: Fonts.semiBold,
     color: "black",
-    marginBottom: 16,
+    marginBottom: hp(2),
     textAlign: "center",
   },
   searchFilterContainer: {
@@ -432,9 +433,9 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === "ios" ? 20 : 80,
   },
   card: {
-    marginTop: 12,
-    marginBottom: 18,
-    padding: 18,
+    marginTop: hp(1.5),
+    marginBottom: hp(2.2),
+    padding: wp(4.5),
     borderRadius: 14,
     borderLeftWidth: 5,
     shadowOffset: { width: 0, height: 0 },

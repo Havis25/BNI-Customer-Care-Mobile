@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { wp, hp, rf, deviceType } from '@/utils/responsive';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -62,33 +63,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
+    padding: wp(6),
     alignItems: "center",
-    minHeight: 280,
+    minHeight: deviceType.isTablet ? hp(30) : hp(35),
   },
   bottomSheetTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "bold",
     color: "#333",
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: hp(2),
+    marginBottom: hp(1),
     fontFamily: "Poppins",
   },
   bottomSheetSubtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#666",
     textAlign: "center",
-    marginBottom: 32,
+    marginBottom: hp(4),
     fontFamily: "Poppins",
   },
   confirmBackButton: {
     backgroundColor: "#52B5AB",
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: hp(2),
+    paddingHorizontal: wp(8),
     borderRadius: 8,
     width: "100%",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: hp(1.5),
   },
   confirmBackText: {
     fontSize: 16,

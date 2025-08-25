@@ -1,4 +1,5 @@
 import { Fonts } from "@/constants/Fonts";
+import { deviceType, hp, wp } from "@/utils/responsive";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -10,7 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -21,7 +22,7 @@ const promoData = {
       title: "Cashback 50% Belanja Online",
       description:
         "Dapatkan cashback hingga Rp 100.000 untuk transaksi e-commerce",
-      image: require ('../../assets/images/promo-bni.png'),
+      image: require("../../assets/images/promo-bni.png"),
       validUntil: "31 Des 2024",
       category: "E-Commerce",
     },
@@ -31,7 +32,7 @@ const promoData = {
       id: "3",
       title: "Diskon 25% Restoran Partner",
       description: "Nikmati diskon di 500+ restoran favorit Anda",
-      image: require ('../../assets/images/promo-bni2.png'),
+      image: require("../../assets/images/promo-bni2.png"),
       validUntil: "28 Feb 2025",
       category: "F&B",
     },
@@ -39,7 +40,7 @@ const promoData = {
       id: "4",
       title: "Cashback 20% Transportasi",
       description: "Hemat perjalanan dengan cashback ojek online dan taksi",
-      image: require ('../../assets/images/promo-bni2.png'),
+      image: require("../../assets/images/promo-bni2.png"),
       validUntil: "31 Mar 2025",
       category: "Transport",
     },
@@ -47,7 +48,7 @@ const promoData = {
       id: "5",
       title: "Diskon Hotel hingga 40%",
       description: "Liburan lebih hemat dengan promo hotel eksklusif",
-      image: require ('../../assets/images/promo-bni2.png'),
+      image: require("../../assets/images/promo-bni2.png"),
       validUntil: "30 Apr 2025",
       category: "Travel",
     },
@@ -66,7 +67,12 @@ interface PromoItem {
 export default function PromoScreen() {
   const renderFeaturedPromo = ({ item }: { item: PromoItem }) => (
     <TouchableOpacity style={styles.featuredCard}>
-      <Image source={typeof item.image === 'string' ? { uri: item.image } : item.image} style={styles.featuredImage} />
+      <Image
+        source={
+          typeof item.image === "string" ? { uri: item.image } : item.image
+        }
+        style={styles.featuredImage}
+      />
       <View style={styles.featuredContent}>
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{item.category}</Text>
@@ -85,7 +91,12 @@ export default function PromoScreen() {
 
   const renderLifestylePromo = ({ item }: { item: PromoItem }) => (
     <TouchableOpacity style={styles.lifestyleCard}>
-      <Image source={typeof item.image === 'string' ? { uri: item.image } : item.image} style={styles.lifestyleImage} />
+      <Image
+        source={
+          typeof item.image === "string" ? { uri: item.image } : item.image
+        }
+        style={styles.lifestyleImage}
+      />
       <View style={styles.lifestyleContent}>
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{item.category}</Text>
@@ -183,16 +194,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   horizontalList: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     flex: 1,
   },
   featuredCard: {
     backgroundColor: "white",
     borderRadius: 12,
-    width: 280,
+    width: deviceType.isTablet ? wp(60) : wp(75),
     overflow: "hidden",
-    alignSelf: 'center',
+    alignSelf: "center",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -207,7 +218,7 @@ const styles = StyleSheet.create({
   },
   featuredImage: {
     width: "100%",
-    height: 160,
+    height: deviceType.isTablet ? hp(18) : hp(20),
     resizeMode: "cover",
   },
   featuredContent: {
@@ -257,8 +268,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   lifestyleImage: {
-    width: 100,
-    height: 100,
+    width: deviceType.isTablet ? wp(20) : wp(27),
+    height: deviceType.isTablet ? wp(20) : wp(27),
     resizeMode: "cover",
   },
   lifestyleContent: {
