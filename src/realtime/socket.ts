@@ -1,8 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
-// export const SOCKET_URL =
-//   process.env.EXPO_PUBLIC_SOCKET_URL || "http://192.168.226.76:4000";
-export const SOCKET_URL = "https://192.168.192.137:4000";
+export const SOCKET_URL =
+  process.env.EXPO_PUBLIC_SOCKET_URL || "http://192.168.226.76:4000";
 //https://t22bhmg5-4000.asse.devtunnels.ms/
 
 let socket: Socket | null = null;
