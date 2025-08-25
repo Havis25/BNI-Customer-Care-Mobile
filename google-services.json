@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "594399518327",
+    "project_id": "golden-tempest-468201-f2",
+    "storage_bucket": "golden-tempest-468201-f2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:594399518327:android:467072467072467072",
+        "android_client_info": {
+          "package_name": "com.bni.bcare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfpGauP5z6yOlfnt8XYfA9_wGMK2AvtgY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

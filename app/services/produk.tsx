@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   header: {
-    fontSize: Math.max(20, 24 * scaleFactor),
+    fontSize: 24,
     fontFamily: Fonts.bold,
     color: '#1A1A1A',
     flex: 1,
@@ -302,17 +302,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   subHeader: {
-    fontSize: Math.max(16, 20 * scaleFactor),
+    fontSize: 20,
     fontFamily: Fonts.bold,
     color: '#1A1A1A',
     marginLeft: 12,
   },
   sectionDesc: {
-    fontSize: Math.max(12, 14 * scaleFactor),
+    fontSize: 14,
     fontFamily: Fonts.regular,
     color: '#666',
     marginBottom: 20,
-    lineHeight: Math.max(16, 20 * scaleFactor),
+    lineHeight: 20,
   },
   listContainer: {
     paddingHorizontal: 4,
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   cardBadgeText: {
-    fontSize: Math.max(9, 11 * scaleFactor),
+    fontSize: 11,
     fontFamily: Fonts.medium,
     color: '#FF6600',
     marginLeft: 4,
@@ -374,18 +374,18 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   cardTitle: {
-    fontSize: Math.max(14, 18 * scaleFactor),
+    fontSize: 18,
     fontFamily: Fonts.bold,
     color: 'white',
     marginBottom: 8,
   },
   cardDesc: {
-    fontSize: Math.max(11, 13 * scaleFactor),
+    fontSize: 13,
     fontFamily: Fonts.regular,
     color: 'white',
     marginBottom: 16,
     opacity: 0.95,
-    lineHeight: Math.max(14, 18 * scaleFactor),
+    lineHeight: 18,
   },
   cardButton: {
     flexDirection: 'row',
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   cardButtonText: {
-    fontSize: Math.max(11, 13 * scaleFactor),
+    fontSize: 13,
     fontFamily: Fonts.medium,
     color: 'white',
     marginRight: 6,

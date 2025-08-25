@@ -10,6 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "splash": {
         "image": "./assets/images/bcare-transparant.png",
         "resizeMode": "contain",
@@ -22,6 +23,7 @@
       }
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/bcare-transparant.png",
         "backgroundColor": "#E0EE59"

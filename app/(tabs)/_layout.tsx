@@ -181,7 +181,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="notification"
+        name="test-notification"
         options={{
           title: "Notifikasi",
           tabBarIcon: ({ color, size, focused }) => (

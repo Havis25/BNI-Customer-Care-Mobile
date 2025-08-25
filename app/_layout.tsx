@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect } from "react";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { registerForPushNotificationsAsync, setupNotificationListeners } from "./services/notificationService";
 
 export default function RootLayout() {
   useAuthGuard();
@@ -27,6 +28,20 @@ export default function RootLayout() {
   // Set status bar style
   useEffect(() => {
     RNStatusBar.setBarStyle('dark-content', true);
+  }, []);
+
+  // Setup notifications
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(token => {
+      if (token) {
+        console.log('Push token:', token);
+        // Store token for sending to your backend
+        AsyncStorage.setItem('pushToken', token);
+      }
+    });
+
+    const cleanup = setupNotificationListeners();
+    return cleanup;
   }, []);
 
   // Clear storage on app restart
@@ -80,6 +95,7 @@ export default function RootLayout() {
           name="complaint/confirmation"
           options={{ headerShown: false }}
         />
+        <Stack.Screen name="test-notification" options={{ headerShown: false }} />
 
         <Stack.Screen name="+not-found" options={{ headerShown: false }} />
       </Stack>
