@@ -8,12 +8,12 @@ import {
   Image,
   Linking,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const wondrServices = [
   {
@@ -280,9 +280,7 @@ export default function WondrScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
   headerSection: {
     paddingHorizontal: 24,
     paddingTop: 20,

@@ -6,7 +6,6 @@ import React, { useState } from 'react';
 import {
   FlatList,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const cabangData = [
   {
@@ -326,9 +326,7 @@ export default function CabangScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
   headerSection: {
     paddingHorizontal: 24,
     paddingTop: 20,

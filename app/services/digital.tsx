@@ -7,12 +7,12 @@ import {
   Alert,
   FlatList,
   Linking,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const eBankingServices = [
   {
@@ -203,9 +203,7 @@ export default function DigitalScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
   headerSection: {
     paddingHorizontal: 20,
     paddingTop: 16,

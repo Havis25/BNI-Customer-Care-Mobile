@@ -7,12 +7,12 @@ import {
   FlatList,
   Image,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const promoData = {
   featured: [
@@ -146,9 +146,7 @@ export default function PromoScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
   headerSection: {
     paddingHorizontal: 24,
     paddingTop: 20,
