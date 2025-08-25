@@ -18,6 +18,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 export default function RiwayatDetailScreen() {
   const insets = useSafeAreaInsets(); // <<-- untuk spacer status bar
@@ -406,15 +407,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontFamily: Fonts.medium,
     color: "black",
   },
 
   content: {
     flex: 1,
-    paddingTop: 24,
-    paddingHorizontal: 24,
+    paddingTop: hp(3),
+    paddingHorizontal: wp(6),
   },
   scrollContent: {
     paddingBottom: Platform.OS === "ios" ? 0 : 80,
@@ -468,11 +469,11 @@ const styles = StyleSheet.create({
     textAlign: "justify",
   },
   complaintContainer: {
-    padding: 16,
+    padding: wp(4),
     borderWidth: 1,
     borderColor: "#71DAD3",
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: hp(2.5),
   },
   warningContainer: {
     flexDirection: "row",
@@ -507,8 +508,8 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#71DAD3",
     borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingHorizontal: wp(6),
+    paddingTop: hp(3),
   },
   progressCardDeclined: {
     backgroundColor: "#FFF1F1",

@@ -5,6 +5,7 @@ import { StyleSheet, View, TouchableOpacity } from "react-native";
 import { Fonts } from "@/constants/Fonts";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 export default function WelcomeCard() {
   const [userName, setUserName] = useState("User");
@@ -39,7 +40,11 @@ export default function WelcomeCard() {
         style={styles.profileContainer}
         onPress={() => router.push('/(tabs)/profile')}
       >
-        <MaterialIcons name="account-circle" size={55} color="#333" />
+        <MaterialIcons 
+          name="account-circle" 
+          size={deviceType.isSmall ? 45 : deviceType.isTablet ? 65 : 55} 
+          color="#333" 
+        />
       </TouchableOpacity>
     </View>
   );
@@ -50,24 +55,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    // marginBottom: 25,
-    paddingHorizontal: 5,
+    paddingHorizontal: wp(1.3), // Responsive padding
   },
   textContainer: {
     flex: 1,
   },
   greeting: {
-    fontSize: 16,
+    fontSize: rf(16), // Responsive font size
     fontFamily: Fonts.bold,
     color: "black",
-    // marginBottom: 4,
   },
   question: {
-    fontSize: 14,
+    fontSize: rf(14), // Responsive font size
     color: "black",
     fontFamily: Fonts.medium,
   },
   profileContainer: {
-    marginLeft: 15,
+    marginLeft: wp(4), // Responsive margin
   },
 });

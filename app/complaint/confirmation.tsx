@@ -28,6 +28,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 const API_URL = "/v1/tickets";
 const HEADER_HEIGHT = 56;
@@ -886,14 +887,14 @@ const styles = StyleSheet.create({
     height: HEADER_HEIGHT,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "600",
     color: "#000",
     fontFamily: "Poppins",
   },
 
   content: { flex: 1 },
-  scrollContent: { padding: 16 },
+  scrollContent: { padding: wp(4) },
 
   warningBox: {
     flexDirection: "row",
@@ -915,9 +916,9 @@ const styles = StyleSheet.create({
   },
   textInput: {
     backgroundColor: "#F0F0F0",
-    padding: 12,
+    padding: wp(3),
     borderRadius: 8,
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#333",
     fontFamily: "Poppins",
   },
@@ -930,7 +931,7 @@ const styles = StyleSheet.create({
   },
   selectText: { fontSize: 14, color: "#333", fontFamily: "Poppins" },
 
-  textArea: { minHeight: 100 },
+  textArea: { minHeight: deviceType.isTablet ? hp(12) : hp(12.5) },
   helper: { marginTop: 6, fontSize: 12, color: "#888" },
 
   pickerWrapper: {
@@ -968,10 +969,10 @@ const styles = StyleSheet.create({
   },
   footerCard: {
     backgroundColor: "#fff",
-    paddingVertical: 24,
-    paddingTop: 16,
-    paddingBottom: 42,
-    paddingHorizontal: 16,
+    paddingVertical: hp(3),
+    paddingTop: hp(2),
+    paddingBottom: hp(5.2),
+    paddingHorizontal: wp(4),
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.15,

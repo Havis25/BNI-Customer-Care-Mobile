@@ -1,6 +1,7 @@
 import TabTransition from "@/components/TabTransition";
 import { Fonts } from "@/constants/Fonts";
 import { useTickets } from "@/hooks/useTickets"; // <-- pakai hook tiket
+import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import { Ionicons } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import "dayjs/locale/id"; // supaya "5 menit lalu" pakai bahasa Indonesia
@@ -39,7 +40,11 @@ export default function NotificationScreen() {
   // Transform tickets into notifications
   const notifications: Notification[] = useMemo(() => {
     return tickets
-      .sort((a, b) => new Date(b.created_time).getTime() - new Date(a.created_time).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.created_time).getTime() -
+          new Date(a.created_time).getTime()
+      )
       .map((ticket) => {
         let title = "";
         let iconName = "mail";
@@ -47,20 +52,23 @@ export default function NotificationScreen() {
         let description = "";
 
         // Debug logging
-        console.log('Ticket data:', {
+        console.log("Ticket data:", {
           ticket_number: ticket.ticket_number,
           status_code: ticket.customer_status?.customer_status_code,
           status_name: ticket.customer_status?.customer_status_name,
           complaint_name: ticket.complaint?.complaint_name,
-          description: ticket.description
+          description: ticket.description,
         });
 
         // Concise notification mapping
-        const statusCode = ticket.customer_status?.customer_status_code || "UNKNOWN";
-        const statusName = ticket.customer_status?.customer_status_name || "Status Tidak Diketahui";
+        const statusCode =
+          ticket.customer_status?.customer_status_code || "UNKNOWN";
+        const statusName =
+          ticket.customer_status?.customer_status_name ||
+          "Status Tidak Diketahui";
         const channelName = ticket.issue_channel?.channel_name || "Laporan";
         const ticketNum = ticket.ticket_number || "N/A";
-        
+
         // Map status codes to specific icons
         switch (statusCode.toUpperCase()) {
           case "RECEIVED":
@@ -111,8 +119,11 @@ export default function NotificationScreen() {
           timeAgo: dayjs(ticket.created_time).fromNow(),
           iconName,
           iconColor,
-          read: readIds.includes(String(ticket.ticket_id || ticket.ticket_number)),
-          category: ticket.issue_channel?.channel_name?.toLowerCase() || "general",
+          read: readIds.includes(
+            String(ticket.ticket_id || ticket.ticket_number)
+          ),
+          category:
+            ticket.issue_channel?.channel_name?.toLowerCase() || "general",
           ticketNumber: ticket.ticket_number,
           status: statusCode,
         };
@@ -146,24 +157,20 @@ export default function NotificationScreen() {
       <View style={styles.notificationContent}>
         <View style={styles.leftSection}>
           <View
-            style={[
-              styles.statusIcon,
-              { backgroundColor: item.iconColor },
-            ]}
+            style={[styles.statusIcon, { backgroundColor: item.iconColor }]}
           >
-            <Ionicons
-              name={item.iconName as any}
-              size={16}
-              color="white"
-            />
+            <Ionicons name={item.iconName as any} size={16} color="white" />
           </View>
           <View style={styles.notificationText}>
-            <Text style={[styles.notificationTitle, !item.read && styles.unreadNotificationTitle]}>
+            <Text
+              style={[
+                styles.notificationTitle,
+                !item.read && styles.unreadNotificationTitle,
+              ]}
+            >
               {item.title}
             </Text>
-            <Text style={styles.notificationDesc}>
-              {item.description}
-            </Text>
+            <Text style={styles.notificationDesc}>{item.description}</Text>
           </View>
         </View>
         <View style={styles.rightSection}>
@@ -246,7 +253,9 @@ export default function NotificationScreen() {
             <View style={styles.emptyContainer}>
               <Ionicons name="notifications-off" size={64} color="#CCC" />
               <Text style={styles.emptyTitle}>Belum Ada Notifikasi</Text>
-              <Text style={styles.emptyMessage}>Notifikasi akan muncul ketika ada update pada laporan Anda</Text>
+              <Text style={styles.emptyMessage}>
+                Notifikasi akan muncul ketika ada update pada laporan Anda
+              </Text>
             </View>
           ) : (
             <View style={styles.listWrapper}>
@@ -270,9 +279,9 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   headerSection: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: wp(6),
+    paddingTop: hp(2.5),
+    paddingBottom: hp(1.2),
   },
   headerRow: {
     flexDirection: "row",
@@ -292,10 +301,10 @@ const styles = StyleSheet.create({
     color: "white",
   },
   header: {
-    fontSize: 24,
+    fontSize: rf(24),
     fontFamily: Fonts.bold,
     color: "black",
-    marginBottom: 8,
+    marginBottom: hp(1),
   },
   headerStats: {
     backgroundColor: "rgba(255, 102, 0, 0.1)",
@@ -311,8 +320,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 70,
+    paddingHorizontal: wp(4),
+    paddingBottom: hp(8.5),
   },
   listWrapper: {
     flex: 1,
@@ -346,21 +355,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: deviceType.isTablet ? wp(6) : wp(7.5),
+    height: deviceType.isTablet ? wp(6) : wp(7.5),
+    borderRadius: deviceType.isTablet ? wp(3) : wp(3.75),
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: wp(3),
   },
   notificationText: {
     flex: 1,
   },
   notificationTitle: {
-    fontSize: 15,
+    fontSize: rf(15),
     fontFamily: Fonts.semiBold,
     color: "#1A1A1A",
-    marginBottom: 2,
+    marginBottom: hp(0.25),
   },
   unreadNotificationTitle: {
     fontFamily: Fonts.bold,
@@ -454,4 +463,3 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-

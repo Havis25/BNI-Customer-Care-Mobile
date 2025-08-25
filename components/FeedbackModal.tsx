@@ -18,6 +18,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFeedback } from "@/hooks/useFeedback";
 import { router } from "expo-router";
 import { triggerAndroidNotification } from "@/utils/androidNotification";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -159,10 +160,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 42,
-    maxHeight: "70%",
+    paddingHorizontal: wp(5),
+    paddingTop: hp(2.5),
+    paddingBottom: hp(5.2),
+    maxHeight: deviceType.isTablet ? "60%" : "70%",
   },
   sheetHeader: {
     flexDirection: "row",
@@ -171,16 +172,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontFamily: Fonts.semiBold,
     color: "#333",
   },
   feedbackQuestion: {
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: Fonts.medium,
     color: "#333",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: hp(3),
   },
   ratingLabel: {
     fontSize: 14,
@@ -206,11 +207,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E0E0E0",
     borderRadius: 8,
-    padding: 12,
+    padding: wp(3),
     fontFamily: Fonts.regular,
-    fontSize: 14,
-    minHeight: 80,
-    marginBottom: 24,
+    fontSize: rf(14),
+    minHeight: deviceType.isTablet ? hp(8) : hp(10),
+    marginBottom: hp(3),
   },
   submitButton: {
     backgroundColor: "#52B5AB",

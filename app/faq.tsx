@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { useFaq } from "@/hooks/useFaq";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 
 
@@ -185,26 +186,26 @@ export default function FAQScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   headerSection: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: wp(6),
+    paddingTop: hp(2.5),
+    paddingBottom: hp(1.2),
   },
   headerRow: { flexDirection: "row", alignItems: "center" },
   backButton: { marginRight: 16, padding: 4 },
   header: {
-    fontSize: 24,
+    fontSize: rf(24),
     fontFamily: Fonts.bold,
     color: "black",
     flex: 1,
   },
-  container: { flex: 1, paddingHorizontal: 16 },
+  container: { flex: 1, paddingHorizontal: wp(4) },
   helpText: {
     textAlign: "center",
-    fontSize: 24,
+    fontSize: rf(24),
     fontFamily: Fonts.bold,
     color: "black",
-    marginBottom: 12,
-    marginTop: 8,
+    marginBottom: hp(1.5),
+    marginTop: hp(1),
   },
   searchFilterContainer: {
     flexDirection: "row",
@@ -217,25 +218,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "white",
     borderRadius: 100,
-    paddingHorizontal: 14,
-    marginBottom: 16,
+    paddingHorizontal: wp(3.5),
+    marginBottom: hp(2),
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: hp(1.75),
     fontFamily: Fonts.regular,
-    fontSize: 14,
+    fontSize: rf(14),
   },
   card: {
     backgroundColor: "white",
     borderRadius: 12,
     overflow: "hidden",
-    paddingHorizontal: 16,
+    paddingHorizontal: wp(4),
     paddingVertical: 0,
-    marginBottom: 16,
+    marginBottom: hp(2),
   },
   errorContainer: {
     alignItems: "center",

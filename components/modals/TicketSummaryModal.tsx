@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useUser } from "@/hooks/useUser";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 type TicketSummaryModalProps = {
   visible: boolean;
@@ -165,24 +166,24 @@ const styles = StyleSheet.create({
   },
   ticketModal: {
     backgroundColor: "#FFF",
-    padding: 30,
+    padding: wp(7.5),
     borderRadius: 20,
     alignItems: "center",
-    width: 320,
+    width: deviceType.isTablet ? wp(60) : wp(85),
     maxWidth: "90%",
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "bold",
     color: "#333",
-    marginTop: 16,
+    marginTop: hp(2),
     textAlign: "center",
     fontFamily: "Poppins",
   },
   ticketSummary: {
     width: "100%",
-    marginVertical: 20,
-    padding: 16,
+    marginVertical: hp(2.5),
+    padding: wp(4),
     backgroundColor: "#F8F9FA",
     borderRadius: 12,
   },
@@ -190,8 +191,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
-    minHeight: 20,
+    marginBottom: hp(1.5),
+    minHeight: hp(2.5),
   },
   summaryLabel: {
     fontSize: 14,

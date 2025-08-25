@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import SuccessCheck from "@/components/SuccessCheck";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 const COLORS = {
   primary: "#52B5AB",
@@ -48,30 +49,30 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 28,
+    paddingHorizontal: wp(7),
   },
   title: {
-    fontSize: 26,
+    fontSize: rf(26),
     fontWeight: "800",
     color: COLORS.textDark,
-    marginTop: 28,
-    marginBottom: 8,
+    marginTop: hp(3.5),
+    marginBottom: hp(1),
     textAlign: "center",
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: rf(14),
+    lineHeight: rf(20),
     textAlign: "center",
     color: COLORS.textMuted,
-    maxWidth: 300,
+    maxWidth: deviceType.isTablet ? wp(60) : wp(80),
   },
-  footer: { paddingHorizontal: 20, paddingBottom: 16 },
+  footer: { paddingHorizontal: wp(5), paddingBottom: hp(2) },
   button: {
-    height: 52,
+    height: hp(6.5),
     borderRadius: 5,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonText: { color: COLORS.white, fontSize: 16, fontWeight: "700" },
+  buttonText: { color: COLORS.white, fontSize: rf(16), fontWeight: "700" },
 });
