@@ -336,7 +336,6 @@ const styles = StyleSheet.create({
   },
   unreadNotification: {
     backgroundColor: "#FFF9F5",
-    borderLeftColor: "#FF6600",
   },
   notificationContent: {
     flexDirection: "row",
