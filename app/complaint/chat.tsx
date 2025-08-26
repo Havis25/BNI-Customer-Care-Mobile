@@ -21,6 +21,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // Camera removed - audio only implementation
 import WebRTCService from "@/src/services/webrtc";
+import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import { router, useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
@@ -44,7 +45,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 type MessageType = {
   id: string | number;
@@ -138,8 +138,8 @@ export default function ChatScreen() {
   );
 
   // Session persistence keys
-  const COMPLAINT_SESSION_KEY = 'complaint_chat_session';
-  const LIVE_CHAT_SESSION_KEY = `live_chat_session_${ticketId || 'general'}`;
+  const COMPLAINT_SESSION_KEY = "complaint_chat_session";
+  const LIVE_CHAT_SESSION_KEY = `live_chat_session_${ticketId || "general"}`;
 
   // Use ticket-specific storage key to maintain chat history per ticket
   const storageKey = useMemo(() => {
@@ -155,7 +155,12 @@ export default function ChatScreen() {
       return LIVE_CHAT_SESSION_KEY;
     }
     return COMPLAINT_SESSION_KEY;
-  }, [isFromTicketDetail, ticketId, LIVE_CHAT_SESSION_KEY, COMPLAINT_SESSION_KEY]);
+  }, [
+    isFromTicketDetail,
+    ticketId,
+    LIVE_CHAT_SESSION_KEY,
+    COMPLAINT_SESSION_KEY,
+  ]);
 
   // Presence & call
   const [activePeers, setActivePeers] = useState<Peer[]>([]);
@@ -285,13 +290,30 @@ export default function ChatScreen() {
         editFormSelected,
         ticketCreatedInSession,
         buttonGroupStates,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
-      await AsyncStorage.setItem(sessionStorageKey, JSON.stringify(sessionState));
+      await AsyncStorage.setItem(
+        sessionStorageKey,
+        JSON.stringify(sessionState)
+      );
     } catch (error) {
-      console.log('Failed to save session state:', error);
+      console.log("Failed to save session state:", error);
     }
-  }, [messages, sessionId, collectedInfo, selectedChannel, selectedCategory, selectedTerminal, confirmedAmount, amountRequested, transactionDateRequested, editFormSelected, ticketCreatedInSession, buttonGroupStates, sessionStorageKey]);
+  }, [
+    messages,
+    sessionId,
+    collectedInfo,
+    selectedChannel,
+    selectedCategory,
+    selectedTerminal,
+    confirmedAmount,
+    amountRequested,
+    transactionDateRequested,
+    editFormSelected,
+    ticketCreatedInSession,
+    buttonGroupStates,
+    sessionStorageKey,
+  ]);
 
   // Load session state
   const loadSessionState = useCallback(async () => {
@@ -300,8 +322,9 @@ export default function ChatScreen() {
       if (savedState) {
         const parsedState = JSON.parse(savedState);
         // Check if session is not too old (24 hours)
-        const isValidSession = Date.now() - parsedState.timestamp < 24 * 60 * 60 * 1000;
-        
+        const isValidSession =
+          Date.now() - parsedState.timestamp < 24 * 60 * 60 * 1000;
+
         if (isValidSession && parsedState.messages?.length > 0) {
           setMessages(parsedState.messages || []);
           setSessionId(parsedState.sessionId || null);
@@ -311,15 +334,19 @@ export default function ChatScreen() {
           setSelectedTerminal(parsedState.selectedTerminal || null);
           setConfirmedAmount(parsedState.confirmedAmount || null);
           setAmountRequested(parsedState.amountRequested || false);
-          setTransactionDateRequested(parsedState.transactionDateRequested || false);
+          setTransactionDateRequested(
+            parsedState.transactionDateRequested || false
+          );
           setEditFormSelected(parsedState.editFormSelected || false);
-          setTicketCreatedInSession(parsedState.ticketCreatedInSession || false);
+          setTicketCreatedInSession(
+            parsedState.ticketCreatedInSession || false
+          );
           setButtonGroupStates(parsedState.buttonGroupStates || {});
           return true; // Session restored
         }
       }
     } catch (error) {
-      console.log('Failed to load session state:', error);
+      console.log("Failed to load session state:", error);
     }
     return false; // No session or failed to restore
   }, [sessionStorageKey]);
@@ -341,8 +368,9 @@ export default function ChatScreen() {
       setEditFormSelected(false);
       setTicketCreatedInSession(false);
       setButtonGroupStates({});
+      setSummaryShown(false); // Add this to ensure clean state
     } catch (error) {
-      console.log('Failed to clear session state:', error);
+      console.log("Failed to clear session state:", error);
     }
   }, [sessionStorageKey]);
 
@@ -350,7 +378,7 @@ export default function ChatScreen() {
   const initializeChat = useCallback(async () => {
     // Try to restore session first
     const sessionRestored = await loadSessionState();
-    
+
     if (sessionRestored) {
       return; // Skip initialization if session was restored
     }
@@ -444,6 +472,9 @@ export default function ChatScreen() {
 
         // Update collected info from chatbot response
         if (response.collected_info) {
+          console.log("=== COLLECTED INFO UPDATE ===");
+          console.log("Previous collectedInfo:", collectedInfo);
+          console.log("New collected_info:", response.collected_info);
           setCollectedInfo(response.collected_info);
         }
 
@@ -589,7 +620,7 @@ Sekarang Anda dapat melanjutkan:`;
         });
 
         // Handle summary detection and amount flow
-        const isSummaryMessage = 
+        const isSummaryMessage =
           response.next_step === "summary_complete" ||
           response.action === "summary_complete" ||
           response.action === "ready_for_confirmation" ||
@@ -599,30 +630,50 @@ Sekarang Anda dapat melanjutkan:`;
           response.message.toLowerCase().includes("deskripsi:");
 
         // Check if bot is asking for description after category selection
-        const isDescriptionRequest = 
+        const isDescriptionRequest =
           messageText.includes("deskripsi") ||
           messageText.includes("ceritakan") ||
           messageText.includes("jelaskan") ||
           messageText.includes("detail") ||
           (messageText.includes("masalah") && messageText.includes("anda"));
 
-        if (isDescriptionRequest && selectedChannel && selectedCategory && !summaryShown) {
-          console.log("Bot is asking for description after channel and category selection");
-          // Don't add any special handling - let user type description freely
+        // Check if we have complete info and category needs amount
+        const hasCompleteInfo =
+          selectedChannel && selectedCategory && response.collected_info;
+        const categoryNeedsAmount =
+          selectedCategory && checkIfCategoryNeedsAmount(selectedCategory);
+        const collectedInfoNeedsAmount =
+          response.collected_info?.category &&
+          checkIfCategoryNeedsAmount(response.collected_info.category);
+        const shouldRequestAmount =
+          (categoryNeedsAmount || collectedInfoNeedsAmount) && !amountRequested;
+
+        console.log("=== AMOUNT DETECTION DEBUG ===");
+        console.log("hasCompleteInfo:", hasCompleteInfo);
+        console.log("categoryNeedsAmount:", categoryNeedsAmount);
+        console.log("collectedInfoNeedsAmount:", collectedInfoNeedsAmount);
+        console.log("shouldRequestAmount:", shouldRequestAmount);
+        console.log("amountRequested:", amountRequested);
+        console.log("summaryShown:", summaryShown);
+
+        // If this is a description request and we have complete info + need amount, ask for amount after user responds
+        if (isDescriptionRequest && hasCompleteInfo && shouldRequestAmount) {
+          console.log(
+            "Bot is asking for description, but we'll need to ask for amount after user responds"
+          );
+          // Set a flag to request amount after user provides description
           return;
         }
 
-        if (isSummaryMessage && !summaryShown) {
+        // If we have collected info and it indicates completion, check for amount requirement
+        if ((isSummaryMessage || hasCompleteInfo) && !summaryShown) {
           setSummaryShown(true);
 
-          // Check if category requires amount using mapping utility
-          const needsAmount =
-            response.collected_info?.category &&
-            checkIfCategoryNeedsAmount(response.collected_info.category);
+          console.log(
+            "Processing summary/complete info - checking amount requirements"
+          );
 
-          console.log("Summary detected - needsAmount:", needsAmount, "amountRequested:", amountRequested);
-
-          if (needsAmount && !amountRequested) {
+          if (shouldRequestAmount) {
             // Ask for amount first, don't show buttons yet
             setTimeout(() => {
               const amountMessage: MessageType = {
@@ -642,7 +693,7 @@ Sekarang Anda dapat melanjutkan:`;
               setAmountRequested(true);
             }, 1000);
             return; // Exit early to prevent showing buttons
-          } else if (!needsAmount) {
+          } else {
             // Only show buttons if no amount is needed
             setTimeout(() => {
               setMessages((prev) => {
@@ -651,7 +702,10 @@ Sekarang Anda dapat melanjutkan:`;
                     ? { ...msg, hasButtons: true, buttonSelected: undefined }
                     : msg
                 );
-                AsyncStorage.setItem(storageKey, JSON.stringify(updatedMessages));
+                AsyncStorage.setItem(
+                  storageKey,
+                  JSON.stringify(updatedMessages)
+                );
                 return updatedMessages;
               });
             }, 500);
@@ -664,7 +718,7 @@ Sekarang Anda dapat melanjutkan:`;
               sessionId,
               summaryShown: true,
               ticketCreatedInSession,
-              amountRequested: needsAmount ? true : amountRequested,
+              amountRequested: shouldRequestAmount ? true : amountRequested,
               transactionDateRequested,
               selectedTerminal,
               confirmedAmount,
@@ -681,7 +735,9 @@ Sekarang Anda dapat melanjutkan:`;
           (messageText.includes("transaksi") &&
             (messageText.includes("berapa") || messageText.includes("nominal")))
         ) {
-          console.log("Bot is asking for amount - setting amountRequested to true");
+          console.log(
+            "Bot is asking for amount - setting amountRequested to true"
+          );
           setAmountRequested(true);
           // Don't add any buttons for amount input - let user type freely
           return;
@@ -1051,6 +1107,17 @@ Sekarang Anda dapat melanjutkan:`;
         return newMessages;
       });
 
+      // Check if the selected category requires amount input
+      console.log("Category selected:", generalCategory);
+      console.log(
+        "Category requires amount:",
+        checkIfCategoryNeedsAmount(generalCategory)
+      );
+      console.log(
+        "Category requires transaction date:",
+        checkIfCategoryNeedsTransactionDate(generalCategory)
+      );
+
       // Send to chatbot API
       sendToChatbot(generalCategory);
     },
@@ -1249,6 +1316,17 @@ Sekarang Anda dapat melanjutkan:`;
           setCurrentTicketId(ticketId);
           setTicketCreatedInSession(true);
           await AsyncStorage.setItem("currentTicketId", ticketId);
+
+          // Skip bot messages and go directly to live chat
+          setIsLiveChat(true);
+          setMessages([]); // Start with empty messages
+
+          // Auto-connect to agent after a short delay
+          setTimeout(() => {
+            quickDM();
+          }, 500);
+
+          return; // Exit early to skip bot messages
         } else {
           // If no URL param, check storage again
           const storedId = await AsyncStorage.getItem("currentTicketId");
@@ -1342,44 +1420,57 @@ Sekarang Anda dapat melanjutkan:`;
         (m) => m.isTicketInfo && m.ticketId === currentTicketId
       );
       if (!hasTicketInfo) {
-        const ticketInfoMessage = {
-          id: getUniqueId(),
-          text: `📋 Tiket #${currentTicketId.slice(-6)}`,
-          isBot: false,
-          timestamp: new Date().toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          isTicketInfo: true,
-          ticketId: currentTicketId,
-        };
+        // Fetch ticket detail to get the correct created time
+        fetchTicketDetail(currentTicketId).then(() => {
+          // Create ticket info message with proper timestamp from ticketDetail
+          const actualCreatedTime = ticketDetail?.created_time
+            ? new Date(ticketDetail.created_time).toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
 
-        setMessages((prev) => {
-          const newMessages = [...prev, ticketInfoMessage];
-          AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-          return newMessages;
-        });
-
-        // Send ticket info to socket for agent to receive
-        if (socket.connected) {
-          socket.emit("chat:send", {
-            ...ticketInfoMessage,
-            author: chatUser,
-            createdAt: Date.now(),
-            type: "ticket-info",
-            room: ACTIVE_ROOM,
-          });
-
-          // Send additional ticket context for agent
-          socket.emit("ticket:context", {
-            room: ACTIVE_ROOM,
+          const ticketInfoMessage = {
+            id: getUniqueId(),
+            text: `📋 Tiket #${currentTicketId.slice(-6)}`,
+            isBot: false,
+            timestamp: actualCreatedTime,
+            isTicketInfo: true,
             ticketId: currentTicketId,
-            fromUserId: uid,
-            timestamp: Date.now(),
-          });
-        }
+          };
 
-        fetchTicketDetail(currentTicketId);
+          setMessages((prev) => {
+            const newMessages = [...prev, ticketInfoMessage];
+            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+            return newMessages;
+          });
+
+          // Send ticket info to socket for agent to receive
+          if (socket.connected) {
+            socket.emit("chat:send", {
+              ...ticketInfoMessage,
+              author: chatUser,
+              createdAt: ticketDetail?.created_time
+                ? new Date(ticketDetail.created_time).getTime()
+                : Date.now(),
+              type: "ticket-info",
+              room: ACTIVE_ROOM,
+            });
+
+            // Send additional ticket context for agent
+            socket.emit("ticket:context", {
+              room: ACTIVE_ROOM,
+              ticketId: currentTicketId,
+              fromUserId: uid,
+              timestamp: ticketDetail?.created_time
+                ? new Date(ticketDetail.created_time).getTime()
+                : Date.now(),
+            });
+          }
+        });
       }
     }
   }, [
@@ -1425,7 +1516,16 @@ Sekarang Anda dapat melanjutkan:`;
     if (messages.length > 0) {
       saveSessionState();
     }
-  }, [messages, sessionId, collectedInfo, selectedChannel, selectedCategory, selectedTerminal, confirmedAmount, saveSessionState]);
+  }, [
+    messages,
+    sessionId,
+    collectedInfo,
+    selectedChannel,
+    selectedCategory,
+    selectedTerminal,
+    confirmedAmount,
+    saveSessionState,
+  ]);
 
   // Initialize chat on component mount
   useEffect(() => {
@@ -1769,7 +1869,12 @@ Sekarang Anda dapat melanjutkan:`;
       }
 
       // Clear session and ticket data
-      await AsyncStorage.multiRemove(["currentTicketId", "chatSession", COMPLAINT_SESSION_KEY, LIVE_CHAT_SESSION_KEY]);
+      await AsyncStorage.multiRemove([
+        "currentTicketId",
+        "chatSession",
+        COMPLAINT_SESSION_KEY,
+        LIVE_CHAT_SESSION_KEY,
+      ]);
       setCurrentTicketId(null);
       setSessionId(null);
 
@@ -1814,7 +1919,14 @@ Sekarang Anda dapat melanjutkan:`;
     } catch {
       // Error clearing chat history
     }
-  }, [ACTIVE_ROOM, uid, socket, clearSessionState, COMPLAINT_SESSION_KEY, LIVE_CHAT_SESSION_KEY]);
+  }, [
+    ACTIVE_ROOM,
+    uid,
+    socket,
+    clearSessionState,
+    COMPLAINT_SESSION_KEY,
+    LIVE_CHAT_SESSION_KEY,
+  ]);
 
   const handleSendMessage = useCallback(() => {
     if (inputText.trim() && !isInputDisabled) {
@@ -1830,7 +1942,7 @@ Sekarang Anda dapat melanjutkan:`;
         isLiveChat,
         selectedChannel,
         selectedCategory,
-        collectedInfo
+        collectedInfo,
       });
 
       // Add user message to chat immediately
@@ -1930,6 +2042,60 @@ Sekarang Anda dapat melanjutkan:`;
               return newMessages;
             });
           }, 500);
+        }
+      }
+      // Check if user is providing description and we need to ask for amount
+      else if (
+        selectedChannel &&
+        selectedCategory &&
+        !amountRequested &&
+        !isLiveChat &&
+        collectedInfo &&
+        !summaryShown
+      ) {
+        // Check if category needs amount
+        const categoryNeedsAmount =
+          checkIfCategoryNeedsAmount(selectedCategory);
+        const collectedInfoNeedsAmount =
+          collectedInfo.category &&
+          checkIfCategoryNeedsAmount(collectedInfo.category);
+
+        console.log("=== DESCRIPTION INPUT ANALYSIS ===");
+        console.log("selectedCategory:", selectedCategory);
+        console.log("categoryNeedsAmount:", categoryNeedsAmount);
+        console.log("collectedInfoNeedsAmount:", collectedInfoNeedsAmount);
+        console.log("User message length:", userMessage.length);
+
+        if (
+          (categoryNeedsAmount || collectedInfoNeedsAmount) &&
+          userMessage.length > 10
+        ) {
+          // This looks like a description input, and category needs amount
+          console.log("User provided description, now asking for amount");
+
+          // Send to chatbot first to process the description
+          sendToChatbot(userMessage);
+
+          // Then ask for amount after a delay
+          setTimeout(() => {
+            const amountMessage: MessageType = {
+              id: getUniqueId(),
+              text: "Untuk melengkapi tiket, mohon masukkan nominal transaksi (dalam Rupiah):",
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, amountMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+            setAmountRequested(true);
+          }, 2000); // Give chatbot time to process first
+
+          return; // Don't send to chatbot again below
         }
       }
       // Check if this is amount input after summary
@@ -2084,8 +2250,16 @@ Sekarang Anda dapat melanjutkan:`;
         }
       }
       // Handle description input after channel and category selection
-      else if (selectedChannel && selectedCategory && !summaryShown && !amountRequested && !isLiveChat) {
-        console.log("Processing description input after channel and category selection");
+      else if (
+        selectedChannel &&
+        selectedCategory &&
+        !summaryShown &&
+        !amountRequested &&
+        !isLiveChat
+      ) {
+        console.log(
+          "Processing description input after channel and category selection"
+        );
         // Send description to chatbot - this should trigger summary
         sendToChatbot(userMessage);
       } else if (!isLiveChat) {
@@ -2418,7 +2592,8 @@ Sekarang Anda dapat melanjutkan:`;
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        enabled={true}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -3903,10 +4078,14 @@ Sekarang Anda dapat melanjutkan:`;
                 ? "Pilih dari tombol di atas..."
                 : "Ketik pesan Anda..."
             }
+            placeholderTextColor={isInputDisabled ? "#999" : "#AAA"}
             value={inputText}
             onChangeText={setInputText}
             editable={!isInputDisabled}
             multiline
+            returnKeyType="send"
+            onSubmitEditing={handleSendMessage}
+            blurOnSubmit={false}
           />
           <TouchableOpacity
             onPress={handleSendMessage}
@@ -4155,6 +4334,7 @@ const styles = StyleSheet.create({
     fontSize: rf(14),
     maxHeight: hp(12.5),
     fontFamily: "Poppins",
+    color: "#333", // Always dark text for readability
   },
   addFileButton: {
     width: 40,
@@ -4598,6 +4778,7 @@ const styles = StyleSheet.create({
   },
   disabledTextInput: {
     backgroundColor: "#F0F0F0",
-    color: "#999",
+    borderColor: "#D0D0D0",
+    color: "#666", // Slightly darker for better readability
   },
 });

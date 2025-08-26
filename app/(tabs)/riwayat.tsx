@@ -1,15 +1,12 @@
-import TabTransition from "@/components/TabTransition";
 import FilterModal from "@/components/FilterModal";
+import TabTransition from "@/components/TabTransition";
 import { Fonts } from "@/constants/Fonts";
 import { useTickets } from "@/hooks/useTickets";
+import { hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
-import React, {
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   FlatList,
   Platform,
@@ -21,13 +18,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 const getStatusColorBackground = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FFF3EB";
-    case "Verfikasi":
+    case "Verifikasi":
       return "#FFF9EB";
     case "Diproses":
       return "#FCFDEE";
@@ -43,7 +39,7 @@ const getStatusColorBadge = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FFDBC3";
-    case "Verfikasi":
+    case "Verifikasi":
       return "#FFEEC2";
     case "Diproses":
       return "#F3F8BD";
@@ -59,7 +55,7 @@ const getStatusColorText = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FF8636";
-    case "Verfikasi":
+    case "Verifikasi":
       return "#FFB600";
     case "Diproses":
       return "#B3BE47";
@@ -75,7 +71,7 @@ const getShadowColor = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FF8636";
-    case "Verfikasi":
+    case "Verifikasi":
       return "#FFC533";
     case "Diproses":
       return "#E0EE59";
@@ -99,15 +95,13 @@ export default function RiwayatScreen() {
   const [showNewTicketNotification, setShowNewTicketNotification] =
     useState(false);
 
-
-
   const { tickets, isLoading: loading, error, refetch } = useTickets();
   const toIndoStatus = useCallback((statusCode?: string) => {
     switch ((statusCode || "").toUpperCase()) {
       case "ACC":
         return "Diterima";
       case "VERIF":
-        return "Verfikasi";
+        return "Verifikasi";
       case "PROCESS":
         return "Diproses";
       case "CLOSED":
@@ -135,8 +129,6 @@ export default function RiwayatScreen() {
 
     return mappedData;
   }, [tickets, toIndoStatus]);
-
-
 
   const hasFilters = sortBy !== "" || selectedStatus.length > 0;
 
@@ -281,7 +273,10 @@ export default function RiwayatScreen() {
           <View style={styles.errorContainer}>
             <MaterialIcons name="error-outline" size={48} color="#E24646" />
             <Text style={styles.errorTitle}>Gagal Memuat Data</Text>
-            <Text style={styles.errorText}>Terjadi kesalahan saat mengambil data riwayat. Periksa koneksi internet Anda.</Text>
+            <Text style={styles.errorText}>
+              Terjadi kesalahan saat mengambil data riwayat. Periksa koneksi
+              internet Anda.
+            </Text>
             <TouchableOpacity style={styles.retryButton} onPress={refetchAll}>
               <Text style={styles.retryText}>Coba Lagi</Text>
             </TouchableOpacity>
@@ -290,13 +285,18 @@ export default function RiwayatScreen() {
           <View style={styles.emptyContainer}>
             <MaterialIcons name="inbox" size={48} color="#999" />
             <Text style={styles.emptyTitle}>Belum Ada Riwayat</Text>
-            <Text style={styles.emptyText}>Anda belum memiliki riwayat laporan. Buat laporan pertama Anda sekarang.</Text>
+            <Text style={styles.emptyText}>
+              Anda belum memiliki riwayat laporan. Buat laporan pertama Anda
+              sekarang.
+            </Text>
           </View>
         ) : (
           <>
             <FlatList
               data={filteredData}
-              keyExtractor={(item) => item.ticket_number}
+              keyExtractor={(item, index) =>
+                `${item.ticket_number}_${item.ticket_id}_${index}`
+              }
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
@@ -384,8 +384,6 @@ export default function RiwayatScreen() {
     </TabTransition>
   );
 }
-
-
 
 const styles = StyleSheet.create({
   container: {
