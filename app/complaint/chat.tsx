@@ -1769,7 +1769,7 @@ Sekarang Anda dapat melanjutkan:`;
       }
 
       // Clear session and ticket data
-      await AsyncStorage.multiRemove(["currentTicketId", "chatSession"]);
+      await AsyncStorage.multiRemove(["currentTicketId", "chatSession", COMPLAINT_SESSION_KEY, LIVE_CHAT_SESSION_KEY]);
       setCurrentTicketId(null);
       setSessionId(null);
 
@@ -1793,6 +1793,10 @@ Sekarang Anda dapat melanjutkan:`;
       setSelectedTerminal(null);
       setEditFormSelected(false);
       setButtonGroupStates({});
+      setCollectedInfo(null);
+
+      // Clear session state completely
+      await clearSessionState();
 
       // Disconnect from socket properly
       if (socket.connected) {
@@ -1810,7 +1814,7 @@ Sekarang Anda dapat melanjutkan:`;
     } catch {
       // Error clearing chat history
     }
-  }, [ACTIVE_ROOM, uid, socket]);
+  }, [ACTIVE_ROOM, uid, socket, clearSessionState, COMPLAINT_SESSION_KEY, LIVE_CHAT_SESSION_KEY]);
 
   const handleSendMessage = useCallback(() => {
     if (inputText.trim() && !isInputDisabled) {
@@ -2457,7 +2461,7 @@ Sekarang Anda dapat melanjutkan:`;
                   {
                     text: "Hapus",
                     style: "destructive",
-                    onPress: clearSessionState,
+                    onPress: clearChatHistory,
                   },
                 ]
               );
@@ -3340,7 +3344,7 @@ Sekarang Anda dapat melanjutkan:`;
                           <Text
                             style={[
                               styles.buttonText,
-                              { fontSize: 12 },
+                              { fontSize: rf(11) },
                               (isOtherSelected || globalChannelSelected) && {
                                 color: "#999",
                               },
@@ -3660,9 +3664,9 @@ Sekarang Anda dapat melanjutkan:`;
                               style={[
                                 styles.buttonText,
                                 {
-                                  fontSize: 8,
+                                  fontSize: rf(7),
                                   textAlign: "center",
-                                  lineHeight: 9,
+                                  lineHeight: rf(8),
                                   fontWeight: "600",
                                 },
                                 (isOtherSelected || globalCategorySelected) && {
@@ -3762,11 +3766,11 @@ Sekarang Anda dapat melanjutkan:`;
                                 style={[
                                   styles.buttonText,
                                   {
-                                    fontSize: 9,
+                                    fontSize: rf(8),
                                     textAlign: "center",
-                                    lineHeight: 11,
+                                    lineHeight: rf(10),
                                     fontWeight: "600",
-                                    marginTop: 2,
+                                    marginTop: hp(0.3),
                                   },
                                   (isOtherSelected ||
                                     globalTerminalSelected) && {
@@ -4475,18 +4479,28 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     marginTop: 8,
     gap: 8,
+    zIndex: 10,
+    elevation: 10,
+    position: "relative",
   },
   channelButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#52B5AB",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 4,
-    minWidth: "30%",
-    maxWidth: "48%",
+    paddingHorizontal: wp(2),
+    paddingVertical: hp(1),
+    borderRadius: wp(4),
+    gap: wp(1),
+    minWidth: deviceType.isTablet ? "22%" : "30%",
+    maxWidth: deviceType.isTablet ? "32%" : "48%",
     justifyContent: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    position: "relative",
+    zIndex: 10,
   },
   categoryButtonContainer: {
     flexDirection: "row",
@@ -4494,26 +4508,29 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 6,
     justifyContent: "space-between",
-    zIndex: 1000, // Ensure buttons are on top
-    pointerEvents: "auto", // Ensure touch events are captured
+    zIndex: 10,
+    elevation: 10,
+    position: "relative",
   },
   categoryButton: {
     flexDirection: "column",
     alignItems: "center",
     backgroundColor: "#4CAF50",
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 2,
-    minWidth: "30%",
-    maxWidth: "32%",
+    paddingHorizontal: wp(1),
+    paddingVertical: hp(0.8),
+    borderRadius: wp(3),
+    gap: hp(0.3),
+    minWidth: deviceType.isTablet ? "22%" : "30%",
+    maxWidth: deviceType.isTablet ? "24%" : "32%",
     justifyContent: "center",
-    elevation: 2, // Add elevation for Android
-    shadowColor: "#000", // Add shadow for iOS
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    minHeight: 42,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    minHeight: hp(5.5),
+    position: "relative",
+    zIndex: 10,
   },
 
   editButton: {
@@ -4552,19 +4569,29 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 6,
     justifyContent: "space-between",
+    zIndex: 10,
+    elevation: 10,
+    position: "relative",
   },
   terminalButton: {
     flexDirection: "column",
     alignItems: "center",
     backgroundColor: "#2196F3",
-    paddingHorizontal: 6,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 2,
-    minWidth: "30%",
-    maxWidth: "32%",
+    paddingHorizontal: wp(1.5),
+    paddingVertical: hp(1),
+    borderRadius: wp(3),
+    gap: hp(0.3),
+    minWidth: deviceType.isTablet ? "22%" : "30%",
+    maxWidth: deviceType.isTablet ? "24%" : "32%",
     justifyContent: "center",
-    minHeight: 50,
+    minHeight: hp(6.5),
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    position: "relative",
+    zIndex: 10,
   },
   disabledTerminalButton: {
     backgroundColor: "#E0E0E0",

@@ -102,7 +102,6 @@ export default function FilterModal({
               { 
                 transform: [{ translateY: slideAnim }],
                 maxHeight: screenDimensions.isTablet ? '60%' : '75%',
-                paddingBottom: Platform.OS === 'android' ? hp(3) : hp(4),
               },
             ]}
             onStartShouldSetResponder={() => true}
@@ -324,7 +323,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: wp(3),
     paddingTop: hp(2),
-    paddingBottom: Platform.OS === 'android' ? hp(3) : hp(4),
+    paddingBottom: hp(4),
+    marginTop: 'auto',
   },
   clearButton: {
     flex: 1,
