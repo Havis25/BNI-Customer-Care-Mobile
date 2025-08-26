@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/id"; // supaya "5 menit lalu" pakai bahasa Indonesia
 import relativeTime from "dayjs/plugin/relativeTime";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -136,6 +137,19 @@ export default function NotificationScreen() {
     setReadIds((prev) => [...prev, id]);
   };
 
+  const handleNotificationPress = (notification: Notification) => {
+    // Mark as read
+    markAsRead(notification.id);
+
+    // Navigate to ticket detail page
+    if (notification.ticketNumber) {
+      router.push({
+        pathname: "/riwayat/[id]",
+        params: { id: notification.ticketNumber },
+      });
+    }
+  };
+
   const markAllAsRead = () => {
     setReadIds(notifications.map((n) => n.id));
   };
@@ -153,7 +167,7 @@ export default function NotificationScreen() {
         !item.read && styles.unreadNotification,
         index === notifications.length - 1 && styles.lastNotification,
       ]}
-      onPress={() => markAsRead(item.id)}
+      onPress={() => handleNotificationPress(item)}
       activeOpacity={0.7}
     >
       <View style={styles.notificationContent}>
@@ -172,7 +186,9 @@ export default function NotificationScreen() {
             >
               {item.title}
             </Text>
-            <Text style={styles.notificationDesc}>{item.description}</Text>
+            <Text style={styles.notificationDesc}>
+              {item.description} • #{item.ticketNumber}
+            </Text>
           </View>
         </View>
         <View style={styles.rightSection}>
