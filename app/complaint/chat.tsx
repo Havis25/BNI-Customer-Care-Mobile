@@ -21,6 +21,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // Camera removed - audio only implementation
 import WebRTCService from "@/src/services/webrtc";
+import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import { router, useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
@@ -44,7 +45,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 type MessageType = {
   id: string | number;
@@ -138,8 +138,8 @@ export default function ChatScreen() {
   );
 
   // Session persistence keys
-  const COMPLAINT_SESSION_KEY = 'complaint_chat_session';
-  const LIVE_CHAT_SESSION_KEY = `live_chat_session_${ticketId || 'general'}`;
+  const COMPLAINT_SESSION_KEY = "complaint_chat_session";
+  const LIVE_CHAT_SESSION_KEY = `live_chat_session_${ticketId || "general"}`;
 
   // Use ticket-specific storage key to maintain chat history per ticket
   const storageKey = useMemo(() => {
@@ -155,7 +155,12 @@ export default function ChatScreen() {
       return LIVE_CHAT_SESSION_KEY;
     }
     return COMPLAINT_SESSION_KEY;
-  }, [isFromTicketDetail, ticketId, LIVE_CHAT_SESSION_KEY, COMPLAINT_SESSION_KEY]);
+  }, [
+    isFromTicketDetail,
+    ticketId,
+    LIVE_CHAT_SESSION_KEY,
+    COMPLAINT_SESSION_KEY,
+  ]);
 
   // Presence & call
   const [activePeers, setActivePeers] = useState<Peer[]>([]);
@@ -285,13 +290,30 @@ export default function ChatScreen() {
         editFormSelected,
         ticketCreatedInSession,
         buttonGroupStates,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
-      await AsyncStorage.setItem(sessionStorageKey, JSON.stringify(sessionState));
+      await AsyncStorage.setItem(
+        sessionStorageKey,
+        JSON.stringify(sessionState)
+      );
     } catch (error) {
-      console.log('Failed to save session state:', error);
+      console.log("Failed to save session state:", error);
     }
-  }, [messages, sessionId, collectedInfo, selectedChannel, selectedCategory, selectedTerminal, confirmedAmount, amountRequested, transactionDateRequested, editFormSelected, ticketCreatedInSession, buttonGroupStates, sessionStorageKey]);
+  }, [
+    messages,
+    sessionId,
+    collectedInfo,
+    selectedChannel,
+    selectedCategory,
+    selectedTerminal,
+    confirmedAmount,
+    amountRequested,
+    transactionDateRequested,
+    editFormSelected,
+    ticketCreatedInSession,
+    buttonGroupStates,
+    sessionStorageKey,
+  ]);
 
   // Load session state
   const loadSessionState = useCallback(async () => {
@@ -300,8 +322,9 @@ export default function ChatScreen() {
       if (savedState) {
         const parsedState = JSON.parse(savedState);
         // Check if session is not too old (24 hours)
-        const isValidSession = Date.now() - parsedState.timestamp < 24 * 60 * 60 * 1000;
-        
+        const isValidSession =
+          Date.now() - parsedState.timestamp < 24 * 60 * 60 * 1000;
+
         if (isValidSession && parsedState.messages?.length > 0) {
           setMessages(parsedState.messages || []);
           setSessionId(parsedState.sessionId || null);
@@ -311,15 +334,19 @@ export default function ChatScreen() {
           setSelectedTerminal(parsedState.selectedTerminal || null);
           setConfirmedAmount(parsedState.confirmedAmount || null);
           setAmountRequested(parsedState.amountRequested || false);
-          setTransactionDateRequested(parsedState.transactionDateRequested || false);
+          setTransactionDateRequested(
+            parsedState.transactionDateRequested || false
+          );
           setEditFormSelected(parsedState.editFormSelected || false);
-          setTicketCreatedInSession(parsedState.ticketCreatedInSession || false);
+          setTicketCreatedInSession(
+            parsedState.ticketCreatedInSession || false
+          );
           setButtonGroupStates(parsedState.buttonGroupStates || {});
           return true; // Session restored
         }
       }
     } catch (error) {
-      console.log('Failed to load session state:', error);
+      console.log("Failed to load session state:", error);
     }
     return false; // No session or failed to restore
   }, [sessionStorageKey]);
@@ -341,8 +368,9 @@ export default function ChatScreen() {
       setEditFormSelected(false);
       setTicketCreatedInSession(false);
       setButtonGroupStates({});
+      setSummaryShown(false); // Add this to ensure clean state
     } catch (error) {
-      console.log('Failed to clear session state:', error);
+      console.log("Failed to clear session state:", error);
     }
   }, [sessionStorageKey]);
 
@@ -350,7 +378,7 @@ export default function ChatScreen() {
   const initializeChat = useCallback(async () => {
     // Try to restore session first
     const sessionRestored = await loadSessionState();
-    
+
     if (sessionRestored) {
       return; // Skip initialization if session was restored
     }
@@ -444,177 +472,14 @@ export default function ChatScreen() {
 
         // Update collected info from chatbot response
         if (response.collected_info) {
+          console.log("=== COLLECTED INFO UPDATE ===");
+          console.log("Previous collectedInfo:", collectedInfo);
+          console.log("New collected_info:", response.collected_info);
           setCollectedInfo(response.collected_info);
         }
 
-        // Handle amount confirmation - check if transaction date is also needed
-        if (
-          amountRequested &&
-          !transactionDateRequested &&
-          (response.message.toLowerCase().includes("mohon konfirmasi") ||
-            response.message.toLowerCase().includes("apakah data") ||
-            response.message.toLowerCase().includes("sudah benar"))
-        ) {
-          // Get the most recent amount input from user messages
-          const amountMessages = messages.filter(
-            (msg) =>
-              !msg.isBot &&
-              msg.text &&
-              !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text) &&
-              /^[0-9.,\s]+$/.test(msg.text.replace(/[Rp\s]/g, "")) &&
-              msg.text.replace(/[^0-9]/g, "").length <= 10 &&
-              parseInt(msg.text.replace(/[^0-9]/g, "")) < 999999999
-          );
-
-          let displayAmount = "Tidak tersedia";
-          let confirmedAmountValue = null;
-          if (amountMessages.length > 0) {
-            const lastAmount = amountMessages[amountMessages.length - 1];
-            const numericAmount = lastAmount.text.replace(/[^0-9]/g, "");
-            if (numericAmount && parseInt(numericAmount) > 0) {
-              displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
-              confirmedAmountValue = numericAmount;
-            }
-          }
-
-          // Save the confirmed amount to state
-          setConfirmedAmount(confirmedAmountValue);
-
-          const confirmationMessage: MessageType = {
-            id: getUniqueId(),
-            text: `Baik, saya catat nominal transaksi Anda: Rp ${displayAmount}. Apakah nominal ini sudah benar?`,
-            isBot: true,
-            timestamp: new Date().toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          };
-
-          setMessages((prev) => {
-            const newMessages = [...prev, confirmationMessage];
-            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-            return newMessages;
-          });
-
-          // Check if category also needs transaction date
-          const needsTransactionDate =
-            response.collected_info?.category &&
-            checkIfCategoryNeedsTransactionDate(
-              response.collected_info.category
-            );
-
-          if (needsTransactionDate) {
-            // Ask for transaction date next
-            setTimeout(() => {
-              const transactionDateMessage: MessageType = {
-                id: getUniqueId(),
-                text: "Terima kasih. Sekarang mohon masukkan tanggal transaksi (DD/MM/YYYY):",
-                isBot: true,
-                timestamp: new Date().toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-              };
-              setMessages((prev) => {
-                const newMessages = [...prev, transactionDateMessage];
-                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-                return newMessages;
-              });
-              setTransactionDateRequested(true);
-            }, 1500);
-            return;
-          } else {
-            // No transaction date needed, show summary after delay
-            setTimeout(() => {
-              setMessages((currentMessages) => {
-                console.log(
-                  "Amount confirmation - Using confirmed amount:",
-                  confirmedAmount
-                );
-
-                let displayAmount = "Tidak tersedia";
-                // Use the confirmed amount first (priority)
-                if (confirmedAmount) {
-                  console.log("Using confirmed amount:", confirmedAmount);
-                  displayAmount =
-                    parseInt(confirmedAmount).toLocaleString("id-ID");
-                } else if (response.collected_info?.amount) {
-                  console.log(
-                    "Using amount from collected_info:",
-                    response.collected_info.amount
-                  );
-                  displayAmount =
-                    typeof response.collected_info.amount === "number"
-                      ? response.collected_info.amount.toLocaleString("id-ID")
-                      : response.collected_info.amount.toString();
-                } else {
-                  // Fallback to message filtering (should not happen if confirmedAmount is set)
-                  const amountMessages = currentMessages.filter(
-                    (msg) =>
-                      !msg.isBot &&
-                      msg.text &&
-                      !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text) &&
-                      /^[0-9.,\s]+$/.test(msg.text.replace(/[Rp\s]/g, "")) &&
-                      msg.text.replace(/[^0-9]/g, "").length <= 10 &&
-                      parseInt(msg.text.replace(/[^0-9]/g, "")) < 999999999
-                  );
-
-                  if (amountMessages.length > 0) {
-                    const lastAmount =
-                      amountMessages[amountMessages.length - 1];
-                    const numericAmount = lastAmount.text.replace(
-                      /[^0-9]/g,
-                      ""
-                    );
-                    if (numericAmount) {
-                      console.log(
-                        "Fallback: Using amount from message:",
-                        lastAmount.text,
-                        "->",
-                        numericAmount
-                      );
-                      displayAmount =
-                        parseInt(numericAmount).toLocaleString("id-ID");
-                    }
-                  }
-                }
-
-                const summaryText = `📋 RINGKASAN KELUHAN ANDA
-
-📍 Channel: ${response.collected_info?.channel || "Tidak tersedia"}
-
-📂 Kategori: ${response.collected_info?.category || "Tidak tersedia"}
-
-💰 Nominal: Rp ${displayAmount}
-
-📝 Deskripsi: ${
-                  response.collected_info?.ai_generated_description ||
-                  response.collected_info?.description ||
-                  "Tidak tersedia"
-                }
-
-Sekarang Anda dapat melanjutkan:`;
-
-                const summaryMessage: MessageType = {
-                  id: getUniqueId(),
-                  text: summaryText,
-                  isBot: true,
-                  timestamp: new Date().toLocaleTimeString("id-ID", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }),
-                  hasButtons: true,
-                  buttonSelected: undefined,
-                };
-
-                const newMessages = [...currentMessages, summaryMessage];
-                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-                return newMessages;
-              });
-            }, 1500);
-            return;
-          }
-        }
+        // Skip amount confirmation logic here - will be handled in handleSendMessage
+        // This prevents duplicate processing of amount confirmation
 
         // Handle transaction date confirmation - create summary with all info
         if (
@@ -744,6 +609,9 @@ Sekarang Anda dapat melanjutkan:`;
           validationSelected: undefined,
         };
 
+        // Handle direct channel/category detection from bot response
+        const messageText = response.message?.toLowerCase() || "";
+
         setMessages((prev) => {
           const newMessages = [...prev, botMessage];
           // Save messages to storage
@@ -751,25 +619,61 @@ Sekarang Anda dapat melanjutkan:`;
           return newMessages;
         });
 
-        // Add buttons directly to summary message (no separate follow-up)
-        if (
-          !summaryShown &&
-          (response.next_step === "summary_complete" ||
-            response.action === "summary_complete" ||
-            response.action === "ready_for_confirmation" ||
-            response.message.toLowerCase().includes("summary") ||
-            response.message.toLowerCase().includes("ringkasan") ||
-            response.message.toLowerCase().includes("kategori:") ||
-            response.message.toLowerCase().includes("deskripsi:"))
-        ) {
+        // Handle summary detection and amount flow
+        const isSummaryMessage =
+          response.next_step === "summary_complete" ||
+          response.action === "summary_complete" ||
+          response.action === "ready_for_confirmation" ||
+          response.message.toLowerCase().includes("summary") ||
+          response.message.toLowerCase().includes("ringkasan") ||
+          response.message.toLowerCase().includes("kategori:") ||
+          response.message.toLowerCase().includes("deskripsi:");
+
+        // Check if bot is asking for description after category selection
+        const isDescriptionRequest =
+          messageText.includes("deskripsi") ||
+          messageText.includes("ceritakan") ||
+          messageText.includes("jelaskan") ||
+          messageText.includes("detail") ||
+          (messageText.includes("masalah") && messageText.includes("anda"));
+
+        // Check if we have complete info and category needs amount
+        const hasCompleteInfo =
+          selectedChannel && selectedCategory && response.collected_info;
+        const categoryNeedsAmount =
+          selectedCategory && checkIfCategoryNeedsAmount(selectedCategory);
+        const collectedInfoNeedsAmount =
+          response.collected_info?.category &&
+          checkIfCategoryNeedsAmount(response.collected_info.category);
+        const shouldRequestAmount =
+          (categoryNeedsAmount || collectedInfoNeedsAmount) && !amountRequested;
+
+        console.log("=== AMOUNT DETECTION DEBUG ===");
+        console.log("hasCompleteInfo:", hasCompleteInfo);
+        console.log("categoryNeedsAmount:", categoryNeedsAmount);
+        console.log("collectedInfoNeedsAmount:", collectedInfoNeedsAmount);
+        console.log("shouldRequestAmount:", shouldRequestAmount);
+        console.log("amountRequested:", amountRequested);
+        console.log("summaryShown:", summaryShown);
+
+        // If this is a description request and we have complete info + need amount, ask for amount after user responds
+        if (isDescriptionRequest && hasCompleteInfo && shouldRequestAmount) {
+          console.log(
+            "Bot is asking for description, but we'll need to ask for amount after user responds"
+          );
+          // Set a flag to request amount after user provides description
+          return;
+        }
+
+        // If we have collected info and it indicates completion, check for amount requirement
+        if ((isSummaryMessage || hasCompleteInfo) && !summaryShown) {
           setSummaryShown(true);
 
-          // Check if category requires amount using mapping utility
-          const needsAmount =
-            response.collected_info?.category &&
-            checkIfCategoryNeedsAmount(response.collected_info.category);
+          console.log(
+            "Processing summary/complete info - checking amount requirements"
+          );
 
-          if (needsAmount && !amountRequested) {
+          if (shouldRequestAmount) {
             // Ask for amount first, don't show buttons yet
             setTimeout(() => {
               const amountMessage: MessageType = {
@@ -788,12 +692,24 @@ Sekarang Anda dapat melanjutkan:`;
               });
               setAmountRequested(true);
             }, 1000);
-          } else if (!needsAmount) {
+            return; // Exit early to prevent showing buttons
+          } else {
             // Only show buttons if no amount is needed
-            botMessage.hasButtons = true;
-            botMessage.buttonSelected = undefined;
+            setTimeout(() => {
+              setMessages((prev) => {
+                const updatedMessages = prev.map((msg) =>
+                  msg.id === botMessage.id
+                    ? { ...msg, hasButtons: true, buttonSelected: undefined }
+                    : msg
+                );
+                AsyncStorage.setItem(
+                  storageKey,
+                  JSON.stringify(updatedMessages)
+                );
+                return updatedMessages;
+              });
+            }, 500);
           }
-          // If amount is needed but already requested, don't show buttons yet
 
           // Save updated session state
           await AsyncStorage.setItem(
@@ -802,16 +718,13 @@ Sekarang Anda dapat melanjutkan:`;
               sessionId,
               summaryShown: true,
               ticketCreatedInSession,
-              amountRequested,
+              amountRequested: shouldRequestAmount ? true : amountRequested,
               transactionDateRequested,
               selectedTerminal,
               confirmedAmount,
             })
           );
         }
-
-        // Handle direct channel/category detection from bot response
-        const messageText = response.message?.toLowerCase() || "";
 
         // Check if bot is asking for amount (before summary)
         if (
@@ -822,6 +735,10 @@ Sekarang Anda dapat melanjutkan:`;
           (messageText.includes("transaksi") &&
             (messageText.includes("berapa") || messageText.includes("nominal")))
         ) {
+          console.log(
+            "Bot is asking for amount - setting amountRequested to true"
+          );
+          setAmountRequested(true);
           // Don't add any buttons for amount input - let user type freely
           return;
         }
@@ -1190,6 +1107,17 @@ Sekarang Anda dapat melanjutkan:`;
         return newMessages;
       });
 
+      // Check if the selected category requires amount input
+      console.log("Category selected:", generalCategory);
+      console.log(
+        "Category requires amount:",
+        checkIfCategoryNeedsAmount(generalCategory)
+      );
+      console.log(
+        "Category requires transaction date:",
+        checkIfCategoryNeedsTransactionDate(generalCategory)
+      );
+
       // Send to chatbot API
       sendToChatbot(generalCategory);
     },
@@ -1388,6 +1316,17 @@ Sekarang Anda dapat melanjutkan:`;
           setCurrentTicketId(ticketId);
           setTicketCreatedInSession(true);
           await AsyncStorage.setItem("currentTicketId", ticketId);
+
+          // Skip bot messages and go directly to live chat
+          setIsLiveChat(true);
+          setMessages([]); // Start with empty messages
+
+          // Auto-connect to agent after a short delay
+          setTimeout(() => {
+            quickDM();
+          }, 500);
+
+          return; // Exit early to skip bot messages
         } else {
           // If no URL param, check storage again
           const storedId = await AsyncStorage.getItem("currentTicketId");
@@ -1481,44 +1420,57 @@ Sekarang Anda dapat melanjutkan:`;
         (m) => m.isTicketInfo && m.ticketId === currentTicketId
       );
       if (!hasTicketInfo) {
-        const ticketInfoMessage = {
-          id: getUniqueId(),
-          text: `📋 Tiket #${currentTicketId.slice(-6)}`,
-          isBot: false,
-          timestamp: new Date().toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          isTicketInfo: true,
-          ticketId: currentTicketId,
-        };
+        // Fetch ticket detail to get the correct created time
+        fetchTicketDetail(currentTicketId).then(() => {
+          // Create ticket info message with proper timestamp from ticketDetail
+          const actualCreatedTime = ticketDetail?.created_time
+            ? new Date(ticketDetail.created_time).toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
 
-        setMessages((prev) => {
-          const newMessages = [...prev, ticketInfoMessage];
-          AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-          return newMessages;
-        });
-
-        // Send ticket info to socket for agent to receive
-        if (socket.connected) {
-          socket.emit("chat:send", {
-            ...ticketInfoMessage,
-            author: chatUser,
-            createdAt: Date.now(),
-            type: "ticket-info",
-            room: ACTIVE_ROOM,
-          });
-
-          // Send additional ticket context for agent
-          socket.emit("ticket:context", {
-            room: ACTIVE_ROOM,
+          const ticketInfoMessage = {
+            id: getUniqueId(),
+            text: `📋 Tiket #${currentTicketId.slice(-6)}`,
+            isBot: false,
+            timestamp: actualCreatedTime,
+            isTicketInfo: true,
             ticketId: currentTicketId,
-            fromUserId: uid,
-            timestamp: Date.now(),
-          });
-        }
+          };
 
-        fetchTicketDetail(currentTicketId);
+          setMessages((prev) => {
+            const newMessages = [...prev, ticketInfoMessage];
+            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+            return newMessages;
+          });
+
+          // Send ticket info to socket for agent to receive
+          if (socket.connected) {
+            socket.emit("chat:send", {
+              ...ticketInfoMessage,
+              author: chatUser,
+              createdAt: ticketDetail?.created_time
+                ? new Date(ticketDetail.created_time).getTime()
+                : Date.now(),
+              type: "ticket-info",
+              room: ACTIVE_ROOM,
+            });
+
+            // Send additional ticket context for agent
+            socket.emit("ticket:context", {
+              room: ACTIVE_ROOM,
+              ticketId: currentTicketId,
+              fromUserId: uid,
+              timestamp: ticketDetail?.created_time
+                ? new Date(ticketDetail.created_time).getTime()
+                : Date.now(),
+            });
+          }
+        });
       }
     }
   }, [
@@ -1564,7 +1516,16 @@ Sekarang Anda dapat melanjutkan:`;
     if (messages.length > 0) {
       saveSessionState();
     }
-  }, [messages, sessionId, collectedInfo, selectedChannel, selectedCategory, selectedTerminal, confirmedAmount, saveSessionState]);
+  }, [
+    messages,
+    sessionId,
+    collectedInfo,
+    selectedChannel,
+    selectedCategory,
+    selectedTerminal,
+    confirmedAmount,
+    saveSessionState,
+  ]);
 
   // Initialize chat on component mount
   useEffect(() => {
@@ -1908,7 +1869,12 @@ Sekarang Anda dapat melanjutkan:`;
       }
 
       // Clear session and ticket data
-      await AsyncStorage.multiRemove(["currentTicketId", "chatSession"]);
+      await AsyncStorage.multiRemove([
+        "currentTicketId",
+        "chatSession",
+        COMPLAINT_SESSION_KEY,
+        LIVE_CHAT_SESSION_KEY,
+      ]);
       setCurrentTicketId(null);
       setSessionId(null);
 
@@ -1932,6 +1898,10 @@ Sekarang Anda dapat melanjutkan:`;
       setSelectedTerminal(null);
       setEditFormSelected(false);
       setButtonGroupStates({});
+      setCollectedInfo(null);
+
+      // Clear session state completely
+      await clearSessionState();
 
       // Disconnect from socket properly
       if (socket.connected) {
@@ -1949,12 +1919,31 @@ Sekarang Anda dapat melanjutkan:`;
     } catch {
       // Error clearing chat history
     }
-  }, [ACTIVE_ROOM, uid, socket]);
+  }, [
+    ACTIVE_ROOM,
+    uid,
+    socket,
+    clearSessionState,
+    COMPLAINT_SESSION_KEY,
+    LIVE_CHAT_SESSION_KEY,
+  ]);
 
   const handleSendMessage = useCallback(() => {
     if (inputText.trim() && !isInputDisabled) {
       const userMessage = inputText.trim();
       const now = Date.now();
+
+      console.log("=== HANDLE SEND MESSAGE ===");
+      console.log("User message:", userMessage);
+      console.log("Current state:", {
+        amountRequested,
+        transactionDateRequested,
+        summaryShown,
+        isLiveChat,
+        selectedChannel,
+        selectedCategory,
+        collectedInfo,
+      });
 
       // Add user message to chat immediately
       const outgoing: MessageType = {
@@ -1980,7 +1969,7 @@ Sekarang Anda dapat melanjutkan:`;
       setInputText("");
 
       // Check if this is transaction date input
-      if (transactionDateRequested && summaryShown && !isLiveChat) {
+      if (transactionDateRequested && !isLiveChat) {
         // Validate transaction date input
         const datePattern = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/;
         if (datePattern.test(userMessage.trim())) {
@@ -2011,7 +2000,9 @@ Sekarang Anda dapat melanjutkan:`;
               }\n\n📂 Kategori: ${
                 collectedInfo?.category || "Tidak tersedia"
               }\n\n💰 Nominal: Rp ${displayAmount}\n\n📅 Tanggal Transaksi: ${userMessage.trim()}\n\n📝 Deskripsi: ${
-                collectedInfo?.description || "Tidak tersedia"
+                collectedInfo?.ai_generated_description ||
+                collectedInfo?.description ||
+                "Tidak tersedia"
               }\n\nSekarang Anda dapat melanjutkan:`;
 
               const summaryMessage: MessageType = {
@@ -2053,8 +2044,62 @@ Sekarang Anda dapat melanjutkan:`;
           }, 500);
         }
       }
+      // Check if user is providing description and we need to ask for amount
+      else if (
+        selectedChannel &&
+        selectedCategory &&
+        !amountRequested &&
+        !isLiveChat &&
+        collectedInfo &&
+        !summaryShown
+      ) {
+        // Check if category needs amount
+        const categoryNeedsAmount =
+          checkIfCategoryNeedsAmount(selectedCategory);
+        const collectedInfoNeedsAmount =
+          collectedInfo.category &&
+          checkIfCategoryNeedsAmount(collectedInfo.category);
+
+        console.log("=== DESCRIPTION INPUT ANALYSIS ===");
+        console.log("selectedCategory:", selectedCategory);
+        console.log("categoryNeedsAmount:", categoryNeedsAmount);
+        console.log("collectedInfoNeedsAmount:", collectedInfoNeedsAmount);
+        console.log("User message length:", userMessage.length);
+
+        if (
+          (categoryNeedsAmount || collectedInfoNeedsAmount) &&
+          userMessage.length > 10
+        ) {
+          // This looks like a description input, and category needs amount
+          console.log("User provided description, now asking for amount");
+
+          // Send to chatbot first to process the description
+          sendToChatbot(userMessage);
+
+          // Then ask for amount after a delay
+          setTimeout(() => {
+            const amountMessage: MessageType = {
+              id: getUniqueId(),
+              text: "Untuk melengkapi tiket, mohon masukkan nominal transaksi (dalam Rupiah):",
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+            setMessages((prev) => {
+              const newMessages = [...prev, amountMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+            setAmountRequested(true);
+          }, 2000); // Give chatbot time to process first
+
+          return; // Don't send to chatbot again below
+        }
+      }
       // Check if this is amount input after summary
-      else if (amountRequested && summaryShown && !isLiveChat) {
+      else if (amountRequested && !isLiveChat && !transactionDateRequested) {
         // Validate amount input with more comprehensive checks
         const cleanInput = userMessage.trim();
 
@@ -2147,7 +2192,9 @@ Sekarang Anda dapat melanjutkan:`;
                 }\n\n📂 Kategori: ${
                   collectedInfo?.category || "Tidak tersedia"
                 }\n\n💰 Nominal: Rp ${displayAmount}\n\n📝 Deskripsi: ${
-                  collectedInfo?.description || "Tidak tersedia"
+                  collectedInfo?.ai_generated_description ||
+                  collectedInfo?.description ||
+                  "Tidak tersedia"
                 }\n\nSekarang Anda dapat melanjutkan:`;
 
                 const summaryMessage: MessageType = {
@@ -2201,6 +2248,20 @@ Sekarang Anda dapat melanjutkan:`;
             });
           }, 500);
         }
+      }
+      // Handle description input after channel and category selection
+      else if (
+        selectedChannel &&
+        selectedCategory &&
+        !summaryShown &&
+        !amountRequested &&
+        !isLiveChat
+      ) {
+        console.log(
+          "Processing description input after channel and category selection"
+        );
+        // Send description to chatbot - this should trigger summary
+        sendToChatbot(userMessage);
       } else if (!isLiveChat) {
         // Handle help command
         if (
@@ -2255,6 +2316,10 @@ Sekarang Anda dapat melanjutkan:`;
     sendToChatbot,
     collectedInfo,
     confirmedAmount,
+    selectedChannel,
+    selectedCategory,
+    clearChatHistory,
+    isInputDisabled,
   ]);
 
   const quickDM = useCallback(() => {
@@ -2527,7 +2592,8 @@ Sekarang Anda dapat melanjutkan:`;
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        enabled={true}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -2570,7 +2636,7 @@ Sekarang Anda dapat melanjutkan:`;
                   {
                     text: "Hapus",
                     style: "destructive",
-                    onPress: clearSessionState,
+                    onPress: clearChatHistory,
                   },
                 ]
               );
@@ -3453,7 +3519,7 @@ Sekarang Anda dapat melanjutkan:`;
                           <Text
                             style={[
                               styles.buttonText,
-                              { fontSize: 12 },
+                              { fontSize: rf(11) },
                               (isOtherSelected || globalChannelSelected) && {
                                 color: "#999",
                               },
@@ -3773,9 +3839,9 @@ Sekarang Anda dapat melanjutkan:`;
                               style={[
                                 styles.buttonText,
                                 {
-                                  fontSize: 8,
+                                  fontSize: rf(7),
                                   textAlign: "center",
-                                  lineHeight: 9,
+                                  lineHeight: rf(8),
                                   fontWeight: "600",
                                 },
                                 (isOtherSelected || globalCategorySelected) && {
@@ -3875,11 +3941,11 @@ Sekarang Anda dapat melanjutkan:`;
                                 style={[
                                   styles.buttonText,
                                   {
-                                    fontSize: 9,
+                                    fontSize: rf(8),
                                     textAlign: "center",
-                                    lineHeight: 11,
+                                    lineHeight: rf(10),
                                     fontWeight: "600",
-                                    marginTop: 2,
+                                    marginTop: hp(0.3),
                                   },
                                   (isOtherSelected ||
                                     globalTerminalSelected) && {
@@ -4012,10 +4078,14 @@ Sekarang Anda dapat melanjutkan:`;
                 ? "Pilih dari tombol di atas..."
                 : "Ketik pesan Anda..."
             }
+            placeholderTextColor={isInputDisabled ? "#999" : "#AAA"}
             value={inputText}
             onChangeText={setInputText}
             editable={!isInputDisabled}
             multiline
+            returnKeyType="send"
+            onSubmitEditing={handleSendMessage}
+            blurOnSubmit={false}
           />
           <TouchableOpacity
             onPress={handleSendMessage}
@@ -4264,6 +4334,7 @@ const styles = StyleSheet.create({
     fontSize: rf(14),
     maxHeight: hp(12.5),
     fontFamily: "Poppins",
+    color: "#333", // Always dark text for readability
   },
   addFileButton: {
     width: 40,
@@ -4588,18 +4659,28 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     marginTop: 8,
     gap: 8,
+    zIndex: 10,
+    elevation: 10,
+    position: "relative",
   },
   channelButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#52B5AB",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 4,
-    minWidth: "30%",
-    maxWidth: "48%",
+    paddingHorizontal: wp(2),
+    paddingVertical: hp(1),
+    borderRadius: wp(4),
+    gap: wp(1),
+    minWidth: deviceType.isTablet ? "22%" : "30%",
+    maxWidth: deviceType.isTablet ? "32%" : "48%",
     justifyContent: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    position: "relative",
+    zIndex: 10,
   },
   categoryButtonContainer: {
     flexDirection: "row",
@@ -4607,26 +4688,29 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 6,
     justifyContent: "space-between",
-    zIndex: 1000, // Ensure buttons are on top
-    pointerEvents: "auto", // Ensure touch events are captured
+    zIndex: 10,
+    elevation: 10,
+    position: "relative",
   },
   categoryButton: {
     flexDirection: "column",
     alignItems: "center",
     backgroundColor: "#4CAF50",
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 2,
-    minWidth: "30%",
-    maxWidth: "32%",
+    paddingHorizontal: wp(1),
+    paddingVertical: hp(0.8),
+    borderRadius: wp(3),
+    gap: hp(0.3),
+    minWidth: deviceType.isTablet ? "22%" : "30%",
+    maxWidth: deviceType.isTablet ? "24%" : "32%",
     justifyContent: "center",
-    elevation: 2, // Add elevation for Android
-    shadowColor: "#000", // Add shadow for iOS
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    minHeight: 42,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    minHeight: hp(5.5),
+    position: "relative",
+    zIndex: 10,
   },
 
   editButton: {
@@ -4665,25 +4749,36 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 6,
     justifyContent: "space-between",
+    zIndex: 10,
+    elevation: 10,
+    position: "relative",
   },
   terminalButton: {
     flexDirection: "column",
     alignItems: "center",
     backgroundColor: "#2196F3",
-    paddingHorizontal: 6,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 2,
-    minWidth: "30%",
-    maxWidth: "32%",
+    paddingHorizontal: wp(1.5),
+    paddingVertical: hp(1),
+    borderRadius: wp(3),
+    gap: hp(0.3),
+    minWidth: deviceType.isTablet ? "22%" : "30%",
+    maxWidth: deviceType.isTablet ? "24%" : "32%",
     justifyContent: "center",
-    minHeight: 50,
+    minHeight: hp(6.5),
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    position: "relative",
+    zIndex: 10,
   },
   disabledTerminalButton: {
     backgroundColor: "#E0E0E0",
   },
   disabledTextInput: {
     backgroundColor: "#F0F0F0",
-    color: "#999",
+    borderColor: "#D0D0D0",
+    color: "#666", // Slightly darker for better readability
   },
 });

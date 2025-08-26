@@ -4,6 +4,7 @@ import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
 import { useTerminals } from "@/hooks/useTerminals";
 import { useUser } from "@/hooks/useUser";
 import { api } from "@/lib/api";
+import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
@@ -28,7 +29,6 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 const API_URL = "/v1/tickets";
 const HEADER_HEIGHT = 56;
@@ -114,9 +114,10 @@ function SelectField({
           dropdownIconColor={disabled ? "#999" : "#666"}
           mode="dropdown"
           enabled={!disabled}
+          style={{ color: disabled ? "#666" : "#333" }}
         >
           {options.map((opt) => (
-            <Picker.Item key={opt} label={opt} value={opt} />
+            <Picker.Item key={opt} label={opt} value={opt} color="#FFF" />
           ))}
         </Picker>
       </View>
@@ -694,6 +695,7 @@ export default function ConfirmationScreen() {
                       }
                     }}
                     placeholder="Masukkan nominal transaksi"
+                    placeholderTextColor="#999"
                     keyboardType="numeric"
                     returnKeyType="done"
                     editable={!fieldStates.amountLocked}
@@ -745,6 +747,7 @@ export default function ConfirmationScreen() {
                       }
                     }}
                     placeholder="DD/MM/YYYY"
+                    placeholderTextColor="#999"
                     keyboardType="numeric"
                     returnKeyType="done"
                     maxLength={10}
@@ -783,6 +786,7 @@ export default function ConfirmationScreen() {
                   }}
                   multiline
                   placeholder="Tulis kronologi keluhan (min. 8 karakter)…"
+                  placeholderTextColor="#999"
                   maxLength={1000}
                   textAlignVertical="top"
                   returnKeyType="done"
@@ -912,6 +916,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     marginBottom: 8,
+    color: "#333",
     fontFamily: "Poppins",
   },
   textInput: {
@@ -938,6 +943,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F0F0",
     borderRadius: 8,
     overflow: "hidden",
+    color: "#333",
   },
 
   checkboxContainer: {
@@ -1027,6 +1033,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F8F8",
     borderWidth: 1,
     borderColor: "#52B5AB",
+    color: "#666",
   },
   disabledSelectText: {
     color: "#666",

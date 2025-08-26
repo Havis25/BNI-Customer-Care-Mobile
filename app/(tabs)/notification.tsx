@@ -113,7 +113,9 @@ export default function NotificationScreen() {
         }
 
         return {
-          id: String(ticket.ticket_id || ticket.ticket_number || Math.random()),
+          id: `notif_${
+            ticket.ticket_id || ticket.ticket_number
+          }_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           title,
           description,
           timeAgo: dayjs(ticket.created_time).fromNow(),
