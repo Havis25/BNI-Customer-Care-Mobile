@@ -45,7 +45,7 @@ export default function RootLayout() {
           await AsyncStorage.multiRemove(sessionKeys);
         }
       } catch (error) {
-        console.error("Error clearing storage on restart:", error);
+        // Silent error handling
       }
     };
 

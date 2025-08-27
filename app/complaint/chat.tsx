@@ -221,26 +221,6 @@ export default function ChatScreen() {
   const [editFormSelected, setEditFormSelected] = useState(false);
   const [uploadStepReached, setUploadStepReached] = useState(false); // Track if user reached upload step
 
-  // DEBUG: Monitor currentTicketId changes
-  useEffect(() => {}, [
-    currentTicketId,
-    fromConfirmation,
-    ticketCreatedInSession,
-    isFromTicketDetail,
-  ]);
-
-  // DEBUG: Monitor state changes for upload button
-  useEffect(() => {}, [
-    isFromTicketDetail,
-    ticketCreatedInSession,
-    room,
-    ticketId,
-    fromConfirmation,
-    currentTicketId,
-    uploadStepReached,
-    isLiveChat,
-  ]);
-
   // Ensure currentTicketId is set when coming from ticket detail
   useEffect(() => {
     if (isFromTicketDetail && ticketId && !currentTicketId) {
@@ -555,7 +535,6 @@ export default function ChatScreen() {
     }
 
     // Start with initial bot message only if no session
-    console.log("🆕 Setting initial bot message");
     setMessages([initialBotMessage]);
   }, [
     checkApiHealth,
@@ -1489,7 +1468,6 @@ Sekarang Anda dapat melanjutkan:`;
           });
         }
       } catch (error) {
-        console.error("Chatbot API error:", error);
         // Add error message with retry option
         const errorMessage: MessageType = {
           id: getUniqueId(),
@@ -3314,7 +3292,6 @@ Sekarang Anda dapat melanjutkan:`;
       setLocalStream(stream);
       return stream;
     } catch (error) {
-      console.error("Error initializing WebRTC audio call:", error);
       Alert.alert("Error", "Gagal menginisialisasi panggilan suara");
       return null;
     }
@@ -3330,7 +3307,6 @@ Sekarang Anda dapat melanjutkan:`;
         await WebRTCService.createOffer(ACTIVE_ROOM);
       }
     } catch (error) {
-      console.error("Error starting audio call:", error);
       Alert.alert("Error", "Gagal memulai panggilan suara");
     }
   }, [initializeWebRTCAudioCall, ACTIVE_ROOM]);
@@ -3343,7 +3319,7 @@ Sekarang Anda dapat melanjutkan:`;
       setLocalStream(null);
       setIsAudioCall(false);
     } catch (error) {
-      console.error("Error stopping call:", error);
+      // Silent error handling
     }
   }, [ACTIVE_ROOM]);
 
@@ -3358,7 +3334,7 @@ Sekarang Anda dapat melanjutkan:`;
           setIsAudioCall(true);
         }
       } catch (error) {
-        console.error("Error handling offer:", error);
+        // Silent error handling
       }
     };
 
@@ -3366,7 +3342,7 @@ Sekarang Anda dapat melanjutkan:`;
       try {
         await WebRTCService.handleAnswer(answer);
       } catch (error) {
-        console.error("Error handling answer:", error);
+        // Silent error handling
       }
     };
 
@@ -3374,7 +3350,7 @@ Sekarang Anda dapat melanjutkan:`;
       try {
         await WebRTCService.handleIceCandidate(candidate);
       } catch (error) {
-        console.error("Error handling ICE candidate:", error);
+        // Silent error handling
       }
     };
 
@@ -4295,8 +4271,6 @@ Sekarang Anda dapat melanjutkan:`;
                           );
                         }
                       } catch (error) {
-                        console.error("Error creating ticket:", error);
-
                         // Show error message in chat instead of alert
                         const errorMessage: MessageType = {
                           id: getUniqueId(),
