@@ -55,7 +55,10 @@ export default function TicketSummaryModal({
 
   const formatAmount = (amount?: number) => {
     if (!amount) return null;
-    return `Rp ${amount.toLocaleString("id-ID")}`;
+    return `Rp ${amount.toLocaleString("id-ID", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   const formatDate = (dateString?: string) => {

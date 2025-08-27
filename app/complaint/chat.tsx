@@ -192,7 +192,7 @@ export default function ChatScreen() {
   // IMPORTANT: Reset live chat state for regular complaint flow
   useEffect(() => {
     if (isRegularComplaintFlow) {
-      console.log("🔄 REGULAR COMPLAINT FLOW - Resetting live chat state");
+
       setIsLiveChat(false);
       setDmRoom(null);
       setActivePeers([]);
@@ -209,9 +209,7 @@ export default function ChatScreen() {
             "liveChat_state",
             "activeRoom",
           ]);
-          console.log(
-            "🧹 Cleared potential live chat artifacts for complaint flow"
-          );
+
 
           // Ensure we start with fresh bot messages (no live chat artifacts)
           setMessages([
@@ -226,7 +224,7 @@ export default function ChatScreen() {
             },
           ]);
         } catch (error) {
-          console.log("Error clearing live chat artifacts:", error);
+
         }
       };
 
@@ -254,53 +252,16 @@ export default function ChatScreen() {
   const [editFormSelected, setEditFormSelected] = useState(false);
   const [uploadStepReached, setUploadStepReached] = useState(false); // Track if user reached upload step
 
-  // DEBUG: Monitor currentTicketId changes
-  useEffect(() => {
-    console.log("🎫 currentTicketId changed:", {
-      currentTicketId,
-      fromConfirmation,
-      ticketCreatedInSession,
-      isFromTicketDetail,
-    });
-  }, [
-    currentTicketId,
-    fromConfirmation,
-    ticketCreatedInSession,
-    isFromTicketDetail,
-  ]);
 
-  // DEBUG: Monitor state changes for upload button
-  useEffect(() => {
-    console.log("🔄 UPLOAD BUTTON STATE DEBUG:", {
-      isFromTicketDetail,
-      ticketCreatedInSession,
-      room,
-      ticketId,
-      fromConfirmation,
-      currentTicketId,
-      uploadStepReached,
-      isLiveChat,
-    });
-  }, [
-    isFromTicketDetail,
-    ticketCreatedInSession,
-    room,
-    ticketId,
-    fromConfirmation,
-    currentTicketId,
-    uploadStepReached,
-    isLiveChat,
-  ]);
+
+
 
   // Ensure currentTicketId is set when coming from ticket detail
   useEffect(() => {
     if (isFromTicketDetail && ticketId && !currentTicketId) {
       const ticketIdStr =
         typeof ticketId === "string" ? ticketId : String(ticketId);
-      console.log(
-        "🎫 FALLBACK: Setting currentTicketId from ticket detail params:",
-        ticketIdStr
-      );
+
       setCurrentTicketId(ticketIdStr);
       setTicketCreatedInSession(true);
       AsyncStorage.setItem("currentTicketId", ticketIdStr);
@@ -419,7 +380,7 @@ export default function ChatScreen() {
         JSON.stringify(sessionState)
       );
     } catch (error) {
-      console.log("Failed to save session state:", error);
+
     }
   }, [
     messages,
@@ -559,7 +520,7 @@ export default function ChatScreen() {
         }
       }
     } catch (error) {
-      console.log("Failed to load session state:", error);
+
     }
     return false; // No session or failed to restore
   }, [
@@ -589,7 +550,7 @@ export default function ChatScreen() {
       setSummaryShown(false); // Add this to ensure clean state
       setUploadStepReached(false); // Reset upload step flag
     } catch (error) {
-      console.log("Failed to clear session state:", error);
+
     }
   }, [sessionStorageKey]);
 
@@ -718,52 +679,40 @@ export default function ChatScreen() {
 
         // Update collected info from chatbot response
         if (response.collected_info) {
-          console.log("=== COLLECTED INFO UPDATE ===");
-          console.log("Previous collectedInfo:", collectedInfo);
-          console.log("New collected_info:", response.collected_info);
+  
+  
+  
 
           // Update selectedChannel and selectedCategory based on collected_info if not already set
           const shouldSetChannel =
             response.collected_info.channel &&
             (!selectedChannel ||
               selectedChannel !== response.collected_info.channel);
-          console.log("=== CHANNEL SETTING DEBUG ===");
-          console.log(
-            "response.collected_info.channel:",
-            response.collected_info.channel
-          );
-          console.log("current selectedChannel:", selectedChannel);
-          console.log("shouldSetChannel:", shouldSetChannel);
+
+
+
+
 
           if (shouldSetChannel) {
-            console.log(
-              "Setting selectedChannel from collected_info:",
-              response.collected_info.channel
-            );
+
             setSelectedChannel(response.collected_info.channel || null);
 
             // After setting channel, check if we need to show category buttons
             setTimeout(() => {
               const shouldShowCategories =
                 !response.collected_info?.category && !selectedCategory;
-              console.log("=== CATEGORY SHOW DEBUG ===");
-              console.log(
-                "response.collected_info?.category:",
-                response.collected_info?.category
-              );
-              console.log("selectedCategory:", selectedCategory);
-              console.log("shouldShowCategories:", shouldShowCategories);
+
+
+
+
 
               if (shouldShowCategories) {
-                console.log("Channel set, now showing category buttons");
+
                 setMessages((prev) => {
                   const hasCategoryButtons = prev.some(
                     (msg) => msg.hasCategoryButtons
                   );
-                  console.log(
-                    "Already has category buttons:",
-                    hasCategoryButtons
-                  );
+
                   if (hasCategoryButtons) return prev;
 
                   const categoryButtonMessage: MessageType = {
@@ -778,7 +727,7 @@ export default function ChatScreen() {
                   };
                   const newMessages = [...prev, categoryButtonMessage];
                   AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-                  console.log("Added category button message");
+
                   return newMessages;
                 });
               }
@@ -790,10 +739,7 @@ export default function ChatScreen() {
             (!selectedCategory ||
               selectedCategory !== response.collected_info.category);
           if (shouldSetCategory) {
-            console.log(
-              "Setting selectedCategory from collected_info:",
-              response.collected_info.category
-            );
+
             setSelectedCategory(response.collected_info.category || null);
           }
 
@@ -802,22 +748,17 @@ export default function ChatScreen() {
             response.collected_info.channel &&
             !response.collected_info.category
           ) {
-            console.log("=== AGGRESSIVE FALLBACK CHECK ===");
+  
             setTimeout(() => {
               setMessages((prev) => {
                 const hasCategoryButtons = prev.some(
                   (msg) => msg.hasCategoryButtons
                 );
-                console.log(
-                  "Has category buttons in messages:",
-                  hasCategoryButtons
-                );
-                console.log("Current selectedCategory:", selectedCategory);
+
+
 
                 if (!hasCategoryButtons && !selectedCategory) {
-                  console.log(
-                    "AGGRESSIVE FALLBACK: Adding category buttons now!"
-                  );
+
                   const categoryButtonMessage: MessageType = {
                     id: getUniqueId(),
                     text: "Silakan pilih kategori masalah Anda:",
@@ -847,10 +788,7 @@ export default function ChatScreen() {
             userMessage.length > 10 &&
             !summaryShown
           ) {
-            console.log(
-              "Adding user description to collected_info:",
-              userMessage
-            );
+
             updatedCollectedInfo = {
               ...response.collected_info,
               description: userMessage,
@@ -868,10 +806,7 @@ export default function ChatScreen() {
             userMessage.length > 10 &&
             !summaryShown
           ) {
-            console.log(
-              "Adding user description based on selectedChannel/selectedCategory:",
-              userMessage
-            );
+
             updatedCollectedInfo = {
               ...response.collected_info,
               description: userMessage,
@@ -899,28 +834,29 @@ export default function ChatScreen() {
                 /\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(msg.text)
             );
 
-            console.log(
-              "Transaction date summary - Using confirmed amount:",
-              confirmedAmount
-            );
-            console.log(
-              "Transaction date summary - Date messages found:",
-              dateMessages.map((m) => m.text)
-            );
+
+
 
             let displayAmount = "Tidak tersedia";
+            let numericAmount: number | null = null;
             // Use the confirmed amount first (priority), then fallback to filtering
             if (confirmedAmount) {
-              console.log("Using confirmed amount:", confirmedAmount);
-              displayAmount = parseInt(confirmedAmount).toLocaleString("id-ID");
+
+              numericAmount = parseFloat(confirmedAmount);
+              displayAmount = numericAmount.toLocaleString("id-ID", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
             } else if (response.collected_info?.amount) {
-              console.log(
-                "Using amount from collected_info:",
-                response.collected_info.amount
-              );
-              displayAmount = parseInt(
-                response.collected_info.amount.toString().replace(/[^0-9]/g, "")
-              ).toLocaleString("id-ID");
+
+              numericAmount =
+                typeof response.collected_info.amount === "number"
+                  ? response.collected_info.amount
+                  : parseFloat(response.collected_info.amount.toString());
+              displayAmount = numericAmount.toLocaleString("id-ID", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
             } else {
               // Fallback to message filtering (should not happen if confirmedAmount is set)
               const amountMessages = currentMessages.filter(
@@ -939,15 +875,31 @@ export default function ChatScreen() {
 
               if (amountMessages.length > 0) {
                 const lastAmountMsg = amountMessages[amountMessages.length - 1];
-                const numericAmount = lastAmountMsg.text.replace(/[^0-9]/g, "");
-                console.log(
-                  "Fallback: Using amount from message:",
-                  lastAmountMsg.text,
-                  "->",
-                  numericAmount
+                const numericAmountStr = lastAmountMsg.text.replace(
+                  /[^0-9]/g,
+                  ""
                 );
-                displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
+                numericAmount = parseInt(numericAmountStr);
+
+                displayAmount = numericAmount.toLocaleString("id-ID", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
               }
+            }
+
+            // Update collectedInfo with the final amount from summary
+            if (
+              numericAmount &&
+              typeof numericAmount === "number" &&
+              numericAmount > 0
+            ) {
+              const updatedCollectedInfoWithAmount = {
+                ...response.collected_info,
+                amount: numericAmount,
+              };
+
+              setCollectedInfo(updatedCollectedInfoWithAmount);
             }
 
             let displayTransactionDate = "Tidak tersedia";
@@ -1075,7 +1027,7 @@ Sekarang Anda dapat melanjutkan:`;
           (categoryNeedsAmount || collectedInfoNeedsAmount) && !amountRequested
         );
 
-        console.log("=== DETAILED SUMMARY CONDITIONS ===");
+
         console.log(
           "response.collected_info?.channel:",
           response.collected_info?.channel
@@ -1096,40 +1048,16 @@ Sekarang Anda dapat melanjutkan:`;
         console.log("selectedCategory:", selectedCategory);
         console.log("userMessage.length:", userMessage.length);
         console.log("!summaryShown:", !summaryShown);
-        console.log(
-          "response.collected_info exists:",
-          !!response.collected_info
-        );
-        console.log(
-          "New fallback condition (!summaryShown && userMessage.length > 10):",
-          !summaryShown && userMessage.length > 10
-        );
-        console.log(
-          "hasAllRequiredInfo breakdown - channel:",
-          !!response.collected_info?.channel
-        );
-        console.log(
-          "hasAllRequiredInfo breakdown - category:",
-          !!response.collected_info?.category
-        );
-        console.log(
-          "hasAllRequiredInfo breakdown - has description:",
-          !!(
-            response.collected_info?.description ||
-            response.collected_info?.ai_generated_description
-          )
-        );
-        console.log(
-          "hasAllRequiredInfo breakdown - fallback condition:",
-          !summaryShown && userMessage.length > 10
-        );
-        console.log(
-          "hasAllRequiredInfo breakdown - additional check (selectedChannel && selectedCategory && userMessage.length > 10):",
-          selectedChannel && selectedCategory && userMessage.length > 10
-        );
-        console.log("Final hasAllRequiredInfo value:", hasAllRequiredInfo);
 
-        console.log("=== SUMMARY FLOW DEBUG ===");
+
+
+
+
+
+
+
+
+
         console.log("response.collected_info:", response.collected_info);
         console.log("hasCompleteInfo:", hasCompleteInfo);
         console.log("hasAllRequiredInfo:", hasAllRequiredInfo);
@@ -1142,7 +1070,7 @@ Sekarang Anda dapat melanjutkan:`;
         console.log("summaryShown:", summaryShown);
 
         // Additional debugging for the collected_info channel/category
-        console.log("=== COLLECTED INFO SPECIFIC DEBUG ===");
+
         console.log(
           "collected_info channel:",
           response.collected_info?.channel
@@ -1164,7 +1092,7 @@ Sekarang Anda dapat melanjutkan:`;
             : "N/A"
         );
 
-        console.log("=== AMOUNT DETECTION DEBUG ===");
+
         console.log("hasCompleteInfo:", hasCompleteInfo);
         console.log("categoryNeedsAmount:", categoryNeedsAmount);
         console.log("collectedInfoNeedsAmount:", collectedInfoNeedsAmount);
@@ -1174,7 +1102,7 @@ Sekarang Anda dapat melanjutkan:`;
         console.log("isDescriptionRequest:", isDescriptionRequest);
         console.log("isSummaryMessage:", isSummaryMessage);
 
-        console.log("=== FLOW CONDITION DEBUG ===");
+
         console.log("hasAllRequiredInfo:", hasAllRequiredInfo);
         console.log("!summaryShown:", !summaryShown);
         console.log(
@@ -1190,17 +1118,13 @@ Sekarang Anda dapat melanjutkan:`;
 
         // If this is a description request and we have complete info + need amount, ask for amount after user responds
         if (isDescriptionRequest && hasCompleteInfo && shouldRequestAmount) {
-          console.log(
-            "Bot is asking for description, but we'll need to ask for amount after user responds"
-          );
+
           // Don't return here - check if we should show summary
         }
 
         // PRIORITY 1: If we have all required info (channel, category, description) and haven't shown summary yet, show summary first
         if (hasAllRequiredInfo && !summaryShown) {
-          console.log(
-            "PRIORITY 1: Showing summary with all required info available from collected_info"
-          );
+
 
           // ✅ ADDITIONAL FLOW PROTECTION: Check if amount already exists without summary
           setMessages((currentMessages) => {
@@ -1214,9 +1138,7 @@ Sekarang Anda dapat melanjutkan:`;
             );
 
             if (hasAmountRequest && !hasSummary) {
-              console.log(
-                "🚫 PRIORITY 1 PROTECTION: Found amount request without summary, will clear invalid amount messages"
-              );
+
               // Remove invalid amount requests that appeared before summary
               return currentMessages.filter(
                 (msg) =>
@@ -1230,9 +1152,7 @@ Sekarang Anda dapat melanjutkan:`;
 
           setSummaryShown(true);
 
-          console.log(
-            "Processing summary/complete info - checking amount requirements"
-          );
+
 
           // First, show the summary
           setTimeout(() => {
@@ -1244,7 +1164,7 @@ Sekarang Anda dapat melanjutkan:`;
               );
 
               if (hasSummary) {
-                console.log("Summary already exists, skipping duplicate");
+
                 return prev;
               }
 
@@ -1427,10 +1347,10 @@ Sekarang Anda dapat melanjutkan:`;
           (selectedChannel || response.collected_info?.channel) &&
           (selectedCategory || response.collected_info?.category);
 
-        console.log("=== PRIORITY 2 CONDITIONS DEBUG ===");
+
         console.log("!summaryShown:", !summaryShown);
         console.log("!hasAllRequiredInfo:", !hasAllRequiredInfo);
-        console.log("hasChannelAndCategory:", hasChannelAndCategory);
+
         console.log("selectedChannel:", selectedChannel);
         console.log(
           "response.collected_info?.channel:",
@@ -1448,7 +1368,7 @@ Sekarang Anda dapat melanjutkan:`;
           userMessage.length,
           ")"
         );
-        console.log("userMessage:", userMessage);
+
 
         // Debug each condition individually
         const condition1 = !summaryShown;
@@ -1461,16 +1381,16 @@ Sekarang Anda dapat melanjutkan:`;
         const condition8 = !userMessage.match(/^\d+$/);
         const condition9 = !userMessage.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/);
 
-        console.log("=== PRIORITY 2 CONDITION BREAKDOWN (SIMPLIFIED) ===");
-        console.log("condition1 (!summaryShown):", condition1);
-        console.log("condition2 (!hasAllRequiredInfo):", condition2);
-        console.log("condition3 (has channel):", condition3);
-        console.log("condition4 (has category):", condition4);
-        console.log("condition5 (length > 10):", condition5);
-        console.log("condition6 (not Buat Tiket):", condition6);
-        console.log("condition7 (not Edit Tiket):", condition7);
-        console.log("condition8 (not just number):", condition8);
-        console.log("condition9 (not date):", condition9);
+
+
+
+
+
+
+
+
+
+
 
         const allConditionsMet =
           condition1 &&
@@ -1483,7 +1403,7 @@ Sekarang Anda dapat melanjutkan:`;
           condition8 &&
           condition9;
 
-        console.log("=== ALL CONDITIONS MET:", allConditionsMet, "===");
+
 
         // PRIORITY 2 - IMPROVED: Use collected_info directly to avoid async timing issues
         if (
@@ -1498,21 +1418,10 @@ Sekarang Anda dapat melanjutkan:`;
           !userMessage.match(/^\d+$/) && // Not just a number (amount)
           !userMessage.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) // Not a date format
         ) {
-          console.log(
-            "✅ PRIORITY 2: TRIGGERED - User provided meaningful description with channel+category"
-          );
-          console.log(
-            "PRIORITY 2 Debug - Channel:",
-            response.collected_info?.channel
-          );
-          console.log(
-            "PRIORITY 2 Debug - Category:",
-            response.collected_info?.category
-          );
-          console.log(
-            "PRIORITY 2 Debug - User message length:",
-            userMessage.length
-          );
+
+
+
+
 
           // ✅ ADDITIONAL FLOW PROTECTION: Check if amount already exists without summary
           setMessages((currentMessages) => {
@@ -1598,12 +1507,7 @@ Sekarang Anda dapat melanjutkan:`;
               ? checkIfCategoryNeedsAmount(currentCategory)
               : false;
 
-            console.log(
-              "PRIORITY 2: Category requires amount check - Category:",
-              currentCategory,
-              "Requires amount:",
-              categoryRequiresAmount
-            );
+
 
             // THEN check if amount is needed
             if (categoryRequiresAmount) {
@@ -1700,9 +1604,7 @@ Sekarang Anda dapat melanjutkan:`;
             (messageText.includes("melengkapi tiket") &&
               messageText.includes("nominal")))
         ) {
-          console.log(
-            "Bot is asking for amount after summary - setting amountRequested to true"
-          );
+
           setAmountRequested(true);
           // Don't add any buttons for amount input - let user type freely
           return;
@@ -1860,7 +1762,7 @@ Sekarang Anda dapat melanjutkan:`;
           });
         }
       } catch (error) {
-        console.error("Chatbot API error:", error);
+
         // Add error message with retry option
         const errorMessage: MessageType = {
           id: getUniqueId(),
@@ -2393,10 +2295,7 @@ Sekarang Anda dapat melanjutkan:`;
       }
 
       if (fromConfirmation === "true") {
-        console.log(
-          "📝 fromConfirmation is true, processing ticketId:",
-          ticketId
-        );
+
         // Try to get ticket ID from URL params
         if (
           ticketId &&
@@ -2405,10 +2304,7 @@ Sekarang Anda dapat melanjutkan:`;
           ticketId !== "null" &&
           ticketId !== "undefined"
         ) {
-          console.log(
-            "🎫 Setting currentTicketId from confirmation flow:",
-            ticketId
-          );
+
           setCurrentTicketId(ticketId);
           setTicketCreatedInSession(true);
           await AsyncStorage.setItem("currentTicketId", ticketId);
@@ -2435,10 +2331,7 @@ Sekarang Anda dapat melanjutkan:`;
 
         // If coming from ticket detail within confirmation flow, this is a special case
         if (isFromTicketDetail) {
-          console.log(
-            "🔥 LIVE CHAT INITIALIZATION from ticket detail within confirmation"
-          );
-          console.log("📋 Setting up live chat for ticket:", ticketId);
+
 
           setIsLiveChat(true);
           setUploadStepReached(true); // Enable upload functionality immediately
@@ -2471,11 +2364,11 @@ Sekarang Anda dapat melanjutkan:`;
           );
 
           // Auto-connect to agent with proper room setup for ticket detail within confirmation
-          console.log("🔌 Waiting for agent connection (no auto-connect)...");
+
           setTimeout(() => {
             // Just request presence, don't auto-connect
             if (socket.connected) {
-              console.log("📡 Emitting presence:get for room:", ACTIVE_ROOM);
+  
               socket.emit("presence:get", { room: ACTIVE_ROOM });
             }
           }, 800); // Slightly longer delay to ensure socket is ready
@@ -3324,6 +3217,69 @@ Sekarang Anda dapat melanjutkan:`;
         // Validate transaction date input
         const datePattern = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/;
         if (datePattern.test(userMessage.trim())) {
+          // Parse the date to validate it's not in the future
+          const dateStr = userMessage.trim();
+          const [day, month, year] = dateStr.split(/[\/\-]/).map(Number);
+          const inputDate = new Date(year, month - 1, day); // month is 0-indexed
+          const today = new Date();
+          today.setHours(23, 59, 59, 999); // Set to end of today for comparison
+
+          // Validate the date is not in the future
+          if (inputDate > today) {
+            // Date is in the future, show error
+            setTimeout(() => {
+              const errorMessage: MessageType = {
+                id: getUniqueId(),
+                text: `Tanggal transaksi tidak boleh melebihi hari ini (${today.toLocaleDateString(
+                  "id-ID",
+                  {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  }
+                )}). Mohon masukkan tanggal yang valid.\n\nFormat yang benar: DD/MM/YYYY atau DD-MM-YYYY`,
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              };
+              setMessages((prev) => {
+                const newMessages = [...prev, errorMessage];
+                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                return newMessages;
+              });
+            }, 500);
+            return; // Stop processing
+          }
+
+          // Validate the date is a valid date
+          if (
+            isNaN(inputDate.getTime()) ||
+            day > 31 ||
+            month > 12 ||
+            day < 1 ||
+            month < 1
+          ) {
+            setTimeout(() => {
+              const errorMessage: MessageType = {
+                id: getUniqueId(),
+                text: "Tanggal yang dimasukkan tidak valid. Mohon periksa kembali format tanggal.\n\nContoh yang benar:\n• 15/01/2024\n• 15-01-2024\n• 01/12/2024",
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              };
+              setMessages((prev) => {
+                const newMessages = [...prev, errorMessage];
+                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                return newMessages;
+              });
+            }, 500);
+            return; // Stop processing
+          }
+
           // Show date confirmation and final summary
           setTimeout(() => {
             const dateConfirmMessage: MessageType = {
@@ -3455,12 +3411,14 @@ Sekarang Anda dapat melanjutkan:`;
           return;
         }
 
-        // Remove common currency symbols and separators
-        const numericAmount = cleanInput.replace(/[Rp\s.,]/g, "");
+        // Remove common currency symbols but preserve decimal point
+        const numericAmount = cleanInput
+          .replace(/^Rp\s*/, "")
+          .replace(/\s/g, "");
 
-        // Check if result is purely numeric and within reasonable range
-        const isNumeric = /^[0-9]+$/.test(numericAmount);
-        const amount = parseInt(numericAmount);
+        // Check if result is valid number format (allow decimals)
+        const isNumeric = /^[0-9]+(\.[0-9]{1,2})?$/.test(numericAmount);
+        const amount = parseFloat(numericAmount);
 
         if (
           isNumeric &&
@@ -3471,8 +3429,25 @@ Sekarang Anda dapat melanjutkan:`;
           // Valid amount, save to confirmed amount
           setConfirmedAmount(numericAmount);
 
+          // Update collectedInfo with the confirmed amount
+          const updatedCollectedInfoWithAmount = {
+            ...collectedInfo,
+            amount: amount,
+          };
+          console.log(
+            "💰 Updating collectedInfo with confirmed amount:",
+            amount
+          );
+          setCollectedInfo(updatedCollectedInfoWithAmount);
+
+          // Save session state after amount confirmation
+          saveSessionState();
+
           // Show amount confirmation immediately
-          const displayAmount = parseInt(numericAmount).toLocaleString("id-ID");
+          const displayAmount = amount.toLocaleString("id-ID", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
           setTimeout(() => {
             const confirmationMessage: MessageType = {
               id: getUniqueId(),
@@ -4095,22 +4070,45 @@ Sekarang Anda dapat melanjutkan:`;
     clearHistoryOnUserChange();
   }, [user, authUser, clearChatHistory, fromConfirmation]);
 
+  // Ref to track presence refresh interval to prevent duplicates
+  const presenceRefreshRef = useRef<any>(null);
+
   // Periodic presence refresh for live chat - reduced frequency to avoid spam
   useEffect(() => {
+    // Clear existing interval first to prevent duplicates
+    if (presenceRefreshRef.current) {
+      clearInterval(presenceRefreshRef.current);
+      presenceRefreshRef.current = null;
+    }
+
     if ((isLiveChat || isFromTicketDetail) && socket.connected) {
       console.log("⏰ Setting up periodic presence refresh (30s interval)");
 
-      const refreshInterval = setInterval(() => {
+      presenceRefreshRef.current = setInterval(() => {
         console.log("📡 Refreshing presence for room:", ACTIVE_ROOM);
         socket.emit("presence:get", { room: ACTIVE_ROOM });
       }, 30000); // Reduced to every 30 seconds to avoid spam
 
       return () => {
         console.log("🛑 Clearing presence refresh interval");
-        clearInterval(refreshInterval);
+        if (presenceRefreshRef.current) {
+          clearInterval(presenceRefreshRef.current);
+          presenceRefreshRef.current = null;
+        }
       };
     }
-  }, [isLiveChat, isFromTicketDetail, socket, ACTIVE_ROOM]);
+  }, [isLiveChat, isFromTicketDetail, socket.connected, ACTIVE_ROOM]); // Added socket.connected to dependencies
+
+  // Cleanup presence refresh on component unmount
+  useEffect(() => {
+    return () => {
+      if (presenceRefreshRef.current) {
+        console.log("🧹 Component unmount: Clearing presence refresh interval");
+        clearInterval(presenceRefreshRef.current);
+        presenceRefreshRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
