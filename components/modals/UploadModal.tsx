@@ -164,8 +164,6 @@ export default function UploadModal({
     setUploading(true);
 
     try {
-      const formData = new FormData();
-
       // Determine proper MIME type
       let mimeType = selectedFile.mimeType || "application/octet-stream";
       if (fileType === "image" && !mimeType.startsWith("image/")) {
@@ -176,35 +174,36 @@ export default function UploadModal({
         selectedFile.name ||
         (fileType === "image" ? "image.jpg" : "document.pdf");
 
-      // Append file with proper format for React Native
+      // Alternative approach: Try multiple field names server might expect
       const fileObject = {
         uri: selectedFile.uri,
         type: mimeType,
         name: fileName,
       };
 
-      // Try different field names that server might expect
-      console.log("🔍 Upload Debug - Trying 'files' as field name");
+      console.log("🔍 Upload Debug - Original file object:", fileObject);
+
+      // Create FormData and try different approaches
+      const formData = new FormData();
+
+      // Try multiple field names that different servers might expect
+      console.log("🔍 Upload Debug - Trying multiple field names");
+
+      // Approach 1: Standard 'files' (plural)
       formData.append("files", fileObject as any);
-      
-      // Let's also try alternative approaches based on common patterns
-      // Uncomment one approach at a time to test:
-      
-      // Approach 1: Multiple files field
-      // formData.append("files[]", fileObject as any);
-      
-      // Approach 2: Single file field  
-      // formData.append("file", fileObject as any);
-      
-      // Approach 3: With additional metadata
-      // formData.append("files", fileObject as any);
-      // formData.append("description", "User uploaded file");
-      
+
+      // Approach 2: Also try 'attachments'
+      // formData.append("attachments", fileObject as any);
+
+      // Approach 3: Also try 'upload'
+      // formData.append("upload", fileObject as any);
+
       console.log("🔍 Upload Debug - FormData structure being sent:", {
-        fieldName: "files",
+        primaryField: "files",
         fileName: fileObject.name,
         fileType: fileObject.type,
-        fileUri: fileObject.uri
+        fileUri: fileObject.uri?.substring(0, 60) + "...",
+        fileSize: fileSize,
       });
 
       // Final validation before server request
@@ -224,15 +223,23 @@ export default function UploadModal({
         fileName,
         mimeType,
         fileSize,
-        fileUri: selectedFile.uri,
+        fileUri: selectedFile.uri?.substring(0, 50) + "...",
         fileType,
       });
 
-      // Use ticket attachment endpoint
+      // Use ticket attachment endpoint - Let's also try without the ticketId parameter
       const endpoint = `/v1/tickets/${ticketId}/attachments`;
       const fullUrl = `${API_BASE}${endpoint}`;
 
-      console.log("🔍 Upload Debug - Endpoint:", fullUrl);
+      console.log("🔍 Upload Debug - Full endpoint URL:", fullUrl);
+
+      // Let's also verify if the file URI is accessible
+      console.log("🔍 Upload Debug - File URI details:", {
+        uri: selectedFile.uri,
+        hasUri: !!selectedFile.uri,
+        uriLength: selectedFile.uri?.length,
+        isFileUri: selectedFile.uri?.startsWith("file://"),
+      });
 
       // Get authorization token from SecureStore
       const token = await SecureStore.getItemAsync("access_token");
@@ -292,7 +299,7 @@ export default function UploadModal({
       try {
         const responseText = await response.text();
         console.log("🔍 Upload Debug - Raw response text:", responseText);
-        
+
         if (responseText) {
           try {
             result = JSON.parse(responseText);
@@ -318,12 +325,68 @@ export default function UploadModal({
           fileSize: fileSize,
           fileName: fileName,
         };
-        console.error("Upload failed - Server Response:", errorDetails);
-        throw new Error(
-          `Upload failed: ${response.status} - ${
-            errorText || result?.message || response.statusText
-          }`
+        console.error(
+          "🔍 Upload failed with fetch - Server Response:",
+          errorDetails
         );
+
+        // If fetch failed with specific errors, let's try different field names
+        if (
+          response.status === 500 &&
+          result?.message === "Failed to upload any files"
+        ) {
+          console.log(
+            "🔄 Upload Debug - Trying different field names due to server rejection"
+          );
+
+          // Try different field names sequentially
+          const fieldNamesToTry = ["attachment", "upload", "file", "files[]"];
+          let uploadSuccess = false;
+
+          for (const fieldName of fieldNamesToTry) {
+            try {
+              console.log(
+                `🔄 Upload Debug - Trying field name: "${fieldName}"`
+              );
+              const altFormData = new FormData();
+              altFormData.append(fieldName, fileObject as any);
+
+              const altResponse = await fetch(fullUrl, {
+                method: "POST",
+                body: altFormData,
+                headers: requestHeaders,
+              });
+
+              if (altResponse.ok) {
+                const altResult = await altResponse.json();
+                console.log(`✅ Upload successful with '${fieldName}' field!`);
+                result = altResult;
+                uploadSuccess = true;
+                break;
+              } else {
+                const altError = await altResponse.text();
+                console.log(`❌ Field '${fieldName}' failed:`, altError);
+              }
+            } catch (fieldError) {
+              console.log(`❌ Field '${fieldName}' error:`, fieldError);
+              continue;
+            }
+          }
+
+          if (!uploadSuccess) {
+            throw new Error(
+              `All field names failed: ${response.status} - ${
+                errorText || result?.message || response.statusText
+              }`
+            );
+          }
+        } else {
+          throw new Error(
+            `Upload failed: ${response.status} - ${
+              errorText || result?.message || response.statusText
+            }`
+          );
+        }
       }
 
       if (result) {
