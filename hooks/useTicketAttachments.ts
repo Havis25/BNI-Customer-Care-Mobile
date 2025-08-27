@@ -30,28 +30,24 @@ export function useTicketAttachments() {
   const fetchAttachments = useCallback(
     async (ticketId: string | number, force = false) => {
       if (!isAuthenticated || !ticketId || String(ticketId).trim() === "") {
-        console.log(
-          "🔍 fetchAttachments: User not authenticated or no ticketId:",
-          { isAuthenticated, ticketId }
-        );
+        
         setAttachments([]);
         return;
       }
 
       // Prevent concurrent requests
       if (isFetching) {
-        console.log("🔍 fetchAttachments: Already fetching, skipping");
+        
         return;
       }
 
       // Debounce: prevent multiple calls within 3 seconds
       const now = Date.now();
       if (!force && now - lastFetch < 3000) {
-        console.log("🔍 fetchAttachments: Debounced, skipping");
+        
         return;
       }
 
-      console.log("🔍 fetchAttachments: Starting fetch for ticket:", ticketId);
       setIsFetching(true);
       setIsLoading(true);
       setError(null);
@@ -61,7 +57,6 @@ export function useTicketAttachments() {
         const response = await api<AttachmentsResponse>(
           `/v1/tickets/${ticketId}/attachments`
         );
-        console.log("🔍 fetchAttachments: Got response:", response);
 
         if (response.success) {
           setAttachments(response.data || []);
@@ -134,3 +129,4 @@ export function useTicketAttachments() {
     refetch: (ticketId: string | number) => fetchAttachments(ticketId, true),
   };
 }
+

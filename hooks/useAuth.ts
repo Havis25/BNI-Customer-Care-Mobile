@@ -204,7 +204,7 @@ export function useAuth() {
   );
 
   const handleTokenExpiry = useCallback(async () => {
-    console.log("⚠️ Token expired, logging out user");
+    
     await logout(true);
   }, [logout]);
 
@@ -219,3 +219,4 @@ export function useAuth() {
     handleTokenExpiry,
   };
 }
+

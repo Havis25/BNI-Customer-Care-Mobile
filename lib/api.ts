@@ -42,12 +42,6 @@ const performTokenRefresh = async (): Promise<string | null> => {
         throw new Error("No refresh token available");
       }
 
-      console.log(
-        `🔄 Attempting token refresh (${
-          attempts + 1
-        }/${MAX_REFRESH_ATTEMPTS}):`,
-        `${API_BASE}/v1/auth/refresh`
-      );
       const response = await fetch(`${API_BASE}/v1/auth/refresh`, {
         method: "POST",
         headers: {
@@ -69,7 +63,7 @@ const performTokenRefresh = async (): Promise<string | null> => {
         if (data.refresh_token) {
           await SecureStore.setItemAsync("refresh_token", data.refresh_token);
         }
-        console.log("✅ Token refreshed successfully");
+        
         return data.access_token;
       }
 
@@ -82,7 +76,7 @@ const performTokenRefresh = async (): Promise<string | null> => {
       );
 
       if (attempts >= MAX_REFRESH_ATTEMPTS) {
-        console.log("❌ Max refresh attempts reached");
+        
         return null;
       }
 
@@ -101,13 +95,6 @@ export async function api<T = JSONValue>(
 ): Promise<T> {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 
-  console.log(`🌐 API Request initiated:`, {
-    method: init.method || "GET",
-    url,
-    path,
-    timestamp: new Date().toISOString(),
-  });
-
   const headers = {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -122,17 +109,14 @@ export async function api<T = JSONValue>(
   ) {
     try {
       const token = await SecureStore.getItemAsync("access_token");
-      console.log(
-        `🔑 Retrieved token for ${path}:`,
-        token ? `${token.slice(0, 20)}...` : "null"
-      );
+      
       if (token) {
         // Pastikan token tidak double Bearer
         const cleanToken = token.startsWith("Bearer ") ? token.slice(7) : token;
         headers.Authorization = `Bearer ${cleanToken}`;
-        console.log(`🔑 Added Authorization header for ${path}`);
+        
       } else {
-        console.log(`❌ No token found for ${path}`);
+        
       }
     } catch (error) {
       console.error(`❌ Error getting token for ${path}:`, error);
@@ -145,17 +129,9 @@ export async function api<T = JSONValue>(
     signal,
   });
 
-  console.log(`🌐 API Response received:`, {
-    url,
-    status: res.status,
-    statusText: res.statusText,
-    ok: res.ok,
-    timestamp: new Date().toISOString(),
-  });
-
   // Handle 401/419 expired token
   if ((res.status === 401 || res.status === 419) && !path.includes("/auth/")) {
-    console.log(`🔄 Token expired (${res.status}), attempting refresh...`);
+    
     const newToken = await refreshToken();
     if (newToken) {
       // Retry with new token
@@ -165,12 +141,11 @@ export async function api<T = JSONValue>(
         headers,
         signal,
       });
-      console.log("✅ Request retried with new token");
+      
     } else {
-      console.log("❌ Token refresh failed");
+      
       // For debugging - let's see the response
       const text = await res.text().catch(() => "");
-      console.log(`❌ API ${res.status} response:`, text);
 
       // Don't throw error immediately, return undefined for graceful handling
       return undefined as T;
@@ -191,12 +166,7 @@ export async function api<T = JSONValue>(
   }
 
   const jsonResponse = await res.json();
-  console.log(`✅ API Success:`, {
-    url,
-    status: res.status,
-    hasData: !!jsonResponse,
-    timestamp: new Date().toISOString(),
-  });
 
   return jsonResponse as T;
 }
+

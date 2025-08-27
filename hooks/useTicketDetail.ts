@@ -114,18 +114,14 @@ export function useTicketDetail() {
 
       // Prevent duplicate requests for the same ticket
       if (!force && lastFetchedId === ticketId && ticketDetail) {
-        console.log(
-          `🔄 useTicketDetail: Skipping duplicate request for ID: ${ticketId}`
-        );
+        
         return;
       }
 
       // Debounce: prevent multiple calls within 3 seconds for same ticket
       const now = Date.now();
       if (!force && now - lastFetch < 3000 && lastFetchedId === ticketId) {
-        console.log(
-          `🔄 useTicketDetail: Debounced request for ID: ${ticketId}`
-        );
+        
         return;
       }
 
@@ -136,50 +132,22 @@ export function useTicketDetail() {
       const startTime = Date.now();
 
       try {
-        console.log(
-          `🔍 useTicketDetail: Fetching ticket detail for ID: ${ticketId}`
-        );
-        console.log(
-          `🔍 useTicketDetail: ID type: ${typeof ticketId}, value: "${ticketId}"`
-        );
-        console.log(
-          `🔍 useTicketDetail: Full API endpoint: /v1/tickets/${ticketId}`
-        );
-        console.log(
-          `🔍 useTicketDetail: Request started at:`,
-          new Date().toISOString()
-        );
 
         // Try to determine if this is a ticket_number (string) or ticket_id (number)
         const isTicketNumber =
           typeof ticketId === "string" && ticketId.includes("-");
-        console.log(
-          `🔍 useTicketDetail: Detected format - isTicketNumber: ${isTicketNumber}`
-        );
 
         const response = await api<TicketDetailResponse>(
           `/v1/tickets/${ticketId}`
         );
-        console.log(`🔍 useTicketDetail: Raw response received:`, {
-          success: response?.success,
-          message: response?.message,
-          hasData: !!response?.data,
-          responseTime: Date.now() - startTime + "ms",
-        });
 
         if (response && response.success) {
           setTicketDetail(response.data);
           setLastFetch(Date.now());
-          console.log(
-            `✅ useTicketDetail: Ticket detail fetched successfully for ticket: ${response.data.ticket_number}`
-          );
+          
         } else {
           const errorMsg = response?.message || "Failed to fetch ticket detail";
-          console.log(`❌ useTicketDetail: Response not successful:`, {
-            success: response?.success,
-            message: errorMsg,
-            fullResponse: response,
-          });
+          
           setError(errorMsg);
         }
       } catch (err) {
@@ -317,3 +285,4 @@ export function useTicketDetail() {
       ticketDetail && fetchTicketDetail(ticketDetail.ticket_number, true),
   };
 }
+

@@ -16,7 +16,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 interface UploadModalProps {
   visible: boolean;
   onClose: () => void;
@@ -36,7 +35,6 @@ interface UploadModalProps {
   }>;
   onDeleteFile?: (attachmentId: number) => void;
 }
-
 export default function UploadModal({
   visible,
   onClose,
@@ -50,7 +48,6 @@ export default function UploadModal({
   const [uploading, setUploading] = useState(false);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     if (visible) {
       // Background appears immediately
@@ -59,7 +56,6 @@ export default function UploadModal({
         duration: 200,
         useNativeDriver: true,
       }).start();
-
       // Modal slides up from bottom
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -81,7 +77,6 @@ export default function UploadModal({
       });
     }
   }, [visible, slideAnim, opacityAnim]);
-
   const handleImageSelect = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -90,7 +85,6 @@ export default function UploadModal({
         aspect: [4, 3],
         quality: 0.5, // Reduced quality for smaller file size
       });
-
       if (!result.canceled && result.assets[0]) {
         const file = result.assets[0];
         // For images, use fileSize property
@@ -105,14 +99,12 @@ export default function UploadModal({
       Alert.alert("Error", "Gagal memilih gambar");
     }
   };
-
   const handleDocumentSelect = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "*/*",
         copyToCacheDirectory: true,
       });
-
       if (!result.canceled && result.assets[0]) {
         setSelectedFile(result.assets[0]);
         setFileType("document");
@@ -121,10 +113,8 @@ export default function UploadModal({
       Alert.alert("Error", "Gagal memilih dokumen");
     }
   };
-
   const handleUpload = async () => {
     if (!selectedFile || !fileType) return;
-
     // Validate ticketId exists and is valid
     if (
       !ticketId ||
@@ -138,11 +128,9 @@ export default function UploadModal({
       );
       return;
     }
-
     // Validate file size (max 1MB for better compatibility)
     const maxSize = 1 * 1024 * 1024; // 1MB in bytes
     const fileSize = selectedFile.size || selectedFile.fileSize || 0;
-
     if (fileSize > maxSize) {
       Alert.alert(
         "File Terlalu Besar",
@@ -152,7 +140,6 @@ export default function UploadModal({
       );
       return;
     }
-
     if (fileSize === 0) {
       Alert.alert(
         "Error",
@@ -160,52 +147,32 @@ export default function UploadModal({
       );
       return;
     }
-
     setUploading(true);
-
     try {
       // Determine proper MIME type
       let mimeType = selectedFile.mimeType || "application/octet-stream";
       if (fileType === "image" && !mimeType.startsWith("image/")) {
         mimeType = "image/jpeg";
       }
-
       const fileName =
         selectedFile.name ||
         (fileType === "image" ? "image.jpg" : "document.pdf");
-
       // Alternative approach: Try multiple field names server might expect
       const fileObject = {
         uri: selectedFile.uri,
         type: mimeType,
         name: fileName,
       };
-
-      console.log("🔍 Upload Debug - Original file object:", fileObject);
-
       // Create FormData and try different approaches
       const formData = new FormData();
-
       // Try multiple field names that different servers might expect
-      console.log("🔍 Upload Debug - Trying multiple field names");
-
       // Approach 1: Standard 'files' (plural)
       formData.append("files", fileObject as any);
-
       // Approach 2: Also try 'attachments'
       // formData.append("attachments", fileObject as any);
-
       // Approach 3: Also try 'upload'
       // formData.append("upload", fileObject as any);
-
-      console.log("🔍 Upload Debug - FormData structure being sent:", {
-        primaryField: "files",
-        fileName: fileObject.name,
-        fileType: fileObject.type,
-        fileUri: fileObject.uri?.substring(0, 60) + "...",
-        fileSize: fileSize,
-      });
-
+      
       // Final validation before server request
       if (
         !ticketId ||
@@ -217,45 +184,21 @@ export default function UploadModal({
           "Invalid ticket ID - cannot upload without valid ticket"
         );
       }
-
-      console.log("🔍 Upload Debug - Request details:", {
-        ticketId,
-        fileName,
-        mimeType,
-        fileSize,
-        fileUri: selectedFile.uri?.substring(0, 50) + "...",
-        fileType,
-      });
-
+      
       // Use ticket attachment endpoint - Let's also try without the ticketId parameter
       const endpoint = `/v1/tickets/${ticketId}/attachments`;
       const fullUrl = `${API_BASE}${endpoint}`;
-
-      console.log("🔍 Upload Debug - Full endpoint URL:", fullUrl);
-
       // Let's also verify if the file URI is accessible
-      console.log("🔍 Upload Debug - File URI details:", {
-        uri: selectedFile.uri,
-        hasUri: !!selectedFile.uri,
-        uriLength: selectedFile.uri?.length,
-        isFileUri: selectedFile.uri?.startsWith("file://"),
-      });
-
+      
       // Get authorization token from SecureStore
       const token = await SecureStore.getItemAsync("access_token");
-
       if (!token) {
         throw new Error("No authorization token found. Please login again.");
       }
-
       const authHeader = token.startsWith("Bearer ")
         ? token
         : `Bearer ${token}`;
-      console.log(
-        "🔍 Upload Debug - Auth header:",
-        authHeader ? `${authHeader.slice(0, 20)}...` : "null"
-      );
-
+      
       // Use fetch directly for FormData with authorization
       const requestHeaders = {
         Authorization: authHeader,
@@ -263,59 +206,35 @@ export default function UploadModal({
         // Remove Content-Type header - let browser set it automatically for FormData
         // Accept: "application/json", // Remove this too for better compatibility
       };
-
-      console.log("🔍 Upload Debug - Request headers:", requestHeaders);
-      console.log("🔍 Upload Debug - FormData file object:", {
-        uri: fileObject.uri,
-        type: fileObject.type,
-        name: fileObject.name,
-        hasUri: !!selectedFile.uri,
-        actualFileSize: selectedFile.size || selectedFile.fileSize,
-      });
-
+      
       // Create AbortController for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-      console.log("🔍 Upload Debug - Sending request to:", fullUrl);
       const response = await fetch(fullUrl, {
         method: "POST",
         body: formData,
         headers: requestHeaders,
         signal: controller.signal,
       });
-
       clearTimeout(timeoutId);
-      console.log("🔍 Upload Debug - Response received:", {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-
+      
       let result;
       let errorText = "";
-
       try {
         const responseText = await response.text();
-        console.log("🔍 Upload Debug - Raw response text:", responseText);
-
         if (responseText) {
           try {
             result = JSON.parse(responseText);
-            console.log("🔍 Upload Debug - Parsed result:", result);
           } catch (parseError) {
             console.error("🔍 Upload Debug - JSON parse error:", parseError);
             errorText = responseText;
           }
         } else {
-          console.log("🔍 Upload Debug - Empty response text");
         }
       } catch (textError) {
         console.error("🔍 Upload Debug - Failed to read response:", textError);
         errorText = "Failed to read response";
       }
-
       if (!response.ok) {
         const errorDetails = {
           status: response.status,
@@ -329,50 +248,37 @@ export default function UploadModal({
           "🔍 Upload failed with fetch - Server Response:",
           errorDetails
         );
-
         // If fetch failed with specific errors, let's try different field names
         if (
           response.status === 500 &&
           result?.message === "Failed to upload any files"
         ) {
-          console.log(
-            "🔄 Upload Debug - Trying different field names due to server rejection"
-          );
-
+          
           // Try different field names sequentially
           const fieldNamesToTry = ["attachment", "upload", "file", "files[]"];
           let uploadSuccess = false;
-
           for (const fieldName of fieldNamesToTry) {
             try {
-              console.log(
-                `🔄 Upload Debug - Trying field name: "${fieldName}"`
-              );
+              
               const altFormData = new FormData();
               altFormData.append(fieldName, fileObject as any);
-
               const altResponse = await fetch(fullUrl, {
                 method: "POST",
                 body: altFormData,
                 headers: requestHeaders,
               });
-
               if (altResponse.ok) {
                 const altResult = await altResponse.json();
-                console.log(`✅ Upload successful with '${fieldName}' field!`);
                 result = altResult;
                 uploadSuccess = true;
                 break;
               } else {
                 const altError = await altResponse.text();
-                console.log(`❌ Field '${fieldName}' failed:`, altError);
               }
             } catch (fieldError) {
-              console.log(`❌ Field '${fieldName}' error:`, fieldError);
               continue;
             }
           }
-
           if (!uploadSuccess) {
             throw new Error(
               `All field names failed: ${response.status} - ${
@@ -388,18 +294,15 @@ export default function UploadModal({
           );
         }
       }
-
       if (result) {
         // Use the actual filename that will be saved on server
         const actualFileName =
           selectedFile.name ||
           (fileType === "image" ? "image.jpg" : "document.pdf");
-
         // Get attachment ID from upload response
         const attachmentId =
           result.data?.attachments?.[0]?.attachment_id ||
           result.data?.attachment_id;
-
         // Get download URL for later use in chat
         let downloadUrl = null;
         if (attachmentId) {
@@ -416,7 +319,6 @@ export default function UploadModal({
                 },
               }
             );
-
             if (attachmentResponse.ok) {
               const attachmentData = await attachmentResponse.json();
               downloadUrl = attachmentData.data?.download_url;
@@ -425,7 +327,6 @@ export default function UploadModal({
             // Failed to get download URL, continue without it
           }
         }
-
         onUploadSuccess(actualFileName, fileType, downloadUrl);
         handleClose();
       } else {
@@ -433,7 +334,6 @@ export default function UploadModal({
       }
     } catch (error: any) {
       let errorMessage = "Terjadi kesalahan saat upload";
-
       if (error.name === "AbortError") {
         errorMessage = "Upload timeout. Silakan coba lagi.";
       } else if (error.message?.includes("413")) {
@@ -445,23 +345,19 @@ export default function UploadModal({
       } else if (error.message) {
         errorMessage = error.message;
       }
-
       Alert.alert("Error Upload", errorMessage);
     } finally {
       setUploading(false);
     }
   };
-
   const handleClose = () => {
     setSelectedFile(null);
     setFileType(null);
     onClose();
   };
-
   const handleViewFile = (file: any) => {
     const isImage = file.file_type.startsWith("image/");
     const fileUrl = `${API_BASE}${file.file_path}`;
-
     Alert.alert(
       isImage ? "Preview Gambar" : "File Dokumen",
       `Nama: ${file.file_name}\nUkuran: ${formatFileSize(
@@ -487,7 +383,6 @@ export default function UploadModal({
       ]
     );
   };
-
   const handleDeleteFile = async (attachmentId: number) => {
     Alert.alert("Hapus File", "Apakah Anda yakin ingin menghapus file ini?", [
       { text: "Batal", style: "cancel" },
@@ -498,7 +393,6 @@ export default function UploadModal({
       },
     ]);
   };
-
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -506,7 +400,6 @@ export default function UploadModal({
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
-
   const formatUploadTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("id-ID", {
@@ -516,7 +409,6 @@ export default function UploadModal({
       minute: "2-digit",
     });
   };
-
   return (
     <Modal visible={visible} transparent={true} animationType="none">
       <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
@@ -538,7 +430,6 @@ export default function UploadModal({
               <MaterialIcons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
-
           {/* Existing Files */}
           {existingFiles && existingFiles.length > 0 && (
             <View style={styles.existingFilesContainer}>
@@ -595,7 +486,6 @@ export default function UploadModal({
               ))}
             </View>
           )}
-
           {/* No files message */}
           {existingFiles && existingFiles.length === 0 && (
             <View style={styles.noFilesContainer}>
@@ -605,7 +495,6 @@ export default function UploadModal({
               </Text>
             </View>
           )}
-
           {!selectedFile ? (
             <>
               <View style={styles.fileLimitInfo}>
@@ -614,7 +503,6 @@ export default function UploadModal({
                   Maksimal ukuran file: 1MB
                 </Text>
               </View>
-
               <TouchableOpacity
                 style={styles.uploadOption}
                 onPress={handleImageSelect}
@@ -622,7 +510,6 @@ export default function UploadModal({
                 <MaterialIcons name="photo" size={24} color="#52B5AB" />
                 <Text style={styles.uploadOptionText}>Upload Gambar</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.uploadOption}
                 onPress={handleDocumentSelect}
@@ -652,7 +539,6 @@ export default function UploadModal({
                   </Text>
                 )}
               </View>
-
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
                   style={styles.cancelButton}
@@ -663,7 +549,6 @@ export default function UploadModal({
                 >
                   <Text style={styles.cancelButtonText}>Batal</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={[
                     styles.uploadButton,
@@ -684,7 +569,6 @@ export default function UploadModal({
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
@@ -877,3 +761,4 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins",
   },
 });
+

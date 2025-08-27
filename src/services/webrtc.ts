@@ -49,7 +49,7 @@ class WebRTCService {
       };
 
       this.peerConnection.ontrack = (event) => {
-        console.log('Received remote audio stream');
+        
         // Remote audio will be played automatically by WebRTC
       };
 

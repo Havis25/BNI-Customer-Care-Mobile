@@ -34,3 +34,4 @@ export function useApi<T>(path: string | null) {
 
   return useMemo(() => ({ data, loading, error, refetch }), [data, loading, error, refetch]);
 }
+

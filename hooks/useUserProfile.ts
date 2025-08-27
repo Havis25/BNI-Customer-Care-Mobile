@@ -91,9 +91,7 @@ export function useUserProfile() {
   const fetchUserProfile =
     useCallback(async (): Promise<UserProfile | null> => {
       if (!isAuthenticated) {
-        console.log(
-          "🔍 useUserProfile: User not authenticated, returning null"
-        );
+        
         return null;
       }
 
@@ -101,32 +99,20 @@ export function useUserProfile() {
         setIsLoading(true);
         setError(null);
 
-        console.log("🔍 useUserProfile: Attempting to fetch user profile...");
         const response = await api<{ success: boolean; data: UserProfile }>(
           "/v1/auth/me"
         );
 
-        console.log(
-          "🔍 useUserProfile: API response:",
-          response ? "received" : "null"
-        );
-
         if (!response) {
-          console.log(
-            "❌ useUserProfile: No response from API (likely auth failed)"
-          );
+          
           return null;
         }
 
         if (!response?.success || !response?.data) {
-          console.log(
-            "❌ useUserProfile: Invalid response structure:",
-            response
-          );
+          
           throw new Error("Failed to fetch user profile");
         }
 
-        console.log("✅ useUserProfile: User profile fetched successfully");
         return response.data;
       } catch (err) {
         const errorMessage =
@@ -213,3 +199,4 @@ export function useUserProfile() {
     error,
   };
 }
+

@@ -30,10 +30,8 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-
 const API_URL = "/v1/tickets";
 const HEADER_HEIGHT = 56;
-
 type TicketPayload = {
   description: string;
   issue_channel_id: number;
@@ -43,7 +41,6 @@ type TicketPayload = {
   amount?: number;
   terminal_id?: number;
   transaction_date?: string;
-
   // Customer data from auth/me
   customer_id?: number;
   full_name?: string;
@@ -60,7 +57,6 @@ type TicketPayload = {
   handphone?: string;
   office_phone?: string;
   fax_phone?: string;
-
   // Account and card data
   primary_account_id?: number;
   primary_account_number?: number;
@@ -70,7 +66,6 @@ type TicketPayload = {
   primary_card_type?: string;
   debit_card_numbers?: number[];
 };
-
 /** SelectField: iOS pakai ActionSheet, Android/Web pakai Picker dropdown */
 function SelectField({
   label,
@@ -130,7 +125,6 @@ function SelectField({
       </View>
     );
   }
-
   return (
     <View style={styles.fieldContainer}>
       <Text style={styles.label}>{label}</Text>
@@ -154,7 +148,6 @@ function SelectField({
     </View>
   );
 }
-
 export default function ConfirmationScreen() {
   const insets = useSafeAreaInsets();
   const { user, selectAccount, account_number, accounts } = useUser();
@@ -168,7 +161,6 @@ export default function ConfirmationScreen() {
     error: dataError,
   } = useChannelsAndCategories();
   const { terminals } = useTerminals();
-
   // Get parameters from chatbot if available
   const {
     presetChannel,
@@ -178,9 +170,7 @@ export default function ConfirmationScreen() {
     presetTransactionDate,
     mode,
   } = useLocalSearchParams();
-
   const full_nameauto = (user?.full_name || "").trim() || "User Complain";
-
   // Editable
   const [channel, setChannel] = useState<any>(null);
   const [category, setCategory] = useState<any>(null);
@@ -188,12 +178,10 @@ export default function ConfirmationScreen() {
   const [description, setdescription] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [transactionDate, setTransactionDate] = useState<string>("");
-
   // UI
   const [isChecked, setIsChecked] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
   // Control field states from preset data
   const [fieldStates, setFieldStates] = useState({
     channelLocked: false,
@@ -202,13 +190,10 @@ export default function ConfirmationScreen() {
     amountLocked: false,
     transactionDateLocked: false,
   });
-
   // ====== PENTING: tinggi footer aktual agar ScrollView bisa scroll di atas keyboard ======
   const [footerHeight, setFooterHeight] = useState(120); // perkiraan awal; nanti diganti oleh onLayout
-
   // Get filtered categories based on selected channel
   const filteredCategories = getFilteredCategories(channel);
-
   // Get filtered terminals based on selected channel
   const filteredTerminals = terminals.filter((terminal) => {
     if (!channel) return false;
@@ -218,10 +203,8 @@ export default function ConfirmationScreen() {
       terminal.channel.supports_terminal
     );
   });
-
   // Check if current channel requires terminal selection
   const requiresTerminal = channel && filteredTerminals.length > 0;
-
   // Categories that require amount field (transaction-related)
   const transactionCategories = [
     "PEMBAYARAN_KARTU_KREDIT_BNI",
@@ -259,22 +242,18 @@ export default function ConfirmationScreen() {
     "TARIK_TUNAI_DI_JARINGAN_BERSAMA",
     "TARIK_TUNAI_DI_ATM_CIRRUS",
   ];
-
   // Check if current category requires amount
   const requiresAmount =
     category && transactionCategories.includes(category.complaint_code);
-
   // Check if current category requires transaction date
   const requiresTransactionDate =
     category && transactionCategories.includes(category.complaint_code);
-
   // Update state when API data loads
   useEffect(() => {
     if (channels.length > 0 && !channel) {
       setChannel(channels[0]);
     }
   }, [channels]);
-
   useEffect(() => {
     if (categories.length > 0 && !category) {
       setCategory(categories[0]);
@@ -282,7 +261,6 @@ export default function ConfirmationScreen() {
       setTransactionDate(""); // Reset transaction date when initial category is set
     }
   }, [categories]);
-
   // Update category when channel changes
   useEffect(() => {
     if (channel && filteredCategories.length > 0) {
@@ -297,7 +275,6 @@ export default function ConfirmationScreen() {
         setTransactionDate(""); // Reset transaction date when category changes
       }
     }
-
     // Reset terminal when channel changes
     if (requiresTerminal && filteredTerminals.length > 0) {
       setTerminal(filteredTerminals[0]);
@@ -311,18 +288,15 @@ export default function ConfirmationScreen() {
     requiresTerminal,
     filteredTerminals,
   ]);
-
   // Reset amount and transaction date when category changes
   useEffect(() => {
     setAmount("");
     setTransactionDate("");
   }, [category?.complaint_id]);
-
   // Handle preset data from chatbot
   useEffect(() => {
     if (mode === "create" && channels.length > 0 && categories.length > 0) {
       const newFieldStates = { ...fieldStates };
-
       // Set preset channel
       if (presetChannel && typeof presetChannel === "string") {
         const foundChannel = channels.find(
@@ -333,7 +307,6 @@ export default function ConfirmationScreen() {
           newFieldStates.channelLocked = true;
         }
       }
-
       // Set preset category
       if (presetCategory && typeof presetCategory === "string") {
         const foundCategory = categories.find(
@@ -350,34 +323,27 @@ export default function ConfirmationScreen() {
           newFieldStates.categoryLocked = true;
         }
       }
-
       // Set preset description
       if (presetDescription && typeof presetDescription === "string") {
         setdescription(presetDescription);
         newFieldStates.descriptionLocked = true;
       }
-
       // Set preset amount
       if (presetAmount && typeof presetAmount === "string") {
-        console.log("Setting preset amount:", presetAmount);
         const numericAmount = presetAmount.replace(/[^0-9]/g, "");
-        console.log("Numeric amount:", numericAmount);
         if (numericAmount) {
           setAmount(numericAmount);
           newFieldStates.amountLocked = true;
         }
       }
-
       // Set preset transaction date
       if (presetTransactionDate && typeof presetTransactionDate === "string") {
-        console.log("Setting preset transaction date:", presetTransactionDate);
         // Validate date format before setting
         if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(presetTransactionDate)) {
           setTransactionDate(presetTransactionDate);
           newFieldStates.transactionDateLocked = true;
         }
       }
-
       setFieldStates(newFieldStates);
     }
   }, [
@@ -390,7 +356,6 @@ export default function ConfirmationScreen() {
     presetAmount,
     presetTransactionDate,
   ]);
-
   const isValid =
     isChecked &&
     !!channel &&
@@ -408,15 +373,12 @@ export default function ConfirmationScreen() {
       (requiresTransactionDate &&
         transactionDate.trim() &&
         /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(transactionDate.trim())));
-
   // Get account and card IDs from user data
   const getRelatedIds = () => {
     const userAccounts = user?.accounts || [];
-
     if (userAccounts.length >= 1) {
       const account = userAccounts[0];
       let cardId = null;
-
       // Check if account has cards property and extract card_id
       const accountWithCards = account as any;
       if (
@@ -426,40 +388,29 @@ export default function ConfirmationScreen() {
       ) {
         cardId = accountWithCards.cards[0].card_id;
       }
-
       return {
         related_account_id: account.account_id,
         related_card_id: cardId,
       };
     }
-
     return { related_account_id: null, related_card_id: null };
   };
-
   const { related_account_id, related_card_id } = getRelatedIds();
-
   // Format transaction date from DD/MM/YYYY to YYYY-MM-DD for API
   const formatTransactionDate = (dateString: string): string => {
-    console.log("Formatting transaction date:", dateString);
     if (!dateString || !dateString.trim()) return "";
-
     // Handle both DD/MM/YYYY and DD-MM-YYYY formats
     const cleanDate = dateString.trim().replace(/-/g, "/");
     const parts = cleanDate.split("/");
-
     if (parts.length === 3) {
       const day = parts[0].padStart(2, "0");
       const month = parts[1].padStart(2, "0");
       const year = parts[2];
       const formatted = `${year}-${month}-${day}`;
-      console.log("Formatted date:", formatted);
       return formatted;
     }
-
-    console.log("Date format unexpected, returning as-is:", dateString.trim());
     return dateString.trim(); // Return as-is if format is unexpected
   };
-
   const payload: TicketPayload = {
     description: description.trim(),
     issue_channel_id: channel?.channel_id || 0,
@@ -474,23 +425,18 @@ export default function ConfirmationScreen() {
         transaction_date: formatTransactionDate(transactionDate),
       }),
   };
-
   const handleSubmit = async () => {
     if (!isValid || submitting) return;
     try {
       setSubmitting(true);
-
       // Cek autentikasi
       if (!isAuthenticated || !token) {
         Alert.alert("Error", "Sesi telah berakhir. Silakan login kembali.");
         router.replace("/login");
         return;
       }
-
       // Get user data from auth/me endpoint
       const userData = await getUserDataForTicket();
-      console.log("User data from auth/me:", userData);
-
       // Create enhanced payload with user data from auth/me
       const enhancedPayload: TicketPayload = {
         ...payload,
@@ -520,20 +466,11 @@ export default function ConfirmationScreen() {
           debit_card_numbers: userData.debit_card_numbers,
         }),
       };
-
-      // Debug payload before sending
-      console.log("Base payload:", JSON.stringify(payload, null, 2));
-      console.log(
-        "Enhanced payload with user data:",
-        JSON.stringify(enhancedPayload, null, 2)
-      );
-
       // API call akan otomatis menambahkan Authorization header
       const response = await api(API_URL, {
         method: "POST",
         body: JSON.stringify(enhancedPayload),
       });
-
       // Extract ticket ID from response - check all possible paths
       let ticketId = null;
       if (response?.success && response?.data) {
@@ -543,14 +480,11 @@ export default function ConfirmationScreen() {
       } else if (response?.ticket_id) {
         ticketId = response.ticket_id;
       }
-
       if (ticketId) {
         // Store ticket ID in AsyncStorage for persistence
         await AsyncStorage.setItem("currentTicketId", String(ticketId));
-
         // Trigger refresh for riwayat screen
         await AsyncStorage.setItem("shouldRefreshRiwayat", "true");
-
         router.push(
           `/complaint/chat?fromConfirmation=true&ticketId=${ticketId}`
         );
@@ -566,7 +500,6 @@ export default function ConfirmationScreen() {
       setSubmitting(false);
     }
   };
-
   return (
     <SafeAreaView
       style={styles.container}
@@ -583,7 +516,6 @@ export default function ConfirmationScreen() {
             <View style={styles.header}>
               <Text style={styles.headerTitle}>Form Complain</Text>
             </View>
-
             <ScrollView
               style={styles.content}
               contentInsetAdjustmentBehavior="automatic"
@@ -603,7 +535,6 @@ export default function ConfirmationScreen() {
                   Mohon periksa kembali data sebelum melanjutkan.
                 </Text>
               </View>
-
               {/* Nama */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Nama</Text>
@@ -613,7 +544,6 @@ export default function ConfirmationScreen() {
                   style={styles.textInput}
                 />
               </View>
-
               {/* No Rekening */}
               {accounts.length > 1 ? (
                 <SelectField
@@ -643,7 +573,6 @@ export default function ConfirmationScreen() {
                   />
                 </View>
               )}
-
               {/* Channel */}
               {dataLoading ? (
                 <View style={styles.fieldContainer}>
@@ -680,7 +609,6 @@ export default function ConfirmationScreen() {
                   disabled={fieldStates.channelLocked}
                 />
               )}
-
               {/* Category */}
               {dataLoading ? (
                 <View style={styles.fieldContainer}>
@@ -719,7 +647,6 @@ export default function ConfirmationScreen() {
                   disabled={fieldStates.categoryLocked}
                 />
               )}
-
               {/* Terminal - only show for channels that support terminals */}
               {requiresTerminal && (
                 <SelectField
@@ -742,7 +669,6 @@ export default function ConfirmationScreen() {
                   }}
                 />
               )}
-
               {/* Amount - only show for transaction categories */}
               {requiresAmount && (
                 <View style={styles.fieldContainer}>
@@ -779,7 +705,6 @@ export default function ConfirmationScreen() {
                   )}
                 </View>
               )}
-
               {/* Transaction Date - only show for transaction categories that require date */}
               {requiresTransactionDate && (
                 <View style={styles.fieldContainer}>
@@ -794,7 +719,6 @@ export default function ConfirmationScreen() {
                       if (!fieldStates.transactionDateLocked) {
                         // Format and validate date input
                         let formattedText = text.replace(/[^\d\/\-]/g, "");
-
                         // Auto-format with slashes
                         if (
                           formattedText.length === 2 &&
@@ -808,7 +732,6 @@ export default function ConfirmationScreen() {
                         ) {
                           formattedText += "/";
                         }
-
                         setTransactionDate(formattedText);
                       }
                     }}
@@ -834,7 +757,6 @@ export default function ConfirmationScreen() {
                   )}
                 </View>
               )}
-
               {/* Deskripsi */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Description</Text>
@@ -868,7 +790,6 @@ export default function ConfirmationScreen() {
                   </Text>
                 )}
               </View>
-
               {/* Checkbox */}
               <TouchableOpacity
                 style={styles.checkboxContainer}
@@ -889,7 +810,6 @@ export default function ConfirmationScreen() {
                 </Text>
               </TouchableOpacity>
             </ScrollView>
-
             {/* Footer: FIXED di bawah (tidak ikut keyboard), padding menyesuaikan safe area */}
             <View style={styles.footerWrapper} pointerEvents="box-none">
               <View
@@ -906,7 +826,6 @@ export default function ConfirmationScreen() {
                   >
                     <Text style={styles.backButtonText}>Kembali</Text>
                   </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[
                       styles.submitButton,
@@ -927,7 +846,6 @@ export default function ConfirmationScreen() {
                 </View>
               </View>
             </View>
-
             <BottomSheet
               visible={showBottomSheet}
               onClose={() => setShowBottomSheet(false)}
@@ -942,11 +860,9 @@ export default function ConfirmationScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   keyboardView: { flex: 1 },
-
   header: {
     alignItems: "center",
     justifyContent: "center",
@@ -962,10 +878,8 @@ const styles = StyleSheet.create({
     color: "#000",
     fontFamily: "Poppins",
   },
-
   content: { flex: 1 },
   scrollContent: { padding: wp(4) },
-
   warningBox: {
     flexDirection: "row",
     backgroundColor: "#FFF8E1",
@@ -976,7 +890,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   warningText: { flex: 1, fontSize: 14, color: "#333", fontFamily: "Poppins" },
-
   fieldContainer: { marginBottom: 16 },
   label: {
     fontSize: 14,
@@ -993,7 +906,6 @@ const styles = StyleSheet.create({
     color: "#333",
     fontFamily: "Poppins",
   },
-
   // "dropdown" iOS
   selectInput: {
     flexDirection: "row",
@@ -1001,17 +913,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   selectText: { fontSize: 14, color: "#333", fontFamily: "Poppins" },
-
   textArea: { minHeight: deviceType.isTablet ? hp(12) : hp(12.5) },
   helper: { marginTop: 6, fontSize: 12, color: "#888" },
-
   pickerWrapper: {
     backgroundColor: "#F0F0F0",
     borderRadius: 8,
     overflow: "hidden",
     color: "#333",
   },
-
   checkboxContainer: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1030,7 +939,6 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: "#2196F3", borderColor: "#2196F3" },
   checkboxText: { flex: 1, fontSize: 14, color: "#333", fontFamily: "Poppins" },
-
   // Footer fixed
   footerWrapper: {
     marginBottom: -32,
@@ -1051,7 +959,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
-
   buttonContainer: { flexDirection: "row", gap: 12, paddingHorizontal: 0 },
   backButton: {
     flex: 1,
@@ -1072,7 +979,6 @@ const styles = StyleSheet.create({
   submitText: { fontSize: 16, fontWeight: "bold", fontFamily: "Poppins" },
   enabledText: { color: "#FFF" },
   disabledText: { color: "#999" },
-
   loadingField: {
     justifyContent: "center",
     alignItems: "center",
@@ -1094,7 +1000,6 @@ const styles = StyleSheet.create({
     color: "#D32F2F",
     fontFamily: "Poppins",
   },
-
   disabledInput: {
     backgroundColor: "#F8F8F8",
     borderWidth: 1,

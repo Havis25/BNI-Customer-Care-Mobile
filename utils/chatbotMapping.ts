@@ -216,3 +216,4 @@ export function mapChatbotTerminalToDatabase(
 
   return terminals[0]?.terminal_id || 1;
 }
+

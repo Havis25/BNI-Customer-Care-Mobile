@@ -38,9 +38,6 @@ export const checkCurrentTokenExpiry = async () => {
   if (token) {
     const expiry = getTokenExpiry(token);
     const isExpired = isTokenExpired(token);
-    
-    console.log('🕐 Token expiry:', expiry?.toLocaleString());
-    console.log('⏰ Is expired:', isExpired);
-    console.log('⏳ Time until expiry:', expiry ? Math.round((expiry.getTime() - Date.now()) / 1000 / 60) + ' minutes' : 'Unknown');
+
   }
 };

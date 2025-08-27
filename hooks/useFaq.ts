@@ -21,12 +21,10 @@ export function useFaq() {
   const { isAuthenticated } = useAuth();
 
   const fetchFaqs = useCallback(async () => {
-    console.log("=== FAQ FETCH START ===");
-    console.log("isAuthenticated:", isAuthenticated);
 
     // FAQ should be accessible to all users, remove authentication check
     // if (!isAuthenticated) {
-    //   console.log("User not authenticated, skipping FAQ fetch");
+    //   
     //   setError("User not authenticated");
     //   return;
     // }
@@ -35,16 +33,15 @@ export function useFaq() {
     setError(null);
 
     try {
-      console.log("=== FETCHING FAQS ===");
+      
       const response = await api<FAQ[]>("/v1/faqs");
-      console.log("FAQ Response:", response);
 
       // Handle FAQ response - check if it's wrapped in a data property
       if (response && typeof response === "object") {
         let faqData: FAQ[] = [];
 
         if (Array.isArray(response)) {
-          console.log("FAQ is direct array:", response.length);
+          
           faqData = response.map((item) => ({
             faq_id: item.faq_id,
             question: item.question,
@@ -54,25 +51,21 @@ export function useFaq() {
           (response as any).data &&
           Array.isArray((response as any).data)
         ) {
-          console.log("FAQ in data property:", (response as any).data.length);
+          
           faqData = (response as any).data.map((item: FAQ) => ({
             faq_id: item.faq_id,
             question: item.question,
             answer: item.answer,
           }));
         } else if ((response as any).success && (response as any).data) {
-          console.log(
-            "FAQ in success response:",
-            (response as any).data.length
-          );
+          
           faqData = (response as any).data.map((item: FAQ) => ({
             faq_id: item.faq_id,
             question: item.question,
             answer: item.answer,
           }));
         } else {
-          console.log("Unexpected FAQ response structure:", response);
-          console.log("Using mock FAQ data for testing");
+
           // Mock data for testing when endpoint doesn't return proper FAQ data
           const mockFaqData: FAQ[] = [
             {
@@ -111,10 +104,9 @@ export function useFaq() {
           return;
         }
 
-        console.log("Setting FAQs:", faqData.length, "items");
         setFaqs(faqData);
       } else {
-        console.log("No FAQ data found");
+        
         setFaqs([]);
       }
     } catch (err) {
@@ -124,7 +116,7 @@ export function useFaq() {
       setError(errorMessage);
 
       // Fallback to mock data when API fails
-      console.log("Using mock FAQ data due to API error");
+      
       const mockFaqData: FAQ[] = [
         {
           faq_id: 1,
@@ -171,3 +163,4 @@ export function useFaq() {
     refetch: fetchFaqs,
   };
 }
+

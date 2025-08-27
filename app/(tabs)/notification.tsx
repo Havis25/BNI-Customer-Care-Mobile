@@ -53,18 +53,6 @@ export default function NotificationScreen() {
         let iconColor = "#2196F3";
         let description = "";
 
-        // Debug logging
-        console.log("📋 Ticket transformation debug:", {
-          ticket_id: ticket.ticket_id,
-          ticket_number: ticket.ticket_number,
-          status_code: ticket.customer_status?.customer_status_code,
-          status_name: ticket.customer_status?.customer_status_name,
-          complaint_name: ticket.complaint?.complaint_name,
-          description: ticket.description,
-          created_time: ticket.created_time,
-          will_use_for_navigation: ticket.ticket_id || ticket.ticket_number,
-        });
-
         // Concise notification mapping
         const statusCode =
           ticket.customer_status?.customer_status_code || "UNKNOWN";
@@ -151,29 +139,10 @@ export default function NotificationScreen() {
     const routeId = notification.ticketId || notification.ticketNumber;
 
     if (routeId) {
-      console.log("🔍 Notification: Navigating to ticket detail:", {
-        ticketNumber: notification.ticketNumber,
-        ticketId: notification.ticketId,
-        routeId: routeId,
-        routeIdType: typeof routeId,
-        pathname: "/riwayat/[id]",
-        params: { id: String(routeId) },
-        notification: {
-          title: notification.title,
-          status: notification.status,
-          description: notification.description,
-        },
-      });
-
       router.push({
         pathname: "/riwayat/[id]",
         params: { id: String(routeId) },
       });
-    } else {
-      console.log(
-        "❌ Notification: No ticket ID or number available:",
-        notification
-      );
     }
   };
 

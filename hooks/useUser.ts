@@ -147,3 +147,4 @@ export const useUser = () => {
     account_number: user?.selectedAccount?.account_number?.toString() || "N/A",
   };
 };
+

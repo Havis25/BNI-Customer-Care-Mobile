@@ -221,9 +221,7 @@ export function useChannelsAndCategories() {
 
   const fetchData = useCallback(async () => {
     if (!isAuthenticated) {
-      console.log(
-        "🔍 useChannelsAndCategories: User not authenticated, skipping fetch"
-      );
+      
       return;
     }
 
@@ -231,58 +229,41 @@ export function useChannelsAndCategories() {
     setError(null);
 
     try {
-      console.log("=== FETCHING CHANNELS AND CATEGORIES ===");
-      console.log("🔍 Debug: About to call API endpoints");
 
       const [channelsResponse, categoriesResponse] = await Promise.all([
         api<Channel[]>("/v1/channels"),
         api<ComplaintCategory[]>("/v1/complaint-categories"),
       ]);
 
-      console.log("Channels Response:", channelsResponse);
-      console.log("Categories Response:", categoriesResponse);
-
       // Handle channels response - check if it's wrapped in a data property
       if (channelsResponse && typeof channelsResponse === "object") {
         if (Array.isArray(channelsResponse)) {
-          console.log("Channels is direct array:", channelsResponse.length);
+          
           setChannels(channelsResponse);
         } else if (
           (channelsResponse as any).data &&
           Array.isArray((channelsResponse as any).data)
         ) {
-          console.log(
-            "Channels in data property:",
-            (channelsResponse as any).data.length
-          );
+          
           setChannels((channelsResponse as any).data);
         } else {
-          console.log(
-            "Unexpected channels response structure:",
-            channelsResponse
-          );
+          
         }
       }
 
       // Handle categories response - check if it's wrapped in a data property
       if (categoriesResponse && typeof categoriesResponse === "object") {
         if (Array.isArray(categoriesResponse)) {
-          console.log("Categories is direct array:", categoriesResponse.length);
+          
           setCategories(categoriesResponse);
         } else if (
           (categoriesResponse as any).data &&
           Array.isArray((categoriesResponse as any).data)
         ) {
-          console.log(
-            "Categories in data property:",
-            (categoriesResponse as any).data.length
-          );
+          
           setCategories((categoriesResponse as any).data);
         } else {
-          console.log(
-            "Unexpected categories response structure:",
-            categoriesResponse
-          );
+          
         }
       }
     } catch (error: any) {
@@ -307,3 +288,4 @@ export function useChannelsAndCategories() {
     refetch: fetchData,
   };
 }
+

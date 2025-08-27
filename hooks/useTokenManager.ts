@@ -20,15 +20,12 @@ export const useTokenManager = () => {
   const loadToken = async () => {
     try {
       const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-      console.log(
-        "🔑 useTokenManager: Loading token from SecureStore:",
-        storedToken ? `${storedToken.slice(0, 20)}...` : "null"
-      );
+      
       if (storedToken) {
         setToken(storedToken);
-        console.log("✅ useTokenManager: Token loaded and set");
+        
       } else {
-        console.log("❌ useTokenManager: No token found");
+        
       }
     } catch (error) {
       console.error("❌ useTokenManager: Error loading token:", error);
@@ -38,14 +35,11 @@ export const useTokenManager = () => {
   // ✅ Simpan access token + refresh token
   const saveTokens = async (accessToken: string, refreshToken: string) => {
     try {
-      console.log("🔑 useTokenManager: Saving tokens...", {
-        accessToken: `${accessToken.slice(0, 20)}...`,
-        refreshToken: `${refreshToken.slice(0, 20)}...`,
-      });
+      
       await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
       setToken(accessToken);
-      console.log("✅ useTokenManager: Tokens saved successfully");
+      
     } catch (error) {
       console.error("❌ useTokenManager: Error saving tokens:", error);
     }
@@ -98,9 +92,7 @@ export const useTokenManager = () => {
 
     // Circuit breaker - stop trying after max attempts
     if (refreshFailCount >= MAX_REFRESH_ATTEMPTS) {
-      console.log(
-        `❌ Refresh attempts exceeded (${refreshFailCount}/${MAX_REFRESH_ATTEMPTS}) - returning current token`
-      );
+      
       const currentToken = await getAccessToken();
       return currentToken;
     }
@@ -132,7 +124,7 @@ export const useTokenManager = () => {
           data.refresh_token || storedRefreshToken
         );
         setRefreshFailCount(0); // Reset fail count on success
-        console.log("✅ Token refreshed via useTokenManager");
+        
         return data.access_token;
       }
 
@@ -165,3 +157,4 @@ export const useTokenManager = () => {
     isRefreshing,
   };
 };
+

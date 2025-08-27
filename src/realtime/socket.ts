@@ -21,20 +21,21 @@ export const getSocket = () => {
     });
 
     socket.on("connect", () => {
-      console.log("[socket] connected", socket?.id);
+      
     });
     socket.on("disconnect", (reason) => {
-      console.log("[socket] disconnect:", reason);
+      
     });
     socket.on("connect_error", (err: any) => {
-      console.log("[socket] connect_error:", err?.message || err);
+      
     });
     socket.io.on("error", (err: any) => {
-      console.log("[socket.io] error:", err?.message || err);
+      
     });
     socket.io.on("reconnect_error", (err: any) => {
-      console.log("[socket.io] reconnect_error:", err?.message || err);
+      
     });
   }
   return socket;
 };
+

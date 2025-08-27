@@ -11,13 +11,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 type TicketSummaryModalProps = {
   visible: boolean;
   onClose: () => void;
   ticketId?: string | number;
 };
-
 export default function TicketSummaryModal({
   visible,
   onClose,
@@ -26,33 +24,11 @@ export default function TicketSummaryModal({
   const { ticketDetail, isLoading, error, fetchTicketDetail } =
     useTicketDetail();
   const { user } = useUser();
-
-  // Add debug logging
-  useEffect(() => {
-    console.log("🎫 TicketSummaryModal props changed:", {
-      visible,
-      ticketId,
-      isLoading,
-      error: !!error,
-      ticketDetail: !!ticketDetail,
-    });
-  }, [visible, ticketId, isLoading, error, ticketDetail]);
-
   useEffect(() => {
     if (visible && ticketId) {
-      console.log(
-        "🎫 TicketSummaryModal: Fetching ticket detail for ID:",
-        ticketId
-      );
       fetchTicketDetail(ticketId);
-    } else {
-      console.log("🎫 TicketSummaryModal: Not fetching -", {
-        visible,
-        ticketId,
-      });
     }
   }, [visible, ticketId, fetchTicketDetail]);
-
   const formatAmount = (amount?: number) => {
     if (!amount) return null;
     return `Rp ${amount.toLocaleString("id-ID", {
@@ -60,7 +36,6 @@ export default function TicketSummaryModal({
       maximumFractionDigits: 2,
     })}`;
   };
-
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("id-ID", {
@@ -72,18 +47,11 @@ export default function TicketSummaryModal({
     });
   };
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onShow={() => console.log("🎫 TicketSummaryModal: Modal is now visible")}
-      onDismiss={() => console.log("🎫 TicketSummaryModal: Modal dismissed")}
-    >
+    <Modal visible={visible} transparent={true} animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={styles.ticketModal}>
           <MaterialIcons name="check-circle" size={60} color="#4CAF50" />
           <Text style={styles.modalTitle}>Tiket Berhasil Dibuat!</Text>
-
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#52B5AB" />
@@ -187,7 +155,6 @@ export default function TicketSummaryModal({
               <Text style={styles.errorText}>Data tiket tidak ditemukan</Text>
             </View>
           )}
-
           <TouchableOpacity style={styles.closeTicketButton} onPress={onClose}>
             <Text style={styles.closeTicketButtonText}>Tutup</Text>
           </TouchableOpacity>
@@ -196,7 +163,6 @@ export default function TicketSummaryModal({
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,

@@ -16,7 +16,7 @@ export const triggerAndroidNotification = async () => {
     // Request permissions for both iOS and Android
     const { status } = await Notifications.requestPermissionsAsync();
     if (status !== "granted") {
-      console.log("Notification permission denied");
+      
       return false;
     }
 
@@ -46,3 +46,4 @@ export const triggerAndroidNotification = async () => {
     return false;
   }
 };
+

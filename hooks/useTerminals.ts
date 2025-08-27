@@ -46,12 +46,10 @@ export function useTerminals() {
   const { isAuthenticated } = useAuth();
 
   const fetchTerminals = useCallback(async () => {
-    console.log("=== TERMINALS FETCH START ===");
-    console.log("isAuthenticated:", isAuthenticated);
 
     // Terminals might require authentication, check if user is authenticated
     if (!isAuthenticated) {
-      console.log("User not authenticated, using mock terminals data");
+      
       // Use mock data when not authenticated
       const mockTerminals: Terminal[] = [
         {
@@ -114,32 +112,25 @@ export function useTerminals() {
     setError(null);
 
     try {
-      console.log("=== FETCHING TERMINALS ===");
+      
       const response = await api<Terminal[]>("/v1/terminals");
-      console.log("Terminals Response:", response);
 
       // Handle terminals response - check if it's wrapped in a data property
       if (response && typeof response === "object") {
         if (Array.isArray(response)) {
-          console.log("Terminals is direct array:", response.length);
+          
           setTerminals(response);
         } else if (
           (response as any).data &&
           Array.isArray((response as any).data)
         ) {
-          console.log(
-            "Terminals in data property:",
-            (response as any).data.length
-          );
+          
           setTerminals((response as any).data);
         } else if ((response as any).success && (response as any).data) {
-          console.log(
-            "Terminals in success response:",
-            (response as any).data.length
-          );
+          
           setTerminals((response as any).data);
         } else {
-          console.log("No terminals data found, using mock data for testing");
+          
           // Mock data for testing when endpoint doesn't return proper terminal data
           const mockTerminals: Terminal[] = [
             {
@@ -202,7 +193,7 @@ export function useTerminals() {
       setError(error?.message || "Failed to fetch terminals");
 
       // Fallback to mock data when API fails
-      console.log("Using mock terminals due to API error");
+      
       const mockTerminals: Terminal[] = [
         {
           terminal_id: 1,
@@ -273,3 +264,4 @@ export function useTerminals() {
     refetch: fetchTerminals,
   };
 }
+

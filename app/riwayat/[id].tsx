@@ -27,10 +27,6 @@ export default function RiwayatDetailScreen() {
   // Debug: Monitor component renders
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;
-  console.log(
-    `🔄 RiwayatDetail: Component render #${renderCountRef.current}, ID:`,
-    id
-  );
 
   const [showFeedback, setShowFeedback] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,14 +48,7 @@ export default function RiwayatDetailScreen() {
   useEffect(() => {
     if (id) {
       const idString = Array.isArray(id) ? id[0] : String(id);
-      console.log("🔍 RiwayatDetail: Initial load with ID:", {
-        original: id,
-        processed: idString,
-        type: typeof idString,
-      });
       fetchTicketDetail(idString);
-    } else {
-      console.log("❌ RiwayatDetail: No ID provided in params");
     }
     // Only depend on `id` to prevent multiple calls
   }, [id, fetchTicketDetail]);
@@ -330,13 +319,6 @@ export default function RiwayatDetailScreen() {
             <TouchableOpacity
               style={styles.liveChatButton}
               onPress={() => {
-                console.log("🎯 Live Chat button pressed:", {
-                  routeId: id,
-                  ticketDetail_id: ticketDetail?.ticket_id,
-                  ticketDetail_number: ticketDetail?.ticket_number,
-                  willUseForChat: ticketDetail?.ticket_id || id,
-                });
-
                 // Use ticket_id from ticketDetail if available, otherwise use route id
                 const chatTicketId = ticketDetail?.ticket_id || id;
 
