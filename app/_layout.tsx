@@ -1,3 +1,7 @@
+import { AutoLogoutProvider } from "@/components/AutoLogoutProvider";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DarkTheme,
   DefaultTheme,
@@ -6,12 +10,9 @@ import {
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import { StatusBar as RNStatusBar } from "react-native";
 import "react-native-reanimated";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect } from "react";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
-import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function RootLayout() {
   useAuthGuard();
@@ -26,7 +27,7 @@ export default function RootLayout() {
 
   // Set status bar style
   useEffect(() => {
-    RNStatusBar.setBarStyle('dark-content', true);
+    RNStatusBar.setBarStyle("dark-content", true);
   }, []);
 
   // Clear storage on app restart
@@ -34,19 +35,20 @@ export default function RootLayout() {
     const clearStorageOnRestart = async () => {
       try {
         const allKeys = await AsyncStorage.getAllKeys();
-        const sessionKeys = allKeys.filter(key => 
-          key.includes('currentTicketId') || 
-          key.includes('msgs:') ||
-          key.includes('shouldRefresh')
+        const sessionKeys = allKeys.filter(
+          (key) =>
+            key.includes("currentTicketId") ||
+            key.includes("msgs:") ||
+            key.includes("shouldRefresh")
         );
         if (sessionKeys.length > 0) {
           await AsyncStorage.multiRemove(sessionKeys);
         }
       } catch (error) {
-        console.error('Error clearing storage on restart:', error);
+        console.error("Error clearing storage on restart:", error);
       }
     };
-    
+
     clearStorageOnRestart();
   }, []);
 
@@ -57,33 +59,56 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack initialRouteName="WelcomePage">
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="WelcomePage" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="feedbackSuccess" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="faq" options={{ headerShown: false }} />
-        <Stack.Screen name="services/produk" options={{ headerShown: false }} />
-        <Stack.Screen name="services/promo" options={{ headerShown: false }} />
-        <Stack.Screen name="services/cabang" options={{ headerShown: false }} />
-        <Stack.Screen name="riwayat/[id]" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="services/digital"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen name="services/agent" options={{ headerShown: false }} />
-        <Stack.Screen name="services/wondr" options={{ headerShown: false }} />
-        <Stack.Screen name="complaint/chat" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="complaint/confirmation"
-          options={{ headerShown: false }}
-        />
+      <AutoLogoutProvider>
+        <Stack initialRouteName="WelcomePage">
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="WelcomePage" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="feedbackSuccess"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="faq" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="services/produk"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="services/promo"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="services/cabang"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="riwayat/[id]" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="services/digital"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="services/agent"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="services/wondr"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="complaint/chat"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="complaint/confirmation"
+            options={{ headerShown: false }}
+          />
 
-        <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-      </Stack>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+          <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+        </Stack>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
+      </AutoLogoutProvider>
     </ThemeProvider>
   );
 }
