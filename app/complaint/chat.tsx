@@ -547,20 +547,118 @@ export default function ChatScreen() {
           console.log("New collected_info:", response.collected_info);
 
           // Update selectedChannel and selectedCategory based on collected_info if not already set
-          if (response.collected_info.channel && !selectedChannel) {
+          const shouldSetChannel =
+            response.collected_info.channel &&
+            (!selectedChannel ||
+              selectedChannel !== response.collected_info.channel);
+          console.log("=== CHANNEL SETTING DEBUG ===");
+          console.log(
+            "response.collected_info.channel:",
+            response.collected_info.channel
+          );
+          console.log("current selectedChannel:", selectedChannel);
+          console.log("shouldSetChannel:", shouldSetChannel);
+
+          if (shouldSetChannel) {
             console.log(
               "Setting selectedChannel from collected_info:",
               response.collected_info.channel
             );
-            setSelectedChannel(response.collected_info.channel);
+            setSelectedChannel(response.collected_info.channel || null);
+
+            // After setting channel, check if we need to show category buttons
+            setTimeout(() => {
+              const shouldShowCategories =
+                !response.collected_info?.category && !selectedCategory;
+              console.log("=== CATEGORY SHOW DEBUG ===");
+              console.log(
+                "response.collected_info?.category:",
+                response.collected_info?.category
+              );
+              console.log("selectedCategory:", selectedCategory);
+              console.log("shouldShowCategories:", shouldShowCategories);
+
+              if (shouldShowCategories) {
+                console.log("Channel set, now showing category buttons");
+                setMessages((prev) => {
+                  const hasCategoryButtons = prev.some(
+                    (msg) => msg.hasCategoryButtons
+                  );
+                  console.log(
+                    "Already has category buttons:",
+                    hasCategoryButtons
+                  );
+                  if (hasCategoryButtons) return prev;
+
+                  const categoryButtonMessage: MessageType = {
+                    id: getUniqueId(),
+                    text: "Silakan pilih kategori masalah Anda:",
+                    isBot: true,
+                    timestamp: new Date().toLocaleTimeString("id-ID", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                    hasCategoryButtons: true,
+                  };
+                  const newMessages = [...prev, categoryButtonMessage];
+                  AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                  console.log("Added category button message");
+                  return newMessages;
+                });
+              }
+            }, 500); // Reduced timeout
           }
 
-          if (response.collected_info.category && !selectedCategory) {
+          const shouldSetCategory =
+            response.collected_info.category &&
+            (!selectedCategory ||
+              selectedCategory !== response.collected_info.category);
+          if (shouldSetCategory) {
             console.log(
               "Setting selectedCategory from collected_info:",
               response.collected_info.category
             );
-            setSelectedCategory(response.collected_info.category);
+            setSelectedCategory(response.collected_info.category || null);
+          }
+
+          // AGGRESSIVE FALLBACK: If we have channel but no category buttons are showing
+          if (
+            response.collected_info.channel &&
+            !response.collected_info.category
+          ) {
+            console.log("=== AGGRESSIVE FALLBACK CHECK ===");
+            setTimeout(() => {
+              setMessages((prev) => {
+                const hasCategoryButtons = prev.some(
+                  (msg) => msg.hasCategoryButtons
+                );
+                console.log(
+                  "Has category buttons in messages:",
+                  hasCategoryButtons
+                );
+                console.log("Current selectedCategory:", selectedCategory);
+
+                if (!hasCategoryButtons && !selectedCategory) {
+                  console.log(
+                    "AGGRESSIVE FALLBACK: Adding category buttons now!"
+                  );
+                  const categoryButtonMessage: MessageType = {
+                    id: getUniqueId(),
+                    text: "Silakan pilih kategori masalah Anda:",
+                    isBot: true,
+                    timestamp: new Date().toLocaleTimeString("id-ID", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                    hasCategoryButtons: true,
+                  };
+                  const newMessages = [...prev, categoryButtonMessage];
+                  AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                  return newMessages;
+                }
+                return prev;
+              });
+            }, 200); // Very short timeout
           }
 
           // If we have channel and category but no description, and user provided meaningful input, add it
@@ -767,31 +865,36 @@ Sekarang Anda dapat melanjutkan:`;
           (messageText.includes("masalah") && messageText.includes("anda"));
 
         // Check if we have complete info and category needs amount
-        const hasCompleteInfo =
+        const hasCompleteInfo = Boolean(
           (selectedChannel && selectedCategory && response.collected_info) ||
-          (response.collected_info?.channel &&
-            response.collected_info?.category);
+            (response.collected_info?.channel &&
+              response.collected_info?.category)
+        );
 
         // Check if we have all required info for summary from collected_info
-        const hasAllRequiredInfo =
+        const hasAllRequiredInfo = Boolean(
           response.collected_info?.channel &&
-          response.collected_info?.category &&
-          (response.collected_info?.description ||
-            response.collected_info?.ai_generated_description ||
-            // Alternative: if user provided meaningful input (description) and we have channel+category
-            (!summaryShown && userMessage.length > 10) || // User gave meaningful description
-            // Additional check: if selectedChannel/selectedCategory exists and user gave description
-            (selectedChannel && selectedCategory && userMessage.length > 10));
+            response.collected_info?.category &&
+            (response.collected_info?.description ||
+              response.collected_info?.ai_generated_description ||
+              // Alternative: if user provided meaningful input (description) and we have channel+category
+              (!summaryShown && userMessage.length > 10) || // User gave meaningful description
+              // Additional check: if selectedChannel/selectedCategory exists and user gave description
+              (selectedChannel && selectedCategory && userMessage.length > 10))
+        );
 
-        const categoryNeedsAmount =
+        const categoryNeedsAmount = Boolean(
           (selectedCategory && checkIfCategoryNeedsAmount(selectedCategory)) ||
-          (response.collected_info?.category &&
-            checkIfCategoryNeedsAmount(response.collected_info.category));
-        const collectedInfoNeedsAmount =
+            (response.collected_info?.category &&
+              checkIfCategoryNeedsAmount(response.collected_info.category))
+        );
+        const collectedInfoNeedsAmount = Boolean(
           response.collected_info?.category &&
-          checkIfCategoryNeedsAmount(response.collected_info.category);
-        const shouldRequestAmount =
-          (categoryNeedsAmount || collectedInfoNeedsAmount) && !amountRequested;
+            checkIfCategoryNeedsAmount(response.collected_info.category)
+        );
+        const shouldRequestAmount = Boolean(
+          (categoryNeedsAmount || collectedInfoNeedsAmount) && !amountRequested
+        );
 
         console.log("=== DETAILED SUMMARY CONDITIONS ===");
         console.log(
@@ -1142,6 +1245,10 @@ Sekarang Anda dapat melanjutkan:`;
                 recentText.includes("jenis keluhan") ||
                 recentText.includes("keluhan");
 
+              // Check if we have channel selected but no category - show category buttons
+              const shouldShowCategory =
+                selectedChannel && !selectedCategory && !hasCategoryContext;
+
               // Avoid duplicates
               const hasChannelButtons = prevMessages.some(
                 (msg) => msg.hasChannelButtons
@@ -1164,7 +1271,10 @@ Sekarang Anda dapat melanjutkan:`;
                 return [...prevMessages, channelButtonMessage];
               }
 
-              if (hasCategoryContext && !hasCategoryButtons) {
+              if (
+                (hasCategoryContext || shouldShowCategory) &&
+                !hasCategoryButtons
+              ) {
                 const categoryButtonMessage: MessageType = {
                   id: getUniqueId(),
                   text: "Silakan pilih kategori masalah Anda:",
@@ -1299,6 +1409,8 @@ Sekarang Anda dapat melanjutkan:`;
       transactionDateRequested,
       messages,
       confirmedAmount,
+      selectedChannel,
+      selectedCategory,
     ]
   );
 
@@ -1338,8 +1450,15 @@ Sekarang Anda dapat melanjutkan:`;
       });
 
       // If ATM or CRM channel is selected, ask for terminal first
+      console.log("=== CHANNEL NEEDS TERMINAL CHECK ===");
+      console.log("Selected channel:", channel);
+      console.log("Terminals length:", terminals.length);
+      console.log("Is ATM or CRM:", channel === "ATM" || channel === "CRM");
+
       const channelNeedsTerminal =
         (channel === "ATM" || channel === "CRM") && terminals.length > 0;
+
+      console.log("channelNeedsTerminal:", channelNeedsTerminal);
 
       if (channelNeedsTerminal) {
         setTimeout(() => {
@@ -1362,6 +1481,35 @@ Sekarang Anda dapat melanjutkan:`;
       } else {
         // Send to chatbot API for other channels
         sendToChatbot(channel);
+
+        // Fallback: If chatbot doesn't respond with category request, show category buttons after delay
+        setTimeout(() => {
+          if (!selectedCategory) {
+            setMessages((prev) => {
+              const hasCategoryButtons = prev.some(
+                (msg) => msg.hasCategoryButtons
+              );
+              if (hasCategoryButtons) return prev;
+
+              console.log(
+                "Fallback: Adding category buttons after channel selection"
+              );
+              const categoryButtonMessage: MessageType = {
+                id: getUniqueId(),
+                text: "Silakan pilih kategori masalah Anda:",
+                isBot: true,
+                timestamp: new Date().toLocaleTimeString("id-ID", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                hasCategoryButtons: true,
+              };
+              const newMessages = [...prev, categoryButtonMessage];
+              AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+              return newMessages;
+            });
+          }
+        }, 2500); // Wait 2.5 seconds for chatbot response, then show fallback
       }
     },
     [sendToChatbot, storageKey, selectedChannel, terminals]
@@ -1423,6 +1571,35 @@ Sekarang Anda dapat melanjutkan:`;
       const channelWithTerminal = `${selectedChannel} - ${terminalDisplay}`;
       console.log("Sending to chatbot:", channelWithTerminal);
       sendToChatbot(channelWithTerminal);
+
+      // Fallback: If chatbot doesn't respond with category request, show category buttons after delay
+      setTimeout(() => {
+        if (!selectedCategory) {
+          setMessages((prev) => {
+            const hasCategoryButtons = prev.some(
+              (msg) => msg.hasCategoryButtons
+            );
+            if (hasCategoryButtons) return prev;
+
+            console.log(
+              "Fallback: Adding category buttons after terminal selection"
+            );
+            const categoryButtonMessage: MessageType = {
+              id: getUniqueId(),
+              text: "Silakan pilih kategori masalah Anda:",
+              isBot: true,
+              timestamp: new Date().toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              hasCategoryButtons: true,
+            };
+            const newMessages = [...prev, categoryButtonMessage];
+            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+            return newMessages;
+          });
+        }
+      }, 2500); // Wait 2.5 seconds for chatbot response, then show fallback
     },
     [sendToChatbot, storageKey, selectedTerminal, terminals, selectedChannel]
   );
@@ -4082,6 +4259,19 @@ Sekarang Anda dapat melanjutkan:`;
                 !ticketCreatedInSession &&
                 !editFormSelected &&
                 (() => {
+                  console.log("=== CATEGORY BUTTONS RENDERING DEBUG ===");
+                  console.log(
+                    "message.hasCategoryButtons:",
+                    (message as any).hasCategoryButtons
+                  );
+                  console.log(
+                    "ticketCreatedInSession:",
+                    ticketCreatedInSession
+                  );
+                  console.log("editFormSelected:", editFormSelected);
+                  console.log("selectedChannel:", selectedChannel);
+                  console.log("channels.length:", channels.length);
+                  console.log("categories.length:", categories.length);
                   // Get filtered categories based on selected channel using the hook
                   const selectedChannelObj = channels.find((c) => {
                     if (!selectedChannel) return false;

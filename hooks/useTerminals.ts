@@ -48,82 +48,149 @@ export function useTerminals() {
     setError(null);
 
     try {
-      // Try both endpoints to see which one has terminal data
-      let response;
-      try {
-        response = await api<TerminalsResponse>("/v1/terminals");
-        console.log("Terminals API response from /v1/terminals:", response);
-      } catch (terminalError) {
-        console.log("Failed to fetch from /v1/terminals, trying /v1/channels");
-        response = await api<TerminalsResponse>("/v1/channels");
-        console.log("Terminals API response from /v1/channels:", response);
-      }
+      console.log("=== FETCHING TERMINALS ===");
+      const response = await api<Terminal[]>("/terminals");
+      console.log("Terminals Response:", response);
 
-      if (response && response.success && Array.isArray(response.data)) {
-        console.log("Setting terminals:", response.data);
-        setTerminals(response.data);
-      } else {
-        console.log("No terminals data found, using mock data for testing");
-        // Mock data for testing when endpoint doesn't return proper terminal data
-        const mockTerminals: Terminal[] = [
-          {
-            terminal_id: 1,
-            terminal_code: "ATM001",
-            location: "Jakarta Pusat",
-            tickets_count: 35,
-            terminal_type: {
-              terminal_type_id: 1,
-              terminal_type_code: "ATM",
-              terminal_type_name: "ATM",
+      // Handle terminals response - check if it's wrapped in a data property
+      if (response && typeof response === "object") {
+        if (Array.isArray(response)) {
+          console.log("Terminals is direct array:", response.length);
+          setTerminals(response);
+        } else if (
+          (response as any).data &&
+          Array.isArray((response as any).data)
+        ) {
+          console.log(
+            "Terminals in data property:",
+            (response as any).data.length
+          );
+          setTerminals((response as any).data);
+        } else if ((response as any).success && (response as any).data) {
+          console.log(
+            "Terminals in success response:",
+            (response as any).data.length
+          );
+          setTerminals((response as any).data);
+        } else {
+          console.log("No terminals data found, using mock data for testing");
+          // Mock data for testing when endpoint doesn't return proper terminal data
+          const mockTerminals: Terminal[] = [
+            {
+              terminal_id: 1,
+              terminal_code: "ATM001",
+              location: "Jakarta Pusat",
+              tickets_count: 35,
+              terminal_type: {
+                terminal_type_id: 1,
+                terminal_type_code: "ATM",
+                terminal_type_name: "ATM",
+              },
+              channel: {
+                channel_id: 1,
+                channel_code: "ATM",
+                channel_name: "Automated Teller Machine",
+                supports_terminal: true,
+              },
             },
-            channel: {
-              channel_id: 1,
-              channel_code: "ATM",
-              channel_name: "Automated Teller Machine",
-              supports_terminal: true,
+            {
+              terminal_id: 2,
+              terminal_code: "ATM002",
+              location: "Bandung Dago",
+              tickets_count: 5,
+              terminal_type: {
+                terminal_type_id: 1,
+                terminal_type_code: "ATM",
+                terminal_type_name: "ATM",
+              },
+              channel: {
+                channel_id: 1,
+                channel_code: "ATM",
+                channel_name: "Automated Teller Machine",
+                supports_terminal: true,
+              },
             },
-          },
-          {
-            terminal_id: 2,
-            terminal_code: "ATM002",
-            location: "Bandung Dago",
-            tickets_count: 5,
-            terminal_type: {
-              terminal_type_id: 1,
-              terminal_type_code: "ATM",
-              terminal_type_name: "ATM",
+            {
+              terminal_id: 3,
+              terminal_code: "CRM101",
+              location: "Surabaya Darmo",
+              tickets_count: 0,
+              terminal_type: {
+                terminal_type_id: 2,
+                terminal_type_code: "CRM",
+                terminal_type_name: "CRM",
+              },
+              channel: {
+                channel_id: 3,
+                channel_code: "CRM",
+                channel_name: "Cash Recycling Machine",
+                supports_terminal: true,
+              },
             },
-            channel: {
-              channel_id: 1,
-              channel_code: "ATM",
-              channel_name: "Automated Teller Machine",
-              supports_terminal: true,
-            },
-          },
-          {
-            terminal_id: 3,
-            terminal_code: "CRM101",
-            location: "Surabaya Darmo",
-            tickets_count: 0,
-            terminal_type: {
-              terminal_type_id: 2,
-              terminal_type_code: "CRM",
-              terminal_type_name: "CRM",
-            },
-            channel: {
-              channel_id: 3,
-              channel_code: "CRM",
-              channel_name: "Cash Recycling Machine",
-              supports_terminal: true,
-            },
-          },
-        ];
-        setTerminals(mockTerminals);
+          ];
+          setTerminals(mockTerminals);
+        }
       }
     } catch (error: any) {
-      console.log("Error fetching terminals:", error);
+      console.error("Error fetching terminals:", error);
       setError(error?.message || "Failed to fetch terminals");
-      setTerminals([]);
+
+      // Fallback to mock data when API fails
+      console.log("Using mock terminals due to API error");
+      const mockTerminals: Terminal[] = [
+        {
+          terminal_id: 1,
+          terminal_code: "ATM001",
+          location: "Jakarta Pusat",
+          tickets_count: 35,
+          terminal_type: {
+            terminal_type_id: 1,
+            terminal_type_code: "ATM",
+            terminal_type_name: "ATM",
+          },
+          channel: {
+            channel_id: 1,
+            channel_code: "ATM",
+            channel_name: "Automated Teller Machine",
+            supports_terminal: true,
+          },
+        },
+        {
+          terminal_id: 2,
+          terminal_code: "ATM002",
+          location: "Bandung Dago",
+          tickets_count: 5,
+          terminal_type: {
+            terminal_type_id: 1,
+            terminal_type_code: "ATM",
+            terminal_type_name: "ATM",
+          },
+          channel: {
+            channel_id: 1,
+            channel_code: "ATM",
+            channel_name: "Automated Teller Machine",
+            supports_terminal: true,
+          },
+        },
+        {
+          terminal_id: 3,
+          terminal_code: "CRM101",
+          location: "Surabaya Darmo",
+          tickets_count: 0,
+          terminal_type: {
+            terminal_type_id: 2,
+            terminal_type_code: "CRM",
+            terminal_type_name: "CRM",
+          },
+          channel: {
+            channel_id: 3,
+            channel_code: "CRM",
+            channel_name: "Cash Recycling Machine",
+            supports_terminal: true,
+          },
+        },
+      ];
+      setTerminals(mockTerminals);
     } finally {
       setIsLoading(false);
     }
