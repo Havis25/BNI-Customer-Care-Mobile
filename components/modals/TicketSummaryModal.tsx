@@ -1,3 +1,6 @@
+import { useTicketDetail } from "@/hooks/useTicketDetail";
+import { useUser } from "@/hooks/useUser";
+import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React, { useEffect } from "react";
 import {
@@ -8,53 +11,47 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useTicketDetail } from "@/hooks/useTicketDetail";
-import { useUser } from "@/hooks/useUser";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
-
 type TicketSummaryModalProps = {
   visible: boolean;
   onClose: () => void;
   ticketId?: string | number;
 };
-
-export default function TicketSummaryModal({ visible, onClose, ticketId }: TicketSummaryModalProps) {
-  const { ticketDetail, isLoading, error, fetchTicketDetail } = useTicketDetail();
+export default function TicketSummaryModal({
+  visible,
+  onClose,
+  ticketId,
+}: TicketSummaryModalProps) {
+  const { ticketDetail, isLoading, error, fetchTicketDetail } =
+    useTicketDetail();
   const { user } = useUser();
-  
   useEffect(() => {
     if (visible && ticketId) {
-      console.log('Fetching ticket detail for ID:', ticketId);
       fetchTicketDetail(ticketId);
     }
   }, [visible, ticketId, fetchTicketDetail]);
-  
   const formatAmount = (amount?: number) => {
     if (!amount) return null;
-    return `Rp ${amount.toLocaleString('id-ID')}`;
+    return `Rp ${amount.toLocaleString("id-ID", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
-  
   const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-    >
+    <Modal visible={visible} transparent={true} animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={styles.ticketModal}>
           <MaterialIcons name="check-circle" size={60} color="#4CAF50" />
           <Text style={styles.modalTitle}>Tiket Berhasil Dibuat!</Text>
-          
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#52B5AB" />
@@ -70,7 +67,9 @@ export default function TicketSummaryModal({ visible, onClose, ticketId }: Ticke
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Nomor Tiket:</Text>
                 <Text style={[styles.summaryValue, styles.ticketNumberValue]}>
-                  {ticketDetail.ticket_number || ticketDetail.ticket_id || 'Tidak tersedia'}
+                  {ticketDetail.ticket_number ||
+                    ticketDetail.ticket_id ||
+                    "Tidak tersedia"}
                 </Text>
               </View>
               {ticketDetail.customer?.full_name && (
@@ -84,57 +83,69 @@ export default function TicketSummaryModal({ visible, onClose, ticketId }: Ticke
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>No Rekening:</Text>
                 <Text style={[styles.summaryValue, styles.accountValue]}>
-                  {user?.selectedAccount?.account_number ? 
-                   String(user.selectedAccount.account_number) : 
-                   (ticketDetail.related_account?.account_number ? 
-                    String(ticketDetail.related_account.account_number) : 
-                    'Tidak tersedia')}
+                  {user?.selectedAccount?.account_number
+                    ? String(user.selectedAccount.account_number)
+                    : ticketDetail.related_account?.account_number
+                    ? String(ticketDetail.related_account.account_number)
+                    : "Tidak tersedia"}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Channel:</Text>
                 <Text style={[styles.summaryValue, styles.channelValue]}>
-                  {ticketDetail.issue_channel?.channel_name || 'Tidak tersedia'}
+                  {ticketDetail.issue_channel?.channel_name || "Tidak tersedia"}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Category:</Text>
                 <Text style={[styles.summaryValue, styles.categoryValue]}>
-                  {ticketDetail.complaint?.complaint_name || 'Tidak tersedia'}
+                  {ticketDetail.complaint?.complaint_name || "Tidak tersedia"}
                 </Text>
               </View>
               {ticketDetail.amount && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Nominal:</Text>
-                  <Text style={[styles.summaryValue, styles.amountValue]}>{formatAmount(ticketDetail.amount)}</Text>
+                  <Text style={[styles.summaryValue, styles.amountValue]}>
+                    {formatAmount(ticketDetail.amount)}
+                  </Text>
                 </View>
               )}
               {ticketDetail.transaction_date && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Tgl Transaksi:</Text>
-                  <Text style={[styles.summaryValue, styles.transactionDateValue]}>
-                    {new Date(ticketDetail.transaction_date).toLocaleDateString('id-ID', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
+                  <Text
+                    style={[styles.summaryValue, styles.transactionDateValue]}
+                  >
+                    {new Date(ticketDetail.transaction_date).toLocaleDateString(
+                      "id-ID",
+                      {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      }
+                    )}
                   </Text>
                 </View>
               )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Status:</Text>
                 <Text style={[styles.summaryValue, styles.statusPending]}>
-                  {ticketDetail.customer_status?.customer_status_name || 'Menunggu Validasi'}
+                  {ticketDetail.customer_status?.customer_status_name ||
+                    "Menunggu Validasi"}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Tanggal:</Text>
-                <Text style={styles.summaryValue}>{formatDate(ticketDetail.created_time)}</Text>
+                <Text style={styles.summaryValue}>
+                  {formatDate(ticketDetail.created_time)}
+                </Text>
               </View>
               {ticketDetail.description && (
                 <View style={styles.descriptionContainer}>
                   <Text style={styles.summaryLabel}>Deskripsi:</Text>
-                  <Text style={styles.descriptionText}>{ticketDetail.description}</Text>
+                  <Text style={styles.descriptionText}>
+                    {ticketDetail.description}
+                  </Text>
                 </View>
               )}
             </View>
@@ -144,11 +155,7 @@ export default function TicketSummaryModal({ visible, onClose, ticketId }: Ticke
               <Text style={styles.errorText}>Data tiket tidak ditemukan</Text>
             </View>
           )}
-
-          <TouchableOpacity
-            style={styles.closeTicketButton}
-            onPress={onClose}
-          >
+          <TouchableOpacity style={styles.closeTicketButton} onPress={onClose}>
             <Text style={styles.closeTicketButtonText}>Tutup</Text>
           </TouchableOpacity>
         </View>
@@ -156,7 +163,6 @@ export default function TicketSummaryModal({ visible, onClose, ticketId }: Ticke
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,

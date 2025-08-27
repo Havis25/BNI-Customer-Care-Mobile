@@ -20,7 +20,7 @@ const refreshToken = async (): Promise<string | null> => {
 
   isRefreshing = true;
   refreshPromise = performTokenRefresh();
-  
+
   try {
     const result = await refreshPromise;
     return result;
@@ -32,15 +32,16 @@ const refreshToken = async (): Promise<string | null> => {
 
 const performTokenRefresh = async (): Promise<string | null> => {
   let attempts = 0;
-  
+
   while (attempts < MAX_REFRESH_ATTEMPTS) {
     try {
-      const storedRefreshToken = await SecureStore.getItemAsync("refresh_token");
+      const storedRefreshToken = await SecureStore.getItemAsync(
+        "refresh_token"
+      );
       if (!storedRefreshToken) {
         throw new Error("No refresh token available");
       }
 
-      console.log(`🔄 Attempting token refresh (${attempts + 1}/${MAX_REFRESH_ATTEMPTS}):`, `${API_BASE}/v1/auth/refresh`);
       const response = await fetch(`${API_BASE}/v1/auth/refresh`, {
         method: "POST",
         headers: {
@@ -62,25 +63,28 @@ const performTokenRefresh = async (): Promise<string | null> => {
         if (data.refresh_token) {
           await SecureStore.setItemAsync("refresh_token", data.refresh_token);
         }
-        console.log("✅ Token refreshed successfully");
+        
         return data.access_token;
       }
 
       throw new Error(data.message || "Invalid response format");
     } catch (error) {
       attempts++;
-      console.error(`Token refresh error (${attempts}/${MAX_REFRESH_ATTEMPTS}):`, error);
-      
+      console.error(
+        `Token refresh error (${attempts}/${MAX_REFRESH_ATTEMPTS}):`,
+        error
+      );
+
       if (attempts >= MAX_REFRESH_ATTEMPTS) {
-        console.log("❌ Max refresh attempts reached");
+        
         return null;
       }
-      
+
       // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
     }
   }
-  
+
   return null;
 };
 
@@ -105,13 +109,17 @@ export async function api<T = JSONValue>(
   ) {
     try {
       const token = await SecureStore.getItemAsync("access_token");
+      
       if (token) {
         // Pastikan token tidak double Bearer
         const cleanToken = token.startsWith("Bearer ") ? token.slice(7) : token;
         headers.Authorization = `Bearer ${cleanToken}`;
+        
+      } else {
+        
       }
     } catch (error) {
-      // Error getting token
+      console.error(`❌ Error getting token for ${path}:`, error);
     }
   }
 
@@ -123,7 +131,7 @@ export async function api<T = JSONValue>(
 
   // Handle 401/419 expired token
   if ((res.status === 401 || res.status === 419) && !path.includes("/auth/")) {
-    console.log(`🔄 Token expired (${res.status}), attempting refresh...`);
+    
     const newToken = await refreshToken();
     if (newToken) {
       // Retry with new token
@@ -133,18 +141,32 @@ export async function api<T = JSONValue>(
         headers,
         signal,
       });
-      console.log("✅ Request retried with new token");
+      
     } else {
-      console.log("❌ Token refresh failed - silently continue");
-      // Don't throw error, let UI handle gracefully
+      
+      // For debugging - let's see the response
+      const text = await res.text().catch(() => "");
+
+      // Don't throw error immediately, return undefined for graceful handling
       return undefined as T;
     }
   }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    console.error(`❌ API Error ${res.status}:`, {
+      url,
+      status: res.status,
+      statusText: res.statusText,
+      responseBody: text,
+      path,
+      timestamp: new Date().toISOString(),
+    });
     throw new Error(`API ${res.status} — ${text || res.statusText}`);
   }
 
-  return (await res.json()) as T;
+  const jsonResponse = await res.json();
+
+  return jsonResponse as T;
 }
+

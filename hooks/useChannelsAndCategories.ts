@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "./useAuth";
 
 export type Channel = {
   channel_id: number;
@@ -24,7 +25,6 @@ export type CategoriesResponse = {
   message: string;
   data: ComplaintCategory[];
 };
-
 // Mapping subcategories for each general category (mempertahankan subcategories yang ada)
 const CATEGORY_SUBCATEGORY_MAPPING: Record<string, string[]> = {
   TOP_UP: [
@@ -66,9 +66,7 @@ const CATEGORY_SUBCATEGORY_MAPPING: Record<string, string[]> = {
     "TARIK_TUNAI_DI_JARINGAN_BERSAMA",
     "TARIK_TUNAI_DI_ATM_CIRRUS",
   ],
-  SETOR_TUNAI: [
-    "SETOR_TUNAI_DI_MESIN_ATM_CRM",
-  ],
+  SETOR_TUNAI: ["SETOR_TUNAI_DI_MESIN_ATM_CRM"],
   MOBILE_TUNAI: [
     "MOBILE_TUNAI",
     "MOBILE_TUNAI_ALFAMART",
@@ -91,9 +89,7 @@ const CATEGORY_SUBCATEGORY_MAPPING: Record<string, string[]> = {
     "DISPUTE_KARTU_DEBIT_BNI",
     "DISPUTE_KARTU_KREDIT_BNI",
   ],
-  LAINNYA: [
-    "PERMINTAAN_CCTV_ATM_BNI",
-  ],
+  LAINNYA: ["PERMINTAAN_CCTV_ATM_BNI"],
 };
 // Mapping category codes untuk setiap channel berdasarkan API data
 const CHANNEL_CATEGORY_MAPPING: Record<string, string[]> = {
@@ -126,17 +122,9 @@ const CHANNEL_CATEGORY_MAPPING: Record<string, string[]> = {
     "PEMBAYARAN_MPNG2",
     "PERMINTAAN_CCTV_ATM_BNI",
   ],
-  TAPCASH: [
-    "TOP_UP_PRA_MIGRASI_DANA_GAGAL_TERKOREKSI",
-  ],
-  CRM: [
-    "SETOR_TUNAI_DI_MESIN_ATM_CRM",
-  ],
-  DISPUTE_DEBIT: [
-    "2ND_CHARGEBACK",
-    "DISPUTE",
-    "DISPUTE_KARTU_DEBIT_BNI",
-  ],
+  TAPCASH: ["TOP_UP_PRA_MIGRASI_DANA_GAGAL_TERKOREKSI"],
+  CRM: ["SETOR_TUNAI_DI_MESIN_ATM_CRM"],
+  DISPUTE_DEBIT: ["2ND_CHARGEBACK", "DISPUTE", "DISPUTE_KARTU_DEBIT_BNI"],
   IBANK: [
     "PEMBAYARAN_KARTU_KREDIT_BNI",
     "PEMBAYARAN_KARTU_KREDIT_BANK_LAIN",
@@ -199,13 +187,8 @@ const CHANNEL_CATEGORY_MAPPING: Record<string, string[]> = {
     "MOBILE_TUNAI_INDOMARET",
     "MOBILE_TUNAI_ALFAMART",
   ],
-  MTUNAI_ALFAMART: [
-    "MOBILE_TUNAI_ALFAMART",
-  ],
-  QRIS_DEBIT: [
-    "DISPUTE_QRIS_KARTU_DEBIT",
-    "2ND_CHARGEBACK_QRIS_DEBIT",
-  ],
+  MTUNAI_ALFAMART: ["MOBILE_TUNAI_ALFAMART"],
+  QRIS_DEBIT: ["DISPUTE_QRIS_KARTU_DEBIT", "2ND_CHARGEBACK_QRIS_DEBIT"],
 };
 
 export function useChannelsAndCategories() {
@@ -213,6 +196,7 @@ export function useChannelsAndCategories() {
   const [categories, setCategories] = useState<ComplaintCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
 
   // Function to filter categories based on selected channel
   const getFilteredCategories = useCallback(
@@ -236,28 +220,59 @@ export function useChannelsAndCategories() {
   }, []);
 
   const fetchData = useCallback(async () => {
+    if (!isAuthenticated) {
+      
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
+
       const [channelsResponse, categoriesResponse] = await Promise.all([
-        api<Channel[]>("/v1/channel"),
-        api<ComplaintCategory[]>("/v1/complaint_category"),
+        api<Channel[]>("/v1/channels"),
+        api<ComplaintCategory[]>("/v1/complaint-categories"),
       ]);
 
-      if (Array.isArray(channelsResponse)) {
-        setChannels(channelsResponse);
+      // Handle channels response - check if it's wrapped in a data property
+      if (channelsResponse && typeof channelsResponse === "object") {
+        if (Array.isArray(channelsResponse)) {
+          
+          setChannels(channelsResponse);
+        } else if (
+          (channelsResponse as any).data &&
+          Array.isArray((channelsResponse as any).data)
+        ) {
+          
+          setChannels((channelsResponse as any).data);
+        } else {
+          
+        }
       }
 
-      if (Array.isArray(categoriesResponse)) {
-        setCategories(categoriesResponse);
+      // Handle categories response - check if it's wrapped in a data property
+      if (categoriesResponse && typeof categoriesResponse === "object") {
+        if (Array.isArray(categoriesResponse)) {
+          
+          setCategories(categoriesResponse);
+        } else if (
+          (categoriesResponse as any).data &&
+          Array.isArray((categoriesResponse as any).data)
+        ) {
+          
+          setCategories((categoriesResponse as any).data);
+        } else {
+          
+        }
       }
     } catch (error: any) {
+      console.error("Error fetching channels and categories:", error);
       setError(error?.message || "Failed to fetch data");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchData();
@@ -273,3 +288,4 @@ export function useChannelsAndCategories() {
     refetch: fetchData,
   };
 }
+

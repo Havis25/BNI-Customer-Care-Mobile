@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/id"; // supaya "5 menit lalu" pakai bahasa Indonesia
 import relativeTime from "dayjs/plugin/relativeTime";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -30,6 +31,7 @@ interface Notification {
   read: boolean;
   category: string;
   ticketNumber: string;
+  ticketId?: number; // Add optional ticket_id
   status: string;
 }
 
@@ -50,15 +52,6 @@ export default function NotificationScreen() {
         let iconName = "mail";
         let iconColor = "#2196F3";
         let description = "";
-
-        // Debug logging
-        console.log("Ticket data:", {
-          ticket_number: ticket.ticket_number,
-          status_code: ticket.customer_status?.customer_status_code,
-          status_name: ticket.customer_status?.customer_status_name,
-          complaint_name: ticket.complaint?.complaint_name,
-          description: ticket.description,
-        });
 
         // Concise notification mapping
         const statusCode =
@@ -127,6 +120,7 @@ export default function NotificationScreen() {
           category:
             ticket.issue_channel?.channel_name?.toLowerCase() || "general",
           ticketNumber: ticket.ticket_number,
+          ticketId: ticket.ticket_id, // Add ticket_id for API calls
           status: statusCode,
         };
       });
@@ -134,6 +128,22 @@ export default function NotificationScreen() {
 
   const markAsRead = (id: string) => {
     setReadIds((prev) => [...prev, id]);
+  };
+
+  const handleNotificationPress = (notification: Notification) => {
+    // Mark as read
+    markAsRead(notification.id);
+
+    // Navigate to ticket detail page
+    // Try ticket_id first (for API), fallback to ticket_number
+    const routeId = notification.ticketId || notification.ticketNumber;
+
+    if (routeId) {
+      router.push({
+        pathname: "/riwayat/[id]",
+        params: { id: String(routeId) },
+      });
+    }
   };
 
   const markAllAsRead = () => {
@@ -153,7 +163,7 @@ export default function NotificationScreen() {
         !item.read && styles.unreadNotification,
         index === notifications.length - 1 && styles.lastNotification,
       ]}
-      onPress={() => markAsRead(item.id)}
+      onPress={() => handleNotificationPress(item)}
       activeOpacity={0.7}
     >
       <View style={styles.notificationContent}>
@@ -172,7 +182,9 @@ export default function NotificationScreen() {
             >
               {item.title}
             </Text>
-            <Text style={styles.notificationDesc}>{item.description}</Text>
+            <Text style={styles.notificationDesc}>
+              {item.description} • #{item.ticketNumber}
+            </Text>
           </View>
         </View>
         <View style={styles.rightSection}>

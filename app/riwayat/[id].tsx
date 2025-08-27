@@ -1,9 +1,10 @@
 import FeedbackModal from "@/components/FeedbackModal";
 import { Fonts } from "@/constants/Fonts";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
+import { hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Platform,
   RefreshControl,
@@ -18,11 +19,14 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 export default function RiwayatDetailScreen() {
   const insets = useSafeAreaInsets(); // <<-- untuk spacer status bar
   const { id } = useLocalSearchParams();
+
+  // Debug: Monitor component renders
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
 
   const [showFeedback, setShowFeedback] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,8 +44,13 @@ export default function RiwayatDetailScreen() {
     }
   }, [id, fetchTicketDetail]);
 
+  // Single useEffect for initial load - no multiple dependencies that cause re-renders
   useEffect(() => {
-    if (id) fetchTicketDetail(id as string);
+    if (id) {
+      const idString = Array.isArray(id) ? id[0] : String(id);
+      fetchTicketDetail(idString);
+    }
+    // Only depend on `id` to prevent multiple calls
   }, [id, fetchTicketDetail]);
 
   useEffect(() => {
@@ -310,12 +319,15 @@ export default function RiwayatDetailScreen() {
             <TouchableOpacity
               style={styles.liveChatButton}
               onPress={() => {
+                // Use ticket_id from ticketDetail if available, otherwise use route id
+                const chatTicketId = ticketDetail?.ticket_id || id;
+
                 router.push({
                   pathname: "/complaint/chat",
                   params: {
                     fromConfirmation: "true",
-                    ticketId: id,
-                    room: `ticket-${id}`,
+                    ticketId: String(chatTicketId),
+                    room: `ticket-${chatTicketId}`,
                   },
                 });
               }}

@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { api } from '@/lib/api';
-import { useAuth } from './useAuth';
+import { api } from "@/lib/api";
+import { useCallback, useState } from "react";
+import { useAuth } from "./useAuth";
 
 export interface TicketDetail {
   ticket_id?: number;
@@ -100,51 +100,81 @@ export function useTicketDetail() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<number>(0);
+  const [lastFetchedId, setLastFetchedId] = useState<string | number | null>(
+    null
+  );
   const { isAuthenticated } = useAuth();
 
-
-
-  const fetchTicketDetail = useCallback(async (ticketId: string | number, force = false) => {
-    if (!isAuthenticated) {
-      setError('User not authenticated');
-      return;
-    }
-
-    // Debounce: prevent multiple calls within 3 seconds for same ticket
-    const now = Date.now();
-    if (!force && now - lastFetch < 3000) {
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setLastFetch(now);
-    const startTime = Date.now();
-
-    try {
-      const response = await api<TicketDetailResponse>(`/v1/tickets/${ticketId}`);
-      
-      if (response.success) {
-        setTicketDetail(response.data);
-        setLastFetch(Date.now());
-      } else {
-        setError(response.message || 'Failed to fetch ticket detail');
+  const fetchTicketDetail = useCallback(
+    async (ticketId: string | number, force = false) => {
+      if (!isAuthenticated) {
+        setError("User not authenticated");
+        return;
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(errorMessage);
-    } finally {
-      // Minimum 1.5 second skeleton display
-      const elapsed = Date.now() - startTime;
-      const minDelay = 1500;
-      
-      if (elapsed < minDelay) {
-        setTimeout(() => setIsLoading(false), minDelay - elapsed);
-      } else {
-        setIsLoading(false);
+
+      // Prevent duplicate requests for the same ticket
+      if (!force && lastFetchedId === ticketId && ticketDetail) {
+        
+        return;
       }
-    }
-  }, [isAuthenticated]);
+
+      // Debounce: prevent multiple calls within 3 seconds for same ticket
+      const now = Date.now();
+      if (!force && now - lastFetch < 3000 && lastFetchedId === ticketId) {
+        
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      setLastFetch(now);
+      setLastFetchedId(ticketId);
+      const startTime = Date.now();
+
+      try {
+
+        // Try to determine if this is a ticket_number (string) or ticket_id (number)
+        const isTicketNumber =
+          typeof ticketId === "string" && ticketId.includes("-");
+
+        const response = await api<TicketDetailResponse>(
+          `/v1/tickets/${ticketId}`
+        );
+
+        if (response && response.success) {
+          setTicketDetail(response.data);
+          setLastFetch(Date.now());
+          
+        } else {
+          const errorMsg = response?.message || "Failed to fetch ticket detail";
+          
+          setError(errorMsg);
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "An error occurred";
+        console.error("❌ useTicketDetail: Error fetching ticket detail:", {
+          ticketId,
+          error: err,
+          errorMessage,
+          errorName: err instanceof Error ? err.name : "Unknown",
+          stack: err instanceof Error ? err.stack : undefined,
+        });
+        setError(errorMessage);
+      } finally {
+        // Minimum 1.5 second skeleton display
+        const elapsed = Date.now() - startTime;
+        const minDelay = 1500;
+
+        if (elapsed < minDelay) {
+          setTimeout(() => setIsLoading(false), minDelay - elapsed);
+        } else {
+          setIsLoading(false);
+        }
+      }
+    },
+    [isAuthenticated]
+  );
 
   const buildProgressData = useCallback(() => {
     if (!ticketDetail) return [];
@@ -152,23 +182,42 @@ export function useTicketDetail() {
     const statusHistory = ticketDetail.status_history.customer_status_history;
     const currentStatus = ticketDetail.customer_status.customer_status_code;
     const progressSteps = [
-      { key: 'ACC', label: 'Diterima', description: 'Laporan telah diterima dan akan segera ditindaklanjuti' },
-      { key: 'VERIF', label: 'Verifikasi', description: 'Laporan sedang diverifikasi oleh tim kami' },
-      { key: 'PROCESS', label: 'Diproses', description: 'Laporan sedang dalam proses penanganan' },
-      { key: 'CLOSED', label: currentStatus === 'DECLINED' ? 'Ditolak' : 'Selesai', description: currentStatus === 'DECLINED' ? 'Laporan ditolak karena tidak sesuai ketentuan' : 'Laporan telah selesai ditangani' }
+      {
+        key: "ACC",
+        label: "Diterima",
+        description: "Laporan telah diterima dan akan segera ditindaklanjuti",
+      },
+      {
+        key: "VERIF",
+        label: "Verifikasi",
+        description: "Laporan sedang diverifikasi oleh tim kami",
+      },
+      {
+        key: "PROCESS",
+        label: "Diproses",
+        description: "Laporan sedang dalam proses penanganan",
+      },
+      {
+        key: "CLOSED",
+        label: currentStatus === "DECLINED" ? "Ditolak" : "Selesai",
+        description:
+          currentStatus === "DECLINED"
+            ? "Laporan ditolak karena tidak sesuai ketentuan"
+            : "Laporan telah selesai ditangani",
+      },
     ];
 
     // Define status order for progression
-    const statusOrder = ['ACC', 'VERIF', 'PROCESS', 'CLOSED', 'DECLINED'];
+    const statusOrder = ["ACC", "VERIF", "PROCESS", "CLOSED", "DECLINED"];
     const currentStatusIndex = statusOrder.indexOf(currentStatus);
 
     return progressSteps.map((step, index) => {
       let completed = false;
-      let tanggal = '';
-      let penjelasan = '';
+      let tanggal = "";
+      let penjelasan = "";
 
       // Determine if this step is completed based on current status
-      if (currentStatus === 'DECLINED') {
+      if (currentStatus === "DECLINED") {
         // For declined status, show all steps as completed up to the final step
         completed = index <= 3;
         if (index === 3) {
@@ -192,10 +241,12 @@ export function useTicketDetail() {
           // Check if current status has reached this step
           const stepStatusIndex = statusOrder.indexOf(step.key);
           completed = currentStatusIndex >= stepStatusIndex;
-          
+
           if (completed) {
             // Find the actual date from status history
-            const historyItem = statusHistory.find(h => h.status_code === step.key);
+            const historyItem = statusHistory.find(
+              (h) => h.status_code === step.key
+            );
             if (historyItem) {
               tanggal = formatDateTime(historyItem.changed_at);
             }
@@ -208,19 +259,19 @@ export function useTicketDetail() {
         status: step.label,
         tanggal,
         penjelasan,
-        completed
+        completed,
       };
     });
   }, [ticketDetail]);
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -230,6 +281,8 @@ export function useTicketDetail() {
     error,
     fetchTicketDetail,
     progressData: buildProgressData(),
-    refetch: () => ticketDetail && fetchTicketDetail(ticketDetail.ticket_number, true),
+    refetch: () =>
+      ticketDetail && fetchTicketDetail(ticketDetail.ticket_number, true),
   };
 }
+
