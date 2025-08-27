@@ -5,6 +5,7 @@ import { useTerminals } from "@/hooks/useTerminals";
 import { useUser } from "@/hooks/useUser";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { api } from "@/lib/api";
+import { formatAmountForDisplay, validateAmount } from "@/utils/chatValidation";
 import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -38,7 +39,7 @@ type TicketPayload = {
   complaint_id: number;
   related_account_id?: number;
   related_card_id?: number;
-  amount?: number;
+  amount?: string;
   terminal_id?: number;
   transaction_date?: string;
   // Customer data from auth/me
@@ -330,9 +331,9 @@ export default function ConfirmationScreen() {
       }
       // Set preset amount
       if (presetAmount && typeof presetAmount === "string") {
-        const numericAmount = presetAmount.replace(/[^0-9]/g, "");
-        if (numericAmount) {
-          setAmount(numericAmount);
+        const amountValidation = validateAmount(presetAmount);
+        if (amountValidation.isValid && amountValidation.cleanedAmount) {
+          setAmount(amountValidation.cleanedAmount);
           newFieldStates.amountLocked = true;
         }
       }
@@ -367,7 +368,10 @@ export default function ConfirmationScreen() {
     channel?.channel_id &&
     category?.complaint_id &&
     (!requiresAmount ||
-      (requiresAmount && amount.trim() && parseInt(amount) > 0)) &&
+      (requiresAmount &&
+        amount.trim() &&
+        /^[0-9]+$/.test(amount.trim()) &&
+        parseInt(amount.trim()) > 0)) &&
     (!requiresTerminal || (requiresTerminal && !!terminal)) &&
     (!requiresTransactionDate ||
       (requiresTransactionDate &&
@@ -418,7 +422,10 @@ export default function ConfirmationScreen() {
     // Always include related IDs (even if null)
     related_account_id,
     related_card_id,
-    ...(requiresAmount && amount.trim() && { amount: parseInt(amount) }),
+    ...(requiresAmount &&
+      amount.trim() && {
+        amount: amount.trim().replace(/[^0-9]/g, ""),
+      }),
     ...(requiresTerminal && terminal && { terminal_id: terminal.terminal_id }),
     ...(requiresTransactionDate &&
       transactionDate.trim() && {
@@ -693,7 +700,7 @@ export default function ConfirmationScreen() {
                     editable={!fieldStates.amountLocked}
                   />
                   <Text style={styles.helper}>
-                    {amount && `Rp ${parseInt(amount).toLocaleString("id-ID")}`}
+                    {amount && formatAmountForDisplay(amount)}
                     {!amount &&
                       !fieldStates.amountLocked &&
                       "Masukkan nominal dalam Rupiah (contoh: 100000)"}

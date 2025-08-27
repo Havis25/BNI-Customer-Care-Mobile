@@ -193,45 +193,10 @@ export default function ChatScreen() {
   const [showLiveChatModal, setShowLiveChatModal] = useState(false);
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
   const [isLiveChat, setIsLiveChat] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
+  const [isProcessingRestore, setIsProcessingRestore] = useState(false);
 
-  // IMPORTANT: Reset live chat state for regular complaint flow
-  useEffect(() => {
-    if (isRegularComplaintFlow) {
-      setIsLiveChat(false);
-      setDmRoom(null);
-      setActivePeers([]);
-      setPeerCount(0);
-      setCurrentTicketId(null);
-      setTicketCreatedInSession(false);
-
-      // Clear any live chat session artifacts
-      const clearLiveChatState = async () => {
-        try {
-          // Remove any live chat room keys that might contaminate bot mode
-          await AsyncStorage.multiRemove([
-            "dmRoom",
-            "liveChat_state",
-            "activeRoom",
-          ]);
-
-          // Ensure we start with fresh bot messages (no live chat artifacts)
-          setMessages([
-            {
-              id: "welcome",
-              text: "Halo! Saya BNI Care Assistant. Silakan pilih jenis layanan yang Anda butuhkan:",
-              isBot: true,
-              timestamp: new Date().toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-            },
-          ]);
-        } catch (error) {}
-      };
-
-      clearLiveChatState();
-    }
-  }, [isRegularComplaintFlow]);
+  // Removed problematic useEffect for reset logic - moved to initializeChat instead
 
   // Audio call states only
   const [isAudioCall, setIsAudioCall] = useState(false);
@@ -395,11 +360,14 @@ export default function ChatScreen() {
         attachments, // Add attachments to session storage
         uploadStepReached, // Add upload step flag
       };
+
       await AsyncStorage.setItem(
         sessionStorageKey,
         JSON.stringify(sessionState)
       );
-    } catch (error) {}
+    } catch (error) {
+      // Silent error handling in production
+    }
   }, [
     messages,
     sessionId,
@@ -432,20 +400,26 @@ export default function ChatScreen() {
         return true;
       }
 
-      // For regular complaint flow, don't load session that might contain live chat state
-      if (isRegularComplaintFlow) {
-        return false;
-      }
+      // For regular complaint flow, ALWAYS try to load session for continuation
+      // Enhanced session persistence for better user experience
+
+      // Disable auto-save during restore
+      setIsProcessingRestore(true);
 
       const savedState = await AsyncStorage.getItem(sessionStorageKey);
+
       if (savedState) {
         const parsedState = JSON.parse(savedState);
-        // Check if session is not too old (24 hours)
-        const isValidSession =
-          Date.now() - parsedState.timestamp < 24 * 60 * 60 * 1000;
 
-        if (isValidSession && parsedState.messages?.length > 0) {
-          setMessages(parsedState.messages || []);
+        // Check if session is not too old (7 days for better UX)
+        const isValidSession =
+          Date.now() - parsedState.timestamp < 7 * 24 * 60 * 60 * 1000;
+
+        if (isValidSession) {
+          // Restore messages - prioritize saved state for continuation
+          if (parsedState.messages?.length > 0) {
+            setMessages(parsedState.messages);
+          }
           setSessionId(parsedState.sessionId || null);
           setCollectedInfo(parsedState.collectedInfo || null);
           setSelectedChannel(parsedState.selectedChannel || null);
@@ -471,54 +445,35 @@ export default function ChatScreen() {
             setCurrentTicketId(parsedState.currentTicketId);
           }
 
-          // IMPORTANT: Only restore live chat state if from ticket detail
+          // Set appropriate live chat state based on context
           if (isFromTicketDetail) {
-            // Live chat state will be set by other logic
+            // For ticket detail access, enable live chat
+            setIsLiveChat(true);
           } else {
-            setIsLiveChat(false); // Ensure live chat is disabled for complaint flow
+            // For complaint flow, maintain live chat state from session or default false
+            setIsLiveChat(parsedState.isLiveChat || false);
           }
 
-          // If user had reached upload step and has a ticket, show appropriate welcome back message
-          if (
-            parsedState.uploadStepReached &&
-            parsedState.currentTicketId &&
-            parsedState.ticketCreatedInSession
-          ) {
-            setTimeout(() => {
-              const welcomeBackMessage = {
-                id: getUniqueId(),
-                text: `Selamat datang kembali! Anda dapat melanjutkan upload file untuk tiket #${
-                  parsedState.currentTicketId.slice(-6) || "N/A"
-                }.`,
-                isBot: true,
-                timestamp: new Date().toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                hasTicketButton: true,
-              };
+          setSessionRestored(true); // Mark that session was restored
 
-              setMessages((prev) => {
-                // Check if welcome back message already exists
-                const hasWelcomeBack = prev.some((m) =>
-                  m.text.includes("Selamat datang kembali")
-                );
-                if (hasWelcomeBack) return prev;
-
-                const newMessages = [...prev, welcomeBackMessage];
-                AsyncStorage.setItem(
-                  sessionStorageKey.replace("session", "msgs"),
-                  JSON.stringify(newMessages)
-                );
-                return newMessages;
-              });
-            }, 1000);
-          }
+          // Re-enable auto-save after restore complete
+          setTimeout(() => {
+            setIsProcessingRestore(false);
+          }, 100);
 
           return true; // Session restored
+        } else {
+          setSessionRestored(false);
+          setIsProcessingRestore(false); // Re-enable auto-save even if session invalid
         }
+      } else {
+        setSessionRestored(false);
+        setIsProcessingRestore(false); // Re-enable auto-save even if no session
       }
-    } catch (error) {}
+    } catch (error) {
+      setSessionRestored(false);
+      setIsProcessingRestore(false); // Re-enable auto-save on error
+    }
     return false; // No session or failed to restore
   }, [
     sessionStorageKey,
@@ -547,19 +502,40 @@ export default function ChatScreen() {
       setButtonGroupStates({});
       setSummaryShown(false); // Add this to ensure clean state
       setUploadStepReached(false); // Reset upload step flag
-    } catch (error) {}
+      setSessionRestored(false); // Reset session restoration flag
+    } catch (error) {
+      // Silent error handling
+    }
   }, [sessionStorageKey]);
 
   // Initialize chat with health check
   const initializeChat = useCallback(async () => {
     // Debug auth state first
-    await debugAuthState();
+    await debugAuthState(); // Try to restore session first
+    const sessionWasRestored = await loadSessionState();
 
-    // Try to restore session first
-    const sessionRestored = await loadSessionState();
-
-    if (sessionRestored) {
+    if (sessionWasRestored) {
       return; // Skip initialization if session was restored
+    }
+
+    // If no session was restored and we're in regular complaint flow, do fresh setup
+    if (isRegularComplaintFlow) {
+      // Reset live chat artifacts for regular complaint flow
+      setIsLiveChat(false);
+      setDmRoom(null);
+      setActivePeers([]);
+      setPeerCount(0);
+
+      // Clear any live chat session artifacts
+      try {
+        await AsyncStorage.multiRemove([
+          "dmRoom",
+          "liveChat_state",
+          "activeRoom",
+        ]);
+      } catch (error) {
+        // Silent error handling
+      }
     }
 
     const isHealthy = await checkApiHealth();
@@ -578,9 +554,15 @@ export default function ChatScreen() {
       return;
     }
 
-    // Start with initial bot message
+    // Start with initial bot message only if no session
+    console.log("🆕 Setting initial bot message");
     setMessages([initialBotMessage]);
-  }, [checkApiHealth, loadSessionState]);
+  }, [
+    checkApiHealth,
+    loadSessionState,
+    isRegularComplaintFlow,
+    isFromTicketDetail,
+  ]);
 
   // Function to send message to chatbot API
   const sendToChatbot = useCallback(
@@ -2152,58 +2134,90 @@ Sekarang Anda dapat melanjutkan:`;
   // Send ticket info when from ticket detail - with duplicate prevention
   useEffect(() => {
     if (isFromTicketDetail && currentTicketId && isLiveChat) {
-      const hasTicketInfo = messages.some(
+      // Double-check for duplicates including both stored and current messages
+      const hasTicketInfoInMessages = messages.some(
         (m) => m.isTicketInfo && m.ticketId === currentTicketId
       );
-      if (!hasTicketInfo) {
-        // Fetch ticket detail to get the correct created time
-        fetchTicketDetail(currentTicketId).then(() => {
-          // Create ticket info message with proper timestamp from ticketDetail
-          const actualCreatedTime = ticketDetail?.created_time
-            ? new Date(ticketDetail.created_time).toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : new Date().toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
+
+      // Check AsyncStorage for existing ticket info to prevent duplicates across sessions
+      const checkStoredMessages = async () => {
+        try {
+          const storedMessages = await AsyncStorage.getItem(storageKey);
+          if (storedMessages) {
+            const parsed = JSON.parse(storedMessages);
+            const hasTicketInfoInStorage = parsed.some(
+              (m: any) => m.isTicketInfo && m.ticketId === currentTicketId
+            );
+            return hasTicketInfoInStorage;
+          }
+          return false;
+        } catch {
+          return false;
+        }
+      };
+
+      if (!hasTicketInfoInMessages) {
+        checkStoredMessages().then((hasInStorage) => {
+          if (!hasInStorage) {
+            // Fetch ticket detail to get the correct created time
+            fetchTicketDetail(currentTicketId).then(() => {
+              // Create ticket info message with proper timestamp from ticketDetail
+              const actualCreatedTime = ticketDetail?.created_time
+                ? new Date(ticketDetail.created_time).toLocaleTimeString(
+                    "id-ID",
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  )
+                : new Date().toLocaleTimeString("id-ID", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+
+              const ticketInfoMessage = {
+                id: getUniqueId(),
+                text: `📋 Tiket #${currentTicketId.slice(-6)}`,
+                isBot: false,
+                timestamp: actualCreatedTime,
+                isTicketInfo: true,
+                ticketId: currentTicketId,
+              };
+
+              setMessages((prev) => {
+                // Final check before adding to prevent race conditions
+                const finalCheck = prev.some(
+                  (m) => m.isTicketInfo && m.ticketId === currentTicketId
+                );
+                if (finalCheck) return prev;
+
+                const newMessages = [...prev, ticketInfoMessage];
+                AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
+                return newMessages;
               });
 
-          const ticketInfoMessage = {
-            id: getUniqueId(),
-            text: `📋 Tiket #${currentTicketId.slice(-6)}`,
-            isBot: false,
-            timestamp: actualCreatedTime,
-            isTicketInfo: true,
-            ticketId: currentTicketId,
-          };
+              // Send ticket info to socket for agent to receive
+              if (socket.connected) {
+                socket.emit("chat:send", {
+                  ...ticketInfoMessage,
+                  author: chatUser,
+                  createdAt: ticketDetail?.created_time
+                    ? new Date(ticketDetail.created_time).getTime()
+                    : Date.now(),
+                  type: "ticket-info",
+                  room: ACTIVE_ROOM,
+                });
 
-          setMessages((prev) => {
-            const newMessages = [...prev, ticketInfoMessage];
-            AsyncStorage.setItem(storageKey, JSON.stringify(newMessages));
-            return newMessages;
-          });
-
-          // Send ticket info to socket for agent to receive
-          if (socket.connected) {
-            socket.emit("chat:send", {
-              ...ticketInfoMessage,
-              author: chatUser,
-              createdAt: ticketDetail?.created_time
-                ? new Date(ticketDetail.created_time).getTime()
-                : Date.now(),
-              type: "ticket-info",
-              room: ACTIVE_ROOM,
-            });
-
-            // Send additional ticket context for agent
-            socket.emit("ticket:context", {
-              room: ACTIVE_ROOM,
-              ticketId: currentTicketId,
-              fromUserId: uid,
-              timestamp: ticketDetail?.created_time
-                ? new Date(ticketDetail.created_time).getTime()
-                : Date.now(),
+                // Send additional ticket context for agent
+                socket.emit("ticket:context", {
+                  room: ACTIVE_ROOM,
+                  ticketId: currentTicketId,
+                  fromUserId: uid,
+                  timestamp: ticketDetail?.created_time
+                    ? new Date(ticketDetail.created_time).getTime()
+                    : Date.now(),
+                });
+              }
             });
           }
         });
@@ -2213,7 +2227,6 @@ Sekarang Anda dapat melanjutkan:`;
     isFromTicketDetail,
     currentTicketId,
     isLiveChat,
-    messages,
     storageKey,
     fetchTicketDetail,
   ]);
@@ -2290,7 +2303,7 @@ Sekarang Anda dapat melanjutkan:`;
 
   // Auto-save session state when important state changes
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && !isProcessingRestore) {
       saveSessionState();
     }
   }, [
@@ -2306,6 +2319,7 @@ Sekarang Anda dapat melanjutkan:`;
     ticketCreatedInSession, // Add ticketCreatedInSession to persist upload state
     uploadStepReached, // Add uploadStepReached to dependency array
     saveSessionState,
+    isProcessingRestore, // Add to dependencies
   ]);
 
   // Initialize chat on component mount
@@ -2740,82 +2754,105 @@ Sekarang Anda dapat melanjutkan:`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, uid, ACTIVE_ROOM, storageKey]);
 
-  const clearChatHistory = useCallback(async () => {
-    try {
-      // Clear ALL storage keys that might contain chat messages
-      const allKeys = await AsyncStorage.getAllKeys();
-      const chatKeys = allKeys.filter((key) => key.startsWith("msgs:"));
-      if (chatKeys.length > 0) {
-        await AsyncStorage.multiRemove(chatKeys);
-      }
+  const clearChatHistory = useCallback(
+    async (includeComplaintSession = true) => {
+      // Disable auto-save during clear process
+      setIsProcessingRestore(true);
 
-      // Clear session and ticket data
-      await AsyncStorage.multiRemove([
-        "currentTicketId",
-        "chatSession",
-        COMPLAINT_SESSION_KEY,
-        LIVE_CHAT_SESSION_KEY,
-      ]);
-      setCurrentTicketId(null);
-      setSessionId(null);
-
-      // Reset to initial message only (hard reset)
-      setMessages([initialBotMessage]);
-
-      // Reset ALL chat related state
-      setIsLiveChat(false);
-      setDmRoom(null);
-      setActivePeers([]);
-      setPeerCount(1);
-      setCallStatus("idle");
-      setCallStartTime(null);
-      setSummaryShown(false);
-      setTicketCreatedInSession(false);
-      setAmountRequested(false);
-      setTransactionDateRequested(false);
-      setConfirmedAmount(null);
-      setSelectedChannel(null);
-      setSelectedCategory(null);
-      setSelectedTerminal(null);
-      setEditFormSelected(false);
-      setButtonGroupStates({});
-      setCollectedInfo(null);
-      setUploadStepReached(false); // Reset upload step flag
-
-      // Clear session state completely
-      await clearSessionState();
-
-      // Disconnect from socket properly
-      if (socket.connected) {
-        socket.emit("leave", { room: ACTIVE_ROOM, userId: uid });
-        socket.disconnect();
-      }
-
-      // Force reconnect with fresh state
-      setTimeout(() => {
-        const newSocket = getSocket();
-        if (newSocket && !newSocket.connected) {
-          newSocket.connect();
+      try {
+        // Clear ALL storage keys that might contain chat messages
+        const allKeys = await AsyncStorage.getAllKeys();
+        const chatKeys = allKeys.filter((key) => key.startsWith("msgs:"));
+        if (chatKeys.length > 0) {
+          await AsyncStorage.multiRemove(chatKeys);
         }
-      }, 500);
-    } catch (error) {
-      console.error("❌ Error clearing chat history:", error);
-    }
-  }, [
-    ACTIVE_ROOM,
-    uid,
-    socket,
-    clearSessionState,
-    COMPLAINT_SESSION_KEY,
-    LIVE_CHAT_SESSION_KEY,
-    selectedChannel,
-    selectedCategory,
-    amountRequested,
-    transactionDateRequested,
-    summaryShown,
-    ticketCreatedInSession,
-    uploadStepReached,
-  ]);
+
+        const keysToRemove = [
+          "currentTicketId",
+          "chatSession",
+          LIVE_CHAT_SESSION_KEY,
+        ];
+
+        // Only clear complaint session if explicitly requested (like from X button)
+        if (includeComplaintSession) {
+          keysToRemove.push(COMPLAINT_SESSION_KEY);
+        }
+
+        // Clear session and ticket data
+        await AsyncStorage.multiRemove(keysToRemove);
+
+        setCurrentTicketId(null);
+        setSessionId(null);
+
+        // Reset to initial message only (hard reset)
+        setMessages([initialBotMessage]);
+
+        // Reset ALL chat related state
+        setIsLiveChat(false);
+        setDmRoom(null);
+        setActivePeers([]);
+        setPeerCount(1);
+        setCallStatus("idle");
+        setCallStartTime(null);
+        setSummaryShown(false);
+        setTicketCreatedInSession(false);
+
+        // Only reset complaint flow states if clearing complaint session
+        if (includeComplaintSession) {
+          setAmountRequested(false);
+          setTransactionDateRequested(false);
+          setConfirmedAmount(null);
+          setSelectedChannel(null);
+          setSelectedCategory(null);
+          setSelectedTerminal(null);
+          setEditFormSelected(false);
+          setButtonGroupStates({});
+          setCollectedInfo(null);
+          setUploadStepReached(false); // Reset upload step flag
+        }
+
+        // Clear session state only if clearing complaint session
+        if (includeComplaintSession) {
+          await clearSessionState();
+        }
+
+        // Disconnect from socket properly
+        if (socket.connected) {
+          socket.emit("leave", { room: ACTIVE_ROOM, userId: uid });
+          socket.disconnect();
+        }
+
+        // Force reconnect with fresh state
+        setTimeout(() => {
+          const newSocket = getSocket();
+          if (newSocket && !newSocket.connected) {
+            newSocket.connect();
+          }
+
+          // Re-enable auto-save after clear complete
+          setIsProcessingRestore(false);
+        }, 500);
+      } catch (error) {
+        // Re-enable auto-save on error
+        setIsProcessingRestore(false);
+      }
+    },
+    [
+      ACTIVE_ROOM,
+      uid,
+      socket,
+      clearSessionState,
+      COMPLAINT_SESSION_KEY,
+      LIVE_CHAT_SESSION_KEY,
+      selectedChannel,
+      selectedCategory,
+      amountRequested,
+      transactionDateRequested,
+      summaryShown,
+      ticketCreatedInSession,
+      uploadStepReached,
+    ]
+  );
 
   const handleSendMessage = useCallback(() => {
     if (inputText.trim() && !isInputDisabled) {
@@ -3200,7 +3237,7 @@ Sekarang Anda dapat melanjutkan:`;
           userMessage.toLowerCase() === "reset" ||
           userMessage.toLowerCase() === "mulai ulang"
         ) {
-          clearChatHistory();
+          clearChatHistory(true); // Reset command should clear everything
           return;
         }
 
@@ -3466,14 +3503,32 @@ Sekarang Anda dapat melanjutkan:`;
 
         // Send ticket info if we have a ticket ID and it's not already sent
         if (currentTicketId) {
-          setTimeout(() => {
-            // Check if ticket info already exists to prevent duplicates
+          // Add a small delay to ensure connecting message is added first
+          setTimeout(async () => {
+            // Check stored messages as well to prevent duplicates across sessions
+            const checkStoredMessages = async () => {
+              try {
+                const storedMessages = await AsyncStorage.getItem(storageKey);
+                if (storedMessages) {
+                  const parsed = JSON.parse(storedMessages);
+                  return parsed.some(
+                    (m: any) => m.isTicketInfo && m.ticketId === currentTicketId
+                  );
+                }
+                return false;
+              } catch {
+                return false;
+              }
+            };
+
+            const hasInStorage = await checkStoredMessages();
+
             setMessages((prev) => {
               const hasTicketInfo = prev.some(
                 (m) => m.isTicketInfo && m.ticketId === currentTicketId
               );
 
-              if (hasTicketInfo) {
+              if (hasTicketInfo || hasInStorage) {
                 // Ticket info already exists, don't send duplicate
                 return prev;
               }
@@ -3550,14 +3605,19 @@ Sekarang Anda dapat melanjutkan:`;
         return;
       }
 
+      // Don't clear if we just restored a session
+      if (sessionRestored) {
+        return;
+      }
+
       if (!user && !authUser) {
-        // User logged out, clear all chat data
-        await clearChatHistory();
+        // User logged out, clear chat data but preserve complaint session
+        await clearChatHistory(false);
       }
     };
 
     clearHistoryOnUserChange();
-  }, [user, authUser, clearChatHistory, fromConfirmation]);
+  }, [user, authUser, clearChatHistory, fromConfirmation, sessionRestored]);
 
   // Periodic presence refresh for live chat - reduced frequency to avoid spam
   useEffect(() => {
@@ -3635,7 +3695,7 @@ Sekarang Anda dapat melanjutkan:`;
                   {
                     text: "Hapus",
                     style: "destructive",
-                    onPress: clearChatHistory,
+                    onPress: () => clearChatHistory(true), // Clear complaint session from X button
                   },
                 ]
               );
@@ -3957,11 +4017,20 @@ Sekarang Anda dapat melanjutkan:`;
                           // Use confirmed amount from user input (highest priority)
                           finalAmount = parseInt(confirmedAmount);
                         } else if (botCollectedInfo.amount) {
-                          finalAmount = parseInt(
-                            botCollectedInfo.amount
-                              .toString()
-                              .replace(/[^0-9]/g, "")
+                          // Use validateAmount for consistent processing
+                          const validation = validateAmount(
+                            botCollectedInfo.amount.toString()
                           );
+                          if (validation.isValid && validation.cleanedAmount) {
+                            finalAmount = parseInt(validation.cleanedAmount);
+                          } else {
+                            // Fallback to old logic if validation fails
+                            finalAmount = parseInt(
+                              botCollectedInfo.amount
+                                .toString()
+                                .replace(/[^0-9]/g, "")
+                            );
+                          }
                         } else {
                           // Fallback to message filtering
                           const amountMessages = messages.filter(
@@ -4075,7 +4144,9 @@ Sekarang Anda dapat melanjutkan:`;
                           related_card_id,
                           // Add amount if available
                           ...(finalAmount &&
-                            finalAmount > 0 && { amount: finalAmount }),
+                            finalAmount > 0 && {
+                              amount: finalAmount.toString(),
+                            }),
                           // Add transaction date if available
                           ...(finalTransactionDate && {
                             transaction_date: finalTransactionDate,

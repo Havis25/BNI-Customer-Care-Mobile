@@ -138,7 +138,30 @@ export function validateAmount(amountString: string): {
   }
 
   // Remove common currency symbols and separators
-  const numericAmount = cleanInput.replace(/[Rp\s.,]/g, "");
+  // Handle both comma and dot as thousand separators, and dot as decimal separator
+  let numericAmount = cleanInput.replace(/^Rp\.?[\s]*/g, ""); // Remove Rp or Rp. at start with optional spaces
+
+  // Handle cases like "1.500.000" (thousands separator) vs "230.00" (decimal)
+  const dotCount = (numericAmount.match(/\./g) || []).length;
+  const commaCount = (numericAmount.match(/,/g) || []).length;
+
+  if (dotCount > 1 || (dotCount === 1 && commaCount > 0)) {
+    // Multiple dots or dots with commas = thousand separators
+    numericAmount = numericAmount.replace(/[.,]/g, "");
+  } else if (dotCount === 1 && commaCount === 0) {
+    // Single dot, no commas - could be decimal or thousand separator
+    const parts = numericAmount.split(".");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      // Decimal format like "230.00" - keep only integer part
+      numericAmount = parts[0];
+    } else {
+      // Thousand separator like "1.500" - remove dots
+      numericAmount = numericAmount.replace(/\./g, "");
+    }
+  } else {
+    // Remove any remaining separators
+    numericAmount = numericAmount.replace(/[.,]/g, "");
+  }
 
   // Check if result is purely numeric
   const isNumeric = /^[0-9]+$/.test(numericAmount);
@@ -184,10 +207,20 @@ export function validateAmount(amountString: string): {
 export function formatAmountForDisplay(amount: string | number): string {
   if (!amount) return "Tidak tersedia";
 
-  const numericAmount =
-    typeof amount === "string"
-      ? parseInt(amount.replace(/[^0-9]/g, ""), 10)
-      : amount;
+  let numericAmount: number;
+
+  if (typeof amount === "string") {
+    // Use validateAmount logic for consistent processing
+    const validation = validateAmount(amount);
+    if (validation.isValid && validation.numericValue) {
+      numericAmount = validation.numericValue;
+    } else {
+      // Fallback to old logic if validation fails
+      numericAmount = parseInt(amount.replace(/[^0-9]/g, ""), 10);
+    }
+  } else {
+    numericAmount = amount;
+  }
 
   if (isNaN(numericAmount) || numericAmount <= 0) {
     return "Tidak tersedia";
