@@ -8,6 +8,7 @@ import { useTerminals } from "@/hooks/useTerminals";
 import { useTicketAttachments } from "@/hooks/useTicketAttachments";
 import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useUser } from "@/hooks/useUser";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { api } from "@/lib/api";
 import {
   checkIfCategoryNeedsAmount,
@@ -15,6 +16,7 @@ import {
   mapChatbotCategoryToDatabase,
   mapChatbotChannelToDatabase,
 } from "@/utils/chatbotMapping";
+import { debugAuthState } from "@/utils/debugAuth";
 
 import { getSocket } from "@/src/realtime/socket";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -96,6 +98,7 @@ export default function ChatScreen() {
   const { fromConfirmation, room, ticketId } = useLocalSearchParams();
   const { user } = useUser();
   const { user: authUser } = useAuth();
+  const { getUserDataForTicket } = useUserProfile();
   const urlRoom = typeof room === "string" && room.trim() ? room : "general";
   const fallbackCallRoom = `call:${urlRoom}`;
   const isFromTicketDetail = useMemo(() => {
@@ -188,6 +191,44 @@ export default function ChatScreen() {
   const [selectedTerminal, setSelectedTerminal] = useState<string | null>(null);
   const [editFormSelected, setEditFormSelected] = useState(false);
   const [uploadStepReached, setUploadStepReached] = useState(false); // Track if user reached upload step
+
+  // DEBUG: Monitor state changes for upload button
+  useEffect(() => {
+    console.log("🔄 UPLOAD BUTTON STATE DEBUG:", {
+      isFromTicketDetail,
+      ticketCreatedInSession,
+      room,
+      ticketId,
+      fromConfirmation,
+      currentTicketId,
+      uploadStepReached,
+      isLiveChat,
+    });
+  }, [
+    isFromTicketDetail,
+    ticketCreatedInSession,
+    room,
+    ticketId,
+    fromConfirmation,
+    currentTicketId,
+    uploadStepReached,
+    isLiveChat,
+  ]);
+
+  // Ensure currentTicketId is set when coming from ticket detail
+  useEffect(() => {
+    if (isFromTicketDetail && ticketId && !currentTicketId) {
+      const ticketIdStr =
+        typeof ticketId === "string" ? ticketId : String(ticketId);
+      console.log(
+        "🎫 FALLBACK: Setting currentTicketId from ticket detail params:",
+        ticketIdStr
+      );
+      setCurrentTicketId(ticketIdStr);
+      setTicketCreatedInSession(true);
+      AsyncStorage.setItem("currentTicketId", ticketIdStr);
+    }
+  }, [isFromTicketDetail, ticketId, currentTicketId]);
 
   // Check if input should be disabled when buttons are active
   const isInputDisabled = useMemo(() => {
@@ -446,6 +487,9 @@ export default function ChatScreen() {
 
   // Initialize chat with health check
   const initializeChat = useCallback(async () => {
+    // Debug auth state first
+    await debugAuthState();
+
     // Try to restore session first
     const sessionRestored = await loadSessionState();
 
@@ -1209,17 +1253,17 @@ Sekarang Anda dapat melanjutkan:`;
           );
         }
 
-        // Check if bot is asking for amount (before summary)
+        // Check if bot is asking for amount (only after summary is shown and we confirmed amount is needed)
+        // This prevents premature amount requests before the summary
         if (
-          messageText.includes("nominal") ||
-          messageText.includes("jumlah") ||
-          messageText.includes("berapa") ||
-          messageText.includes("amount") ||
-          (messageText.includes("transaksi") &&
-            (messageText.includes("berapa") || messageText.includes("nominal")))
+          summaryShown &&
+          (messageText.includes("nominal transaksi") ||
+            messageText.includes("masukkan nominal") ||
+            (messageText.includes("melengkapi tiket") &&
+              messageText.includes("nominal")))
         ) {
           console.log(
-            "Bot is asking for amount - setting amountRequested to true"
+            "Bot is asking for amount after summary - setting amountRequested to true"
           );
           setAmountRequested(true);
           // Don't add any buttons for amount input - let user type freely
@@ -1865,7 +1909,44 @@ Sekarang Anda dapat melanjutkan:`;
         setCurrentTicketId(null);
       }
 
+      // Handle case when coming from ticket detail (isFromTicketDetail = true but fromConfirmation != "true")
+      if (isFromTicketDetail && fromConfirmation !== "true") {
+        console.log(
+          "🎫 Coming from ticket detail, processing ticketId:",
+          ticketId
+        );
+        if (
+          ticketId &&
+          typeof ticketId === "string" &&
+          ticketId.trim() !== "" &&
+          ticketId !== "null" &&
+          ticketId !== "undefined"
+        ) {
+          console.log(
+            "🎫 Setting currentTicketId from ticket detail navigation:",
+            ticketId
+          );
+          setCurrentTicketId(ticketId);
+          setTicketCreatedInSession(true); // Mark as having valid ticket
+          await AsyncStorage.setItem("currentTicketId", ticketId);
+        }
+
+        // Skip initial messages and go straight to live chat
+        setIsLiveChat(true);
+
+        // Auto-connect to agent
+        setTimeout(() => {
+          quickDM();
+        }, 500);
+
+        return;
+      }
+
       if (fromConfirmation === "true") {
+        console.log(
+          "📝 fromConfirmation is true, processing ticketId:",
+          ticketId
+        );
         // Try to get ticket ID from URL params
         if (
           ticketId &&
@@ -1874,6 +1955,10 @@ Sekarang Anda dapat melanjutkan:`;
           ticketId !== "null" &&
           ticketId !== "undefined"
         ) {
+          console.log(
+            "🎫 Setting currentTicketId from confirmation flow:",
+            ticketId
+          );
           setCurrentTicketId(ticketId);
           setTicketCreatedInSession(true);
           await AsyncStorage.setItem("currentTicketId", ticketId);
@@ -1970,17 +2055,22 @@ Sekarang Anda dapat melanjutkan:`;
   // Fetch attachments only when ticket ID is available and valid
   useEffect(() => {
     if (currentTicketId && currentTicketId.trim() !== "") {
+      console.log("🔄 Chat: Fetching attachments for ticket:", currentTicketId);
       fetchAttachments(currentTicketId);
     }
   }, [currentTicketId, fetchAttachments]);
 
-  // Send ticket info when from ticket detail
+  // Send ticket info when from ticket detail - with duplicate prevention
   useEffect(() => {
     if (isFromTicketDetail && currentTicketId && isLiveChat) {
       const hasTicketInfo = messages.some(
         (m) => m.isTicketInfo && m.ticketId === currentTicketId
       );
       if (!hasTicketInfo) {
+        console.log(
+          "🔄 Chat: Fetching ticket detail for info display:",
+          currentTicketId
+        );
         // Fetch ticket detail to get the correct created time
         fetchTicketDetail(currentTicketId).then(() => {
           // Create ticket info message with proper timestamp from ticketDetail
@@ -3878,9 +3968,49 @@ Sekarang Anda dapat melanjutkan:`;
                           "Card:",
                           related_card_id
                         );
+
+                        // Get user data from auth/me endpoint
+                        const userData = await getUserDataForTicket();
+                        console.log("User data from auth/me:", userData);
+
+                        // Create enhanced payload with user data from auth/me
+                        const enhancedTicketPayload = {
+                          ...ticketPayload,
+                          // Merge user data from auth/me
+                          ...(userData && {
+                            customer_id: userData.customer_id,
+                            full_name: userData.full_name,
+                            email: userData.email,
+                            phone_number: userData.phone_number,
+                            address: userData.address,
+                            birth_place: userData.birth_place,
+                            gender: userData.gender,
+                            person_id: userData.person_id,
+                            cif: userData.cif,
+                            billing_address: userData.billing_address,
+                            postal_code: userData.postal_code,
+                            home_phone: userData.home_phone,
+                            handphone: userData.handphone,
+                            office_phone: userData.office_phone,
+                            fax_phone: userData.fax_phone,
+                            primary_account_id: userData.primary_account_id,
+                            primary_account_number:
+                              userData.primary_account_number,
+                            primary_account_type: userData.primary_account_type,
+                            primary_card_id: userData.primary_card_id,
+                            primary_card_number: userData.primary_card_number,
+                            primary_card_type: userData.primary_card_type,
+                            debit_card_numbers: userData.debit_card_numbers,
+                          }),
+                        };
+
                         console.log(
-                          "Final payload:",
+                          "Base ticket payload:",
                           JSON.stringify(ticketPayload, null, 2)
+                        );
+                        console.log(
+                          "Enhanced ticket payload with user data:",
+                          JSON.stringify(enhancedTicketPayload, null, 2)
                         );
                         console.log(
                           "Collected info from bot:",
@@ -3910,7 +4040,7 @@ Sekarang Anda dapat melanjutkan:`;
 
                         const response = await api("/v1/tickets", {
                           method: "POST",
-                          body: JSON.stringify(ticketPayload),
+                          body: JSON.stringify(enhancedTicketPayload),
                         });
 
                         let ticketId = null;
@@ -4760,6 +4890,19 @@ Sekarang Anda dapat melanjutkan:`;
               return !canUpload;
             })()}
             onPress={() => {
+              // Debug upload conditions
+              console.log("🔍 Upload button pressed - Debug conditions:", {
+                isFromTicketDetail,
+                ticketCreatedInSession,
+                fromConfirmation,
+                currentTicketId,
+                hasValidTicket:
+                  currentTicketId &&
+                  currentTicketId.trim() !== "" &&
+                  currentTicketId !== "undefined" &&
+                  currentTicketId !== "null",
+              });
+
               if (
                 !isFromTicketDetail &&
                 !ticketCreatedInSession &&

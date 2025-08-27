@@ -79,116 +79,143 @@ export function useAuth() {
     })();
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    if (!email || !password) {
-      Alert.alert("Login Gagal", "Email dan password harus diisi");
-      return;
-    }
-    
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      Alert.alert("Login Gagal", "Format email tidak valid");
-      return;
-    }
-
-    if (isLoginInProgress) {
-      return;
-    }
-
-    setIsLoginInProgress(true);
-    setIsLoading(true);
-
-    try {
-      const res = await api<LoginResponse>(LOGIN_PATH, {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res?.success || !res?.access_token || !res?.data) {
-        throw new Error(res?.message || "Login gagal");
+  const login = useCallback(
+    async (email: string, password: string) => {
+      if (!email || !password) {
+        Alert.alert("Login Gagal", "Email dan password harus diisi");
+        return;
       }
 
-      await saveTokens(res.access_token, res.refresh_token);
-
-      const userDetail = await api("/v1/auth/me", {
-        headers: { Authorization: res.access_token },
-      });
-
-      const fullUserData = { 
-        ...userDetail.data, 
-        customer_id: userDetail.data.id,
-        accounts: userDetail.data.accounts || []
-      };
-
-      // Clear any existing session data before setting new user data
-      const allKeys = await AsyncStorage.getAllKeys();
-      const sessionKeys = allKeys.filter(key => 
-        key.includes('currentTicketId') || 
-        key.includes('msgs:') ||
-        key.includes('shouldRefresh')
-      );
-      if (sessionKeys.length > 0) {
-        await AsyncStorage.multiRemove(sessionKeys);
+      if (!/\S+@\S+\.\S+/.test(email)) {
+        Alert.alert("Login Gagal", "Format email tidak valid");
+        return;
       }
 
-      await AsyncStorage.multiSet([
-        ["customer", JSON.stringify(fullUserData)],
-        ["isLoggedIn", "true"],
-      ]);
+      if (isLoginInProgress) {
+        return;
+      }
 
-      setUser(fullUserData);
-      router.replace("/(tabs)");
-    } catch (error: any) {
-      let msg = "Gagal login. Periksa koneksi atau coba lagi.";
-      
-      if (typeof error?.message === "string") {
-        if (error.message.includes("401") || /unauthorized|invalid|wrong|incorrect/i.test(error.message)) {
-          msg = "Email atau password salah";
-        } else if (error.message.includes("404") || /not found|user not found/i.test(error.message)) {
-          msg = "Email tidak terdaftar";
-        } else if (error.message.includes("400") || /bad request|validation/i.test(error.message)) {
-          msg = "Format email atau password tidak valid";
+      setIsLoginInProgress(true);
+      setIsLoading(true);
+
+      try {
+        const res = await api<LoginResponse>(LOGIN_PATH, {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (!res?.success || !res?.access_token || !res?.data) {
+          throw new Error(res?.message || "Login gagal");
         }
-      }
-      
-      Alert.alert("Login Gagal", msg);
-    } finally {
-      setIsLoading(false);
-      setIsLoginInProgress(false);
-    }
-  }, [isLoginInProgress]);
 
-  const logout = useCallback(async (showAlert = true) => {
-    try {
-      await clearTokens();
-      // Clear all user-related storage
-      const allKeys = await AsyncStorage.getAllKeys();
-      const userKeys = allKeys.filter(key => 
-        key.includes('customer') || 
-        key.includes('ticket') || 
-        key.includes('msgs:') ||
-        key.includes('currentTicketId') ||
-        key.includes('shouldRefresh')
-      );
-      if (userKeys.length > 0) {
-        await AsyncStorage.multiRemove(userKeys);
+        await saveTokens(res.access_token, res.refresh_token);
+
+        const userDetail = await api("/v1/auth/me");
+
+        const fullUserData = {
+          ...userDetail.data,
+          customer_id: userDetail.data.id,
+          accounts: userDetail.data.accounts || [],
+        };
+
+        // Clear any existing session data before setting new user data
+        const allKeys = await AsyncStorage.getAllKeys();
+        const sessionKeys = allKeys.filter(
+          (key) =>
+            key.includes("currentTicketId") ||
+            key.includes("msgs:") ||
+            key.includes("shouldRefresh")
+        );
+        if (sessionKeys.length > 0) {
+          await AsyncStorage.multiRemove(sessionKeys);
+        }
+
+        await AsyncStorage.multiSet([
+          ["customer", JSON.stringify(fullUserData)],
+          ["isLoggedIn", "true"],
+        ]);
+
+        setUser(fullUserData);
+        router.replace("/(tabs)");
+      } catch (error: any) {
+        let msg = "Gagal login. Periksa koneksi atau coba lagi.";
+
+        if (typeof error?.message === "string") {
+          if (
+            error.message.includes("401") ||
+            /unauthorized|invalid|wrong|incorrect/i.test(error.message)
+          ) {
+            msg = "Email atau password salah";
+          } else if (
+            error.message.includes("404") ||
+            /not found|user not found/i.test(error.message)
+          ) {
+            msg = "Email tidak terdaftar";
+          } else if (
+            error.message.includes("400") ||
+            /bad request|validation/i.test(error.message)
+          ) {
+            msg = "Format email atau password tidak valid";
+          }
+        }
+
+        Alert.alert("Login Gagal", msg);
+      } finally {
+        setIsLoading(false);
+        setIsLoginInProgress(false);
       }
-      await AsyncStorage.multiRemove(["customer", "isLoggedIn"]);
-      setUser(null);
-      
-      if (showAlert) {
-        Alert.alert("Sesi Berakhir", "Silakan login kembali untuk melanjutkan.");
+    },
+    [isLoginInProgress]
+  );
+
+  const logout = useCallback(
+    async (showAlert = true) => {
+      try {
+        await clearTokens();
+        // Clear all user-related storage
+        const allKeys = await AsyncStorage.getAllKeys();
+        const userKeys = allKeys.filter(
+          (key) =>
+            key.includes("customer") ||
+            key.includes("ticket") ||
+            key.includes("msgs:") ||
+            key.includes("currentTicketId") ||
+            key.includes("shouldRefresh")
+        );
+        if (userKeys.length > 0) {
+          await AsyncStorage.multiRemove(userKeys);
+        }
+        await AsyncStorage.multiRemove(["customer", "isLoggedIn"]);
+        setUser(null);
+
+        if (showAlert) {
+          Alert.alert(
+            "Sesi Berakhir",
+            "Silakan login kembali untuk melanjutkan."
+          );
+        }
+
+        router.replace("/login");
+      } catch (error) {
+        console.error("Error during logout:", error);
       }
-      
-      router.replace("/login");
-    } catch (error) {
-      console.error("Error during logout:", error);
-    }
-  }, [clearTokens]);
+    },
+    [clearTokens]
+  );
 
   const handleTokenExpiry = useCallback(async () => {
     console.log("⚠️ Token expired, logging out user");
     await logout(true);
   }, [logout]);
 
-  return { login, logout, isLoading, isAuthenticated, user, token, getValidToken, handleTokenExpiry };
+  return {
+    login,
+    logout,
+    isLoading,
+    isAuthenticated,
+    user,
+    token,
+    getValidToken,
+    handleTokenExpiry,
+  };
 }

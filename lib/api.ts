@@ -20,7 +20,7 @@ const refreshToken = async (): Promise<string | null> => {
 
   isRefreshing = true;
   refreshPromise = performTokenRefresh();
-  
+
   try {
     const result = await refreshPromise;
     return result;
@@ -32,15 +32,22 @@ const refreshToken = async (): Promise<string | null> => {
 
 const performTokenRefresh = async (): Promise<string | null> => {
   let attempts = 0;
-  
+
   while (attempts < MAX_REFRESH_ATTEMPTS) {
     try {
-      const storedRefreshToken = await SecureStore.getItemAsync("refresh_token");
+      const storedRefreshToken = await SecureStore.getItemAsync(
+        "refresh_token"
+      );
       if (!storedRefreshToken) {
         throw new Error("No refresh token available");
       }
 
-      console.log(`🔄 Attempting token refresh (${attempts + 1}/${MAX_REFRESH_ATTEMPTS}):`, `${API_BASE}/v1/auth/refresh`);
+      console.log(
+        `🔄 Attempting token refresh (${
+          attempts + 1
+        }/${MAX_REFRESH_ATTEMPTS}):`,
+        `${API_BASE}/v1/auth/refresh`
+      );
       const response = await fetch(`${API_BASE}/v1/auth/refresh`, {
         method: "POST",
         headers: {
@@ -69,18 +76,21 @@ const performTokenRefresh = async (): Promise<string | null> => {
       throw new Error(data.message || "Invalid response format");
     } catch (error) {
       attempts++;
-      console.error(`Token refresh error (${attempts}/${MAX_REFRESH_ATTEMPTS}):`, error);
-      
+      console.error(
+        `Token refresh error (${attempts}/${MAX_REFRESH_ATTEMPTS}):`,
+        error
+      );
+
       if (attempts >= MAX_REFRESH_ATTEMPTS) {
         console.log("❌ Max refresh attempts reached");
         return null;
       }
-      
+
       // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
     }
   }
-  
+
   return null;
 };
 
@@ -90,6 +100,13 @@ export async function api<T = JSONValue>(
   signal?: AbortSignal
 ): Promise<T> {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+
+  console.log(`🌐 API Request initiated:`, {
+    method: init.method || "GET",
+    url,
+    path,
+    timestamp: new Date().toISOString(),
+  });
 
   const headers = {
     Accept: "application/json",
@@ -105,13 +122,20 @@ export async function api<T = JSONValue>(
   ) {
     try {
       const token = await SecureStore.getItemAsync("access_token");
+      console.log(
+        `🔑 Retrieved token for ${path}:`,
+        token ? `${token.slice(0, 20)}...` : "null"
+      );
       if (token) {
         // Pastikan token tidak double Bearer
         const cleanToken = token.startsWith("Bearer ") ? token.slice(7) : token;
         headers.Authorization = `Bearer ${cleanToken}`;
+        console.log(`🔑 Added Authorization header for ${path}`);
+      } else {
+        console.log(`❌ No token found for ${path}`);
       }
     } catch (error) {
-      // Error getting token
+      console.error(`❌ Error getting token for ${path}:`, error);
     }
   }
 
@@ -119,6 +143,14 @@ export async function api<T = JSONValue>(
     ...init,
     headers,
     signal,
+  });
+
+  console.log(`🌐 API Response received:`, {
+    url,
+    status: res.status,
+    statusText: res.statusText,
+    ok: res.ok,
+    timestamp: new Date().toISOString(),
   });
 
   // Handle 401/419 expired token
@@ -135,16 +167,36 @@ export async function api<T = JSONValue>(
       });
       console.log("✅ Request retried with new token");
     } else {
-      console.log("❌ Token refresh failed - silently continue");
-      // Don't throw error, let UI handle gracefully
+      console.log("❌ Token refresh failed");
+      // For debugging - let's see the response
+      const text = await res.text().catch(() => "");
+      console.log(`❌ API ${res.status} response:`, text);
+
+      // Don't throw error immediately, return undefined for graceful handling
       return undefined as T;
     }
   }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    console.error(`❌ API Error ${res.status}:`, {
+      url,
+      status: res.status,
+      statusText: res.statusText,
+      responseBody: text,
+      path,
+      timestamp: new Date().toISOString(),
+    });
     throw new Error(`API ${res.status} — ${text || res.statusText}`);
   }
 
-  return (await res.json()) as T;
+  const jsonResponse = await res.json();
+  console.log(`✅ API Success:`, {
+    url,
+    status: res.status,
+    hasData: !!jsonResponse,
+    timestamp: new Date().toISOString(),
+  });
+
+  return jsonResponse as T;
 }

@@ -20,20 +20,34 @@ export const useTokenManager = () => {
   const loadToken = async () => {
     try {
       const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-      if (storedToken) setToken(storedToken);
+      console.log(
+        "🔑 useTokenManager: Loading token from SecureStore:",
+        storedToken ? `${storedToken.slice(0, 20)}...` : "null"
+      );
+      if (storedToken) {
+        setToken(storedToken);
+        console.log("✅ useTokenManager: Token loaded and set");
+      } else {
+        console.log("❌ useTokenManager: No token found");
+      }
     } catch (error) {
-      console.error("Error loading token:", error);
+      console.error("❌ useTokenManager: Error loading token:", error);
     }
   };
 
   // ✅ Simpan access token + refresh token
   const saveTokens = async (accessToken: string, refreshToken: string) => {
     try {
+      console.log("🔑 useTokenManager: Saving tokens...", {
+        accessToken: `${accessToken.slice(0, 20)}...`,
+        refreshToken: `${refreshToken.slice(0, 20)}...`,
+      });
       await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
       setToken(accessToken);
+      console.log("✅ useTokenManager: Tokens saved successfully");
     } catch (error) {
-      console.error("Error saving tokens:", error);
+      console.error("❌ useTokenManager: Error saving tokens:", error);
     }
   };
 
@@ -51,7 +65,9 @@ export const useTokenManager = () => {
   // ✅ Ambil refresh token terbaru
   const getRefreshToken = useCallback(async (): Promise<string | null> => {
     try {
-      const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      const storedRefreshToken = await SecureStore.getItemAsync(
+        REFRESH_TOKEN_KEY
+      );
       return storedRefreshToken;
     } catch (error) {
       console.error("Error getting refresh token:", error);
@@ -75,14 +91,16 @@ export const useTokenManager = () => {
     if (isRefreshing) {
       // Wait for current refresh to complete
       while (isRefreshing) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
       return await getAccessToken();
     }
 
     // Circuit breaker - stop trying after max attempts
     if (refreshFailCount >= MAX_REFRESH_ATTEMPTS) {
-      console.log(`❌ Refresh attempts exceeded (${refreshFailCount}/${MAX_REFRESH_ATTEMPTS}) - returning current token`);
+      console.log(
+        `❌ Refresh attempts exceeded (${refreshFailCount}/${MAX_REFRESH_ATTEMPTS}) - returning current token`
+      );
       const currentToken = await getAccessToken();
       return currentToken;
     }
@@ -109,7 +127,10 @@ export const useTokenManager = () => {
       const data = await response.json();
 
       if (data.access_token) {
-        await saveTokens(data.access_token, data.refresh_token || storedRefreshToken);
+        await saveTokens(
+          data.access_token,
+          data.refresh_token || storedRefreshToken
+        );
         setRefreshFailCount(0); // Reset fail count on success
         console.log("✅ Token refreshed via useTokenManager");
         return data.access_token;
@@ -118,7 +139,7 @@ export const useTokenManager = () => {
       throw new Error(data.message || "Invalid response format");
     } catch (error) {
       console.error("Token refresh error:", error);
-      setRefreshFailCount(prev => prev + 1);
+      setRefreshFailCount((prev) => prev + 1);
       // Don't logout user, return current token so they stay in app
       const currentToken = await getAccessToken();
       return currentToken;

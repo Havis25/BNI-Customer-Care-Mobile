@@ -1,8 +1,10 @@
+import { API_BASE } from "@/lib/api";
+import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
-import React, { useState, useEffect, useRef } from "react";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
+import * as SecureStore from "expo-secure-store";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -14,13 +16,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api, API_BASE } from "@/lib/api";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 interface UploadModalProps {
   visible: boolean;
   onClose: () => void;
-  onUploadSuccess: (fileName: string, type: 'image' | 'document', downloadUrl?: string) => void;
+  onUploadSuccess: (
+    fileName: string,
+    type: "image" | "document",
+    downloadUrl?: string
+  ) => void;
   ticketId?: string;
   existingFiles?: Array<{
     attachment_id: number;
@@ -33,16 +37,16 @@ interface UploadModalProps {
   onDeleteFile?: (attachmentId: number) => void;
 }
 
-export default function UploadModal({ 
-  visible, 
-  onClose, 
+export default function UploadModal({
+  visible,
+  onClose,
   onUploadSuccess,
   ticketId,
   existingFiles = [],
-  onDeleteFile
+  onDeleteFile,
 }: UploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<any>(null);
-  const [fileType, setFileType] = useState<'image' | 'document' | null>(null);
+  const [fileType, setFileType] = useState<"image" | "document" | null>(null);
   const [uploading, setUploading] = useState(false);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -55,7 +59,7 @@ export default function UploadModal({
         duration: 200,
         useNativeDriver: true,
       }).start();
-      
+
       // Modal slides up from bottom
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -81,192 +85,275 @@ export default function UploadModal({
   const handleImageSelect = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Keep existing for now
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.5, // Reduced quality for smaller file size
       });
-      
+
       if (!result.canceled && result.assets[0]) {
         const file = result.assets[0];
         // For images, use fileSize property
         const fileWithSize = {
           ...file,
-          size: file.fileSize
+          size: file.fileSize,
         };
         setSelectedFile(fileWithSize);
-        setFileType('image');
+        setFileType("image");
       }
     } catch (error) {
-      Alert.alert('Error', 'Gagal memilih gambar');
+      Alert.alert("Error", "Gagal memilih gambar");
     }
   };
 
   const handleDocumentSelect = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
+        type: "*/*",
         copyToCacheDirectory: true,
       });
-      
+
       if (!result.canceled && result.assets[0]) {
         setSelectedFile(result.assets[0]);
-        setFileType('document');
+        setFileType("document");
       }
     } catch (error) {
-      Alert.alert('Error', 'Gagal memilih dokumen');
+      Alert.alert("Error", "Gagal memilih dokumen");
     }
   };
 
   const handleUpload = async () => {
     if (!selectedFile || !fileType) return;
-    
 
-    
     // Validate ticketId exists and is valid
-    if (!ticketId || 
-        ticketId.trim() === '' || 
-        ticketId === 'undefined' || 
-        ticketId === 'null') {
+    if (
+      !ticketId ||
+      ticketId.trim() === "" ||
+      ticketId === "undefined" ||
+      ticketId === "null"
+    ) {
       Alert.alert(
-        'Tiket Tidak Tersedia', 
-        'Silakan buat tiket terlebih dahulu sebelum mengirim attachment.'
+        "Tiket Tidak Tersedia",
+        "Silakan buat tiket terlebih dahulu sebelum mengirim attachment."
       );
       return;
     }
-    
+
     // Validate file size (max 1MB for better compatibility)
     const maxSize = 1 * 1024 * 1024; // 1MB in bytes
     const fileSize = selectedFile.size || selectedFile.fileSize || 0;
-    
+
     if (fileSize > maxSize) {
       Alert.alert(
-        'File Terlalu Besar', 
-        `Ukuran file maksimal 1MB. File Anda berukuran ${formatFileSize(fileSize)}.`
+        "File Terlalu Besar",
+        `Ukuran file maksimal 1MB. File Anda berukuran ${formatFileSize(
+          fileSize
+        )}.`
       );
       return;
     }
-    
+
     if (fileSize === 0) {
       Alert.alert(
-        'Error', 
-        'Tidak dapat mendeteksi ukuran file. Silakan coba file lain.'
+        "Error",
+        "Tidak dapat mendeteksi ukuran file. Silakan coba file lain."
       );
       return;
     }
-    
+
     setUploading(true);
-    
+
     try {
       const formData = new FormData();
-      
+
       // Determine proper MIME type
-      let mimeType = selectedFile.mimeType || 'application/octet-stream';
-      if (fileType === 'image' && !mimeType.startsWith('image/')) {
-        mimeType = 'image/jpeg';
+      let mimeType = selectedFile.mimeType || "application/octet-stream";
+      if (fileType === "image" && !mimeType.startsWith("image/")) {
+        mimeType = "image/jpeg";
       }
-      
-      const fileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
-      
+
+      const fileName =
+        selectedFile.name ||
+        (fileType === "image" ? "image.jpg" : "document.pdf");
+
       // Append file with proper format for React Native
       const fileObject = {
         uri: selectedFile.uri,
         type: mimeType,
         name: fileName,
       };
-      
-      formData.append('file', fileObject as any);
-      
-      // Final validation before server request
-      if (!ticketId || ticketId.toString().trim() === '' || ticketId === 'undefined' || ticketId === 'null') {
-        throw new Error('Invalid ticket ID - cannot upload without valid ticket');
-      }
-      
 
+      // Try different field names that server might expect
+      console.log("🔍 Upload Debug - Trying 'files' as field name");
+      formData.append("files", fileObject as any);
       
+      // Let's also try alternative approaches based on common patterns
+      // Uncomment one approach at a time to test:
+      
+      // Approach 1: Multiple files field
+      // formData.append("files[]", fileObject as any);
+      
+      // Approach 2: Single file field  
+      // formData.append("file", fileObject as any);
+      
+      // Approach 3: With additional metadata
+      // formData.append("files", fileObject as any);
+      // formData.append("description", "User uploaded file");
+      
+      console.log("🔍 Upload Debug - FormData structure being sent:", {
+        fieldName: "files",
+        fileName: fileObject.name,
+        fileType: fileObject.type,
+        fileUri: fileObject.uri
+      });
+
+      // Final validation before server request
+      if (
+        !ticketId ||
+        ticketId.toString().trim() === "" ||
+        ticketId === "undefined" ||
+        ticketId === "null"
+      ) {
+        throw new Error(
+          "Invalid ticket ID - cannot upload without valid ticket"
+        );
+      }
+
+      console.log("🔍 Upload Debug - Request details:", {
+        ticketId,
+        fileName,
+        mimeType,
+        fileSize,
+        fileUri: selectedFile.uri,
+        fileType,
+      });
+
       // Use ticket attachment endpoint
       const endpoint = `/v1/tickets/${ticketId}/attachments`;
       const fullUrl = `${API_BASE}${endpoint}`;
-      
+
+      console.log("🔍 Upload Debug - Endpoint:", fullUrl);
+
       // Get authorization token from SecureStore
-      const token = await SecureStore.getItemAsync('access_token');
-      
+      const token = await SecureStore.getItemAsync("access_token");
+
       if (!token) {
-        throw new Error('No authorization token found. Please login again.');
+        throw new Error("No authorization token found. Please login again.");
       }
-      
-      const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-      
+
+      const authHeader = token.startsWith("Bearer ")
+        ? token
+        : `Bearer ${token}`;
+      console.log(
+        "🔍 Upload Debug - Auth header:",
+        authHeader ? `${authHeader.slice(0, 20)}...` : "null"
+      );
+
       // Use fetch directly for FormData with authorization
       const requestHeaders = {
-        'Authorization': authHeader,
-        'ngrok-skip-browser-warning': 'true',
-        'Accept': 'application/json',
+        Authorization: authHeader,
+        "ngrok-skip-browser-warning": "true",
+        // Remove Content-Type header - let browser set it automatically for FormData
+        // Accept: "application/json", // Remove this too for better compatibility
       };
-      
+
+      console.log("🔍 Upload Debug - Request headers:", requestHeaders);
+      console.log("🔍 Upload Debug - FormData file object:", {
+        uri: fileObject.uri,
+        type: fileObject.type,
+        name: fileObject.name,
+        hasUri: !!selectedFile.uri,
+        actualFileSize: selectedFile.size || selectedFile.fileSize,
+      });
+
       // Create AbortController for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
-      
+
+      console.log("🔍 Upload Debug - Sending request to:", fullUrl);
       const response = await fetch(fullUrl, {
-        method: 'POST',
+        method: "POST",
         body: formData,
         headers: requestHeaders,
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
+      console.log("🔍 Upload Debug - Response received:", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+
       let result;
-      let errorText = '';
-      
+      let errorText = "";
+
       try {
         const responseText = await response.text();
+        console.log("🔍 Upload Debug - Raw response text:", responseText);
+        
         if (responseText) {
           try {
             result = JSON.parse(responseText);
+            console.log("🔍 Upload Debug - Parsed result:", result);
           } catch (parseError) {
+            console.error("🔍 Upload Debug - JSON parse error:", parseError);
             errorText = responseText;
           }
+        } else {
+          console.log("🔍 Upload Debug - Empty response text");
         }
       } catch (textError) {
-        errorText = 'Failed to read response';
+        console.error("🔍 Upload Debug - Failed to read response:", textError);
+        errorText = "Failed to read response";
       }
-      
+
       if (!response.ok) {
         const errorDetails = {
           status: response.status,
           statusText: response.statusText,
-          errorText: errorText || 'No error text',
-          resultMessage: result?.message || 'No result message',
+          errorText: errorText || "No error text",
+          resultMessage: result?.message || "No result message",
           fileSize: fileSize,
-          fileName: fileName
+          fileName: fileName,
         };
-        console.error('Upload failed - Server Response:', errorDetails);
-        throw new Error(`Upload failed: ${response.status} - ${errorText || result?.message || response.statusText}`);
+        console.error("Upload failed - Server Response:", errorDetails);
+        throw new Error(
+          `Upload failed: ${response.status} - ${
+            errorText || result?.message || response.statusText
+          }`
+        );
       }
-      
+
       if (result) {
         // Use the actual filename that will be saved on server
-        const actualFileName = selectedFile.name || (fileType === 'image' ? 'image.jpg' : 'document.pdf');
-        
+        const actualFileName =
+          selectedFile.name ||
+          (fileType === "image" ? "image.jpg" : "document.pdf");
+
         // Get attachment ID from upload response
-        const attachmentId = result.data?.attachments?.[0]?.attachment_id || result.data?.attachment_id;
-        
+        const attachmentId =
+          result.data?.attachments?.[0]?.attachment_id ||
+          result.data?.attachment_id;
+
         // Get download URL for later use in chat
         let downloadUrl = null;
         if (attachmentId) {
           try {
             const attachmentEndpoint = `/v1/attachments/${attachmentId}`;
-            const attachmentResponse = await fetch(`${API_BASE}${attachmentEndpoint}`, {
-              method: 'GET',
-              headers: {
-                'Authorization': authHeader,
-                'ngrok-skip-browser-warning': 'true',
-                'Accept': 'application/json',
-              },
-            });
-            
+            const attachmentResponse = await fetch(
+              `${API_BASE}${attachmentEndpoint}`,
+              {
+                method: "GET",
+                headers: {
+                  Authorization: authHeader,
+                  "ngrok-skip-browser-warning": "true",
+                  Accept: "application/json",
+                },
+              }
+            );
+
             if (attachmentResponse.ok) {
               const attachmentData = await attachmentResponse.json();
               downloadUrl = attachmentData.data?.download_url;
@@ -275,29 +362,28 @@ export default function UploadModal({
             // Failed to get download URL, continue without it
           }
         }
-        
+
         onUploadSuccess(actualFileName, fileType, downloadUrl);
         handleClose();
       } else {
-        throw new Error('No response data received from server');
+        throw new Error("No response data received from server");
       }
-      
     } catch (error: any) {
-      let errorMessage = 'Terjadi kesalahan saat upload';
-      
-      if (error.name === 'AbortError') {
-        errorMessage = 'Upload timeout. Silakan coba lagi.';
-      } else if (error.message?.includes('413')) {
-        errorMessage = 'File terlalu besar untuk server. Maksimal 1MB.';
-      } else if (error.message?.includes('Network request failed')) {
-        errorMessage = 'Koneksi internet bermasalah. Silakan cek koneksi Anda.';
-      } else if (error.message?.includes('Failed to fetch')) {
-        errorMessage = 'Tidak dapat terhubung ke server. Silakan coba lagi.';
+      let errorMessage = "Terjadi kesalahan saat upload";
+
+      if (error.name === "AbortError") {
+        errorMessage = "Upload timeout. Silakan coba lagi.";
+      } else if (error.message?.includes("413")) {
+        errorMessage = "File terlalu besar untuk server. Maksimal 1MB.";
+      } else if (error.message?.includes("Network request failed")) {
+        errorMessage = "Koneksi internet bermasalah. Silakan cek koneksi Anda.";
+      } else if (error.message?.includes("Failed to fetch")) {
+        errorMessage = "Tidak dapat terhubung ke server. Silakan coba lagi.";
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
-      Alert.alert('Error Upload', errorMessage);
+
+      Alert.alert("Error Upload", errorMessage);
     } finally {
       setUploading(false);
     }
@@ -310,82 +396,76 @@ export default function UploadModal({
   };
 
   const handleViewFile = (file: any) => {
-    const isImage = file.file_type.startsWith('image/');
+    const isImage = file.file_type.startsWith("image/");
     const fileUrl = `${API_BASE}${file.file_path}`;
-    
+
     Alert.alert(
-      isImage ? 'Preview Gambar' : 'File Dokumen',
-      `Nama: ${file.file_name}\nUkuran: ${formatFileSize(file.file_size)}\nDiupload: ${formatUploadTime(file.upload_time)}\n\nURL: ${fileUrl}`,
+      isImage ? "Preview Gambar" : "File Dokumen",
+      `Nama: ${file.file_name}\nUkuran: ${formatFileSize(
+        file.file_size
+      )}\nDiupload: ${formatUploadTime(file.upload_time)}\n\nURL: ${fileUrl}`,
       [
-        { text: 'Tutup', style: 'cancel' },
-        { 
-          text: 'Buka File', 
+        { text: "Tutup", style: "cancel" },
+        {
+          text: "Buka File",
           onPress: async () => {
             try {
               const supported = await Linking.canOpenURL(fileUrl);
               if (supported) {
                 await Linking.openURL(fileUrl);
               } else {
-                Alert.alert('Error', 'Tidak dapat membuka file ini');
+                Alert.alert("Error", "Tidak dapat membuka file ini");
               }
             } catch (error) {
-              Alert.alert('Error', 'Gagal membuka file');
+              Alert.alert("Error", "Gagal membuka file");
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   const handleDeleteFile = async (attachmentId: number) => {
-    Alert.alert(
-      'Hapus File',
-      'Apakah Anda yakin ingin menghapus file ini?',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus',
-          style: 'destructive',
-          onPress: () => onDeleteFile?.(attachmentId)
-        }
-      ]
-    );
+    Alert.alert("Hapus File", "Apakah Anda yakin ingin menghapus file ini?", [
+      { text: "Batal", style: "cancel" },
+      {
+        text: "Hapus",
+        style: "destructive",
+        onPress: () => onDeleteFile?.(attachmentId),
+      },
+    ]);
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatUploadTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="none"
-    >
+    <Modal visible={visible} transparent={true} animationType="none">
       <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
         <TouchableOpacity
           style={styles.touchableOverlay}
           activeOpacity={1}
           onPress={handleClose}
         />
-        <Animated.View 
+        <Animated.View
           style={[
             styles.uploadModal,
-            { transform: [{ translateY: slideAnim }] }
+            { transform: [{ translateY: slideAnim }] },
           ]}
           onStartShouldSetResponder={() => true}
         >
@@ -395,39 +475,56 @@ export default function UploadModal({
               <MaterialIcons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
-          
+
           {/* Existing Files */}
           {existingFiles && existingFiles.length > 0 && (
             <View style={styles.existingFilesContainer}>
-              <Text style={styles.existingFilesTitle}>File yang sudah dikirim ({existingFiles.length}):</Text>
+              <Text style={styles.existingFilesTitle}>
+                File yang sudah dikirim ({existingFiles.length}):
+              </Text>
               {existingFiles.map((file) => (
                 <View key={file.attachment_id} style={styles.existingFileItem}>
                   <View style={styles.fileInfo}>
-                    <MaterialIcons 
-                      name={file.file_type.startsWith('image/') ? 'image' : 'description'} 
-                      size={20} 
-                      color="#52B5AB" 
+                    <MaterialIcons
+                      name={
+                        file.file_type.startsWith("image/")
+                          ? "image"
+                          : "description"
+                      }
+                      size={20}
+                      color="#52B5AB"
                     />
                     <View style={styles.fileDetails}>
-                      <Text style={styles.existingFileName} numberOfLines={1}>{file.file_name}</Text>
+                      <Text style={styles.existingFileName} numberOfLines={1}>
+                        {file.file_name}
+                      </Text>
                       <Text style={styles.fileMetadata}>
-                        {formatFileSize(file.file_size)} • {formatUploadTime(file.upload_time)}
+                        {formatFileSize(file.file_size)} •{" "}
+                        {formatUploadTime(file.upload_time)}
                       </Text>
                     </View>
                   </View>
                   <View style={styles.fileActions}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => handleViewFile(file)}
                       style={styles.viewButton}
                     >
-                      <MaterialIcons name="visibility" size={16} color="#52B5AB" />
+                      <MaterialIcons
+                        name="visibility"
+                        size={16}
+                        color="#52B5AB"
+                      />
                     </TouchableOpacity>
                     {onDeleteFile && (
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => handleDeleteFile(file.attachment_id)}
                         style={styles.deleteButton}
                       >
-                        <MaterialIcons name="delete" size={16} color="#FF4444" />
+                        <MaterialIcons
+                          name="delete"
+                          size={16}
+                          color="#FF4444"
+                        />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -435,12 +532,14 @@ export default function UploadModal({
               ))}
             </View>
           )}
-          
+
           {/* No files message */}
           {existingFiles && existingFiles.length === 0 && (
             <View style={styles.noFilesContainer}>
               <MaterialIcons name="attach-file" size={32} color="#CCC" />
-              <Text style={styles.noFilesText}>Belum ada file yang dikirim</Text>
+              <Text style={styles.noFilesText}>
+                Belum ada file yang dikirim
+              </Text>
             </View>
           )}
 
@@ -448,15 +547,23 @@ export default function UploadModal({
             <>
               <View style={styles.fileLimitInfo}>
                 <MaterialIcons name="info" size={16} color="#666" />
-                <Text style={styles.fileLimitText}>Maksimal ukuran file: 1MB</Text>
+                <Text style={styles.fileLimitText}>
+                  Maksimal ukuran file: 1MB
+                </Text>
               </View>
-              
-              <TouchableOpacity style={styles.uploadOption} onPress={handleImageSelect}>
+
+              <TouchableOpacity
+                style={styles.uploadOption}
+                onPress={handleImageSelect}
+              >
                 <MaterialIcons name="photo" size={24} color="#52B5AB" />
                 <Text style={styles.uploadOptionText}>Upload Gambar</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.uploadOption} onPress={handleDocumentSelect}>
+
+              <TouchableOpacity
+                style={styles.uploadOption}
+                onPress={handleDocumentSelect}
+              >
                 <MaterialIcons name="attach-file" size={24} color="#52B5AB" />
                 <Text style={styles.uploadOptionText}>Upload Dokumen</Text>
               </TouchableOpacity>
@@ -464,22 +571,28 @@ export default function UploadModal({
           ) : (
             <View style={styles.previewContainer}>
               <View style={styles.filePreview}>
-                {fileType === 'image' ? (
-                  <Image source={{ uri: selectedFile.uri }} style={styles.imagePreview} />
+                {fileType === "image" ? (
+                  <Image
+                    source={{ uri: selectedFile.uri }}
+                    style={styles.imagePreview}
+                  />
                 ) : (
                   <MaterialIcons name="description" size={48} color="#52B5AB" />
                 )}
                 <Text style={styles.fileName}>{selectedFile.name}</Text>
                 {(selectedFile.size || selectedFile.fileSize) && (
                   <Text style={styles.fileSize}>
-                    Ukuran: {formatFileSize(selectedFile.size || selectedFile.fileSize || 0)}
+                    Ukuran:{" "}
+                    {formatFileSize(
+                      selectedFile.size || selectedFile.fileSize || 0
+                    )}
                   </Text>
                 )}
               </View>
-              
+
               <View style={styles.buttonContainer}>
-                <TouchableOpacity 
-                  style={styles.cancelButton} 
+                <TouchableOpacity
+                  style={styles.cancelButton}
                   onPress={() => {
                     setSelectedFile(null);
                     setFileType(null);
@@ -487,14 +600,17 @@ export default function UploadModal({
                 >
                   <Text style={styles.cancelButtonText}>Batal</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]} 
+
+                <TouchableOpacity
+                  style={[
+                    styles.uploadButton,
+                    uploading && styles.uploadButtonDisabled,
+                  ]}
                   onPress={handleUpload}
                   disabled={uploading}
                 >
                   <Text style={styles.uploadButtonText}>
-                    {uploading ? 'Mengirim...' : 'Selesai'}
+                    {uploading ? "Mengirim..." : "Selesai"}
                   </Text>
                 </TouchableOpacity>
               </View>

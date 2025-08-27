@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useChannelsAndCategories } from "@/hooks/useChannelsAndCategories";
 import { useTerminals } from "@/hooks/useTerminals";
 import { useUser } from "@/hooks/useUser";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { api } from "@/lib/api";
 import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -42,6 +43,32 @@ type TicketPayload = {
   amount?: number;
   terminal_id?: number;
   transaction_date?: string;
+
+  // Customer data from auth/me
+  customer_id?: number;
+  full_name?: string;
+  email?: string;
+  phone_number?: string;
+  address?: string;
+  birth_place?: string;
+  gender?: string;
+  person_id?: string;
+  cif?: string;
+  billing_address?: string;
+  postal_code?: string;
+  home_phone?: string;
+  handphone?: string;
+  office_phone?: string;
+  fax_phone?: string;
+
+  // Account and card data
+  primary_account_id?: number;
+  primary_account_number?: number;
+  primary_account_type?: string;
+  primary_card_id?: number;
+  primary_card_number?: number;
+  primary_card_type?: string;
+  debit_card_numbers?: number[];
 };
 
 /** SelectField: iOS pakai ActionSheet, Android/Web pakai Picker dropdown */
@@ -132,6 +159,7 @@ export default function ConfirmationScreen() {
   const insets = useSafeAreaInsets();
   const { user, selectAccount, account_number, accounts } = useUser();
   const { token, isAuthenticated } = useAuth();
+  const { getUserDataForTicket } = useUserProfile();
   const {
     channels,
     categories,
@@ -459,13 +487,51 @@ export default function ConfirmationScreen() {
         return;
       }
 
+      // Get user data from auth/me endpoint
+      const userData = await getUserDataForTicket();
+      console.log("User data from auth/me:", userData);
+
+      // Create enhanced payload with user data from auth/me
+      const enhancedPayload: TicketPayload = {
+        ...payload,
+        // Merge user data from auth/me
+        ...(userData && {
+          customer_id: userData.customer_id,
+          full_name: userData.full_name,
+          email: userData.email,
+          phone_number: userData.phone_number,
+          address: userData.address,
+          birth_place: userData.birth_place,
+          gender: userData.gender,
+          person_id: userData.person_id,
+          cif: userData.cif,
+          billing_address: userData.billing_address,
+          postal_code: userData.postal_code,
+          home_phone: userData.home_phone,
+          handphone: userData.handphone,
+          office_phone: userData.office_phone,
+          fax_phone: userData.fax_phone,
+          primary_account_id: userData.primary_account_id,
+          primary_account_number: userData.primary_account_number,
+          primary_account_type: userData.primary_account_type,
+          primary_card_id: userData.primary_card_id,
+          primary_card_number: userData.primary_card_number,
+          primary_card_type: userData.primary_card_type,
+          debit_card_numbers: userData.debit_card_numbers,
+        }),
+      };
+
       // Debug payload before sending
-      console.log("Final payload:", JSON.stringify(payload, null, 2));
+      console.log("Base payload:", JSON.stringify(payload, null, 2));
+      console.log(
+        "Enhanced payload with user data:",
+        JSON.stringify(enhancedPayload, null, 2)
+      );
 
       // API call akan otomatis menambahkan Authorization header
       const response = await api(API_URL, {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(enhancedPayload),
       });
 
       // Extract ticket ID from response - check all possible paths

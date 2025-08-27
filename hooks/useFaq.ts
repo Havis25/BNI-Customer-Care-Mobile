@@ -36,7 +36,7 @@ export function useFaq() {
 
     try {
       console.log("=== FETCHING FAQS ===");
-      const response = await api<FAQ[]>("/faqs");
+      const response = await api<FAQ[]>("/v1/faqs");
       console.log("FAQ Response:", response);
 
       // Handle FAQ response - check if it's wrapped in a data property

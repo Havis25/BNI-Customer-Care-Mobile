@@ -31,6 +31,7 @@ interface Notification {
   read: boolean;
   category: string;
   ticketNumber: string;
+  ticketId?: number; // Add optional ticket_id
   status: string;
 }
 
@@ -53,12 +54,15 @@ export default function NotificationScreen() {
         let description = "";
 
         // Debug logging
-        console.log("Ticket data:", {
+        console.log("📋 Ticket transformation debug:", {
+          ticket_id: ticket.ticket_id,
           ticket_number: ticket.ticket_number,
           status_code: ticket.customer_status?.customer_status_code,
           status_name: ticket.customer_status?.customer_status_name,
           complaint_name: ticket.complaint?.complaint_name,
           description: ticket.description,
+          created_time: ticket.created_time,
+          will_use_for_navigation: ticket.ticket_id || ticket.ticket_number,
         });
 
         // Concise notification mapping
@@ -128,6 +132,7 @@ export default function NotificationScreen() {
           category:
             ticket.issue_channel?.channel_name?.toLowerCase() || "general",
           ticketNumber: ticket.ticket_number,
+          ticketId: ticket.ticket_id, // Add ticket_id for API calls
           status: statusCode,
         };
       });
@@ -142,11 +147,33 @@ export default function NotificationScreen() {
     markAsRead(notification.id);
 
     // Navigate to ticket detail page
-    if (notification.ticketNumber) {
+    // Try ticket_id first (for API), fallback to ticket_number
+    const routeId = notification.ticketId || notification.ticketNumber;
+
+    if (routeId) {
+      console.log("🔍 Notification: Navigating to ticket detail:", {
+        ticketNumber: notification.ticketNumber,
+        ticketId: notification.ticketId,
+        routeId: routeId,
+        routeIdType: typeof routeId,
+        pathname: "/riwayat/[id]",
+        params: { id: String(routeId) },
+        notification: {
+          title: notification.title,
+          status: notification.status,
+          description: notification.description,
+        },
+      });
+
       router.push({
         pathname: "/riwayat/[id]",
-        params: { id: notification.ticketNumber },
+        params: { id: String(routeId) },
       });
+    } else {
+      console.log(
+        "❌ Notification: No ticket ID or number available:",
+        notification
+      );
     }
   };
 

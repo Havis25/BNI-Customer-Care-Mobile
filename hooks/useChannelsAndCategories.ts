@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "./useAuth";
 
 export type Channel = {
   channel_id: number;
@@ -24,7 +25,6 @@ export type CategoriesResponse = {
   message: string;
   data: ComplaintCategory[];
 };
-
 // Mapping subcategories for each general category (mempertahankan subcategories yang ada)
 const CATEGORY_SUBCATEGORY_MAPPING: Record<string, string[]> = {
   TOP_UP: [
@@ -196,6 +196,7 @@ export function useChannelsAndCategories() {
   const [categories, setCategories] = useState<ComplaintCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
 
   // Function to filter categories based on selected channel
   const getFilteredCategories = useCallback(
@@ -219,14 +220,23 @@ export function useChannelsAndCategories() {
   }, []);
 
   const fetchData = useCallback(async () => {
+    if (!isAuthenticated) {
+      console.log(
+        "🔍 useChannelsAndCategories: User not authenticated, skipping fetch"
+      );
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
       console.log("=== FETCHING CHANNELS AND CATEGORIES ===");
+      console.log("🔍 Debug: About to call API endpoints");
+
       const [channelsResponse, categoriesResponse] = await Promise.all([
-        api<Channel[]>("/channels"),
-        api<ComplaintCategory[]>("/complaint-categories"),
+        api<Channel[]>("/v1/channels"),
+        api<ComplaintCategory[]>("/v1/complaint-categories"),
       ]);
 
       console.log("Channels Response:", channelsResponse);
@@ -281,7 +291,7 @@ export function useChannelsAndCategories() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchData();
