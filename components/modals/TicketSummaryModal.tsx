@@ -1,5 +1,6 @@
 import { useTicketDetail } from "@/hooks/useTicketDetail";
 import { useUser } from "@/hooks/useUser";
+import { formatAmountForDisplay } from "@/utils/chatValidation";
 import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React, { useEffect } from "react";
@@ -29,13 +30,7 @@ export default function TicketSummaryModal({
       fetchTicketDetail(ticketId);
     }
   }, [visible, ticketId, fetchTicketDetail]);
-  const formatAmount = (amount?: number) => {
-    if (!amount) return null;
-    return `Rp ${amount.toLocaleString("id-ID", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  };
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("id-ID", {
@@ -106,7 +101,7 @@ export default function TicketSummaryModal({
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Nominal:</Text>
                   <Text style={[styles.summaryValue, styles.amountValue]}>
-                    {formatAmount(ticketDetail.amount)}
+                    {formatAmountForDisplay(ticketDetail.amount)}
                   </Text>
                 </View>
               )}

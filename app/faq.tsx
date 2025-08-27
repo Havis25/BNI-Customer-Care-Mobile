@@ -1,25 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Animated,
-  RefreshControl,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Fonts } from "@/constants/Fonts";
+import { useFaq } from "@/hooks/useFaq";
+import { hp, rf, wp } from "@/utils/responsive";
 import { Ionicons } from "@expo/vector-icons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useFaq } from "@/hooks/useFaq";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
-
-
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function FAQScreen() {
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
@@ -32,7 +29,7 @@ export default function FAQScreen() {
     try {
       await Promise.all([
         fetchFaqs(),
-        new Promise(resolve => setTimeout(resolve, 1000))
+        new Promise((resolve) => setTimeout(resolve, 1000)),
       ]);
     } finally {
       setRefreshing(false);
@@ -73,14 +70,14 @@ export default function FAQScreen() {
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.container} 
+      <ScrollView
+        style={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#52B5AB']}
+            colors={["#52B5AB"]}
             tintColor="#52B5AB"
           />
         }
@@ -119,7 +116,10 @@ export default function FAQScreen() {
             <View style={styles.errorContainer}>
               <MaterialIcons name="error-outline" size={48} color="#E24646" />
               <Text style={styles.errorTitle}>Gagal Memuat FAQ</Text>
-              <Text style={styles.errorDescription}>Terjadi kesalahan saat mengambil data FAQ. Periksa koneksi internet Anda dan coba lagi.</Text>
+              <Text style={styles.errorDescription}>
+                Terjadi kesalahan saat mengambil data FAQ. Periksa koneksi
+                internet Anda dan coba lagi.
+              </Text>
               <TouchableOpacity style={styles.retryButton} onPress={fetchFaqs}>
                 <Text style={styles.retryText}>Coba Lagi</Text>
               </TouchableOpacity>
@@ -128,7 +128,9 @@ export default function FAQScreen() {
             <View style={styles.emptyContainer}>
               <MaterialIcons name="help-outline" size={48} color="#999" />
               <Text style={styles.emptyTitle}>Tidak Ada Hasil</Text>
-              <Text style={styles.emptyDescription}>Tidak ditemukan FAQ yang sesuai dengan pencarian Anda.</Text>
+              <Text style={styles.emptyDescription}>
+                Tidak ditemukan FAQ yang sesuai dengan pencarian Anda.
+              </Text>
             </View>
           ) : (
             filteredData.map((item, index) => {
@@ -393,7 +395,13 @@ function SkeletonFaqItem() {
   return (
     <View style={styles.skeletonItem}>
       <View style={styles.skeletonQuestion}>
-        <Animated.View style={[styles.skeletonText, { flex: 1, marginRight: 12 }, animatedStyle]} />
+        <Animated.View
+          style={[
+            styles.skeletonText,
+            { flex: 1, marginRight: 12 },
+            animatedStyle,
+          ]}
+        />
         <Animated.View style={[styles.skeletonIcon, animatedStyle]} />
       </View>
     </View>
