@@ -76,7 +76,8 @@
         {
           "microphonePermission": "Allow B-Care to access your microphone for audio calls"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
@@ -84,7 +85,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "cf5f9206-b23a-4704-9792-f3ac3effeda5"
+        "projectId": "a2afd478-02e3-411a-afb8-6e4bbda01880"
       }
     }
   }
