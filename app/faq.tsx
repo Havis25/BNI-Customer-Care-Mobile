@@ -36,6 +36,10 @@ export default function FAQScreen() {
     }
   }, [fetchFaqs]);
 
+  useEffect(() => {
+    fetchFaqs();
+  }, [fetchFaqs]);
+
   const toggleExpand = (id: number) => {
     setExpandedItems((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
