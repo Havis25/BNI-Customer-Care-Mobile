@@ -31,7 +31,7 @@ export function useFaq() {
 
     try {
       const [response] = await Promise.all([
-        api<FAQ[]>("/v1/faq"),
+        api<FAQ[]>("/v1/faqs"),
         new Promise(resolve => setTimeout(resolve, 1500))
       ]);
       

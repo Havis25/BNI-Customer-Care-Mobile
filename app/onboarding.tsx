@@ -13,7 +13,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { Fonts } from "@/constants/Fonts";
-import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 const { width, height } = Dimensions.get("window");
 
@@ -126,11 +125,7 @@ export default function OnboardingScreen() {
       <View style={styles.navigation}>
         {currentIndex > 0 ? (
           <TouchableOpacity style={styles.backButton} onPress={handlePrevious}>
-            <MaterialIcons 
-              name="arrow-back" 
-              size={deviceType.isSmall ? 18 : deviceType.isTablet ? 24 : 20} 
-              color="#52B5AB" 
-            />
+            <MaterialIcons name="arrow-back" size={20} color="#52B5AB" />
           </TouchableOpacity>
         ) : (
           <View style={styles.placeholder} />
@@ -150,7 +145,7 @@ export default function OnboardingScreen() {
             name={
               currentIndex === slides.length - 1 ? "check" : "arrow-forward"
             }
-            size={deviceType.isSmall ? 18 : deviceType.isTablet ? 24 : 20}
+            size={20}
             color="#fff"
           />
         </TouchableOpacity>
@@ -167,19 +162,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     paddingTop: 12,
   },
   logo: {
-    width: deviceType.isSmall ? wp(22) : deviceType.isTablet ? wp(15) : wp(27),
-    height: deviceType.isSmall ? hp(4) : deviceType.isTablet ? hp(3) : hp(5),
+    width: 100,
+    height: 40,
   },
   skipButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   skipText: {
-    fontSize: rf(16),
+    fontSize: 16,
     fontFamily: Fonts.semiBold,
     color: "#52B5AB",
   },
@@ -193,30 +188,29 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "flex-start",
-    paddingHorizontal: wp(7.5),
-    paddingTop: hp(-0.5),
+    paddingHorizontal: 28,
+    paddingTop: -4,
   },
   illustration: {
-    width: deviceType.isSmall ? wp(80) : deviceType.isTablet ? wp(60) : wp(90),
-    height: deviceType.isSmall ? wp(80) : deviceType.isTablet ? wp(60) : wp(90),
-    marginTop: hp(10),
+    width: 359,
+    height: 359,
+    marginTop: 80,
   },
   title: {
-    fontSize: rf(28),
+    fontSize: 28,
     fontFamily: Fonts.semiBold,
     color: "#22413F",
     textAlign: "center",
-    marginTop: hp(2.2),
-    marginBottom: hp(1),
-    paddingHorizontal: wp(4),
+    marginTop: 18,
+    marginBottom: 8,
   },
   description: {
-    fontSize: rf(14),
+    fontSize: 14,
     fontFamily: Fonts.regular,
     color: "#396D6A",
     textAlign: "center",
-    lineHeight: rf(20),
-    paddingHorizontal: wp(2),
+    lineHeight: 20,
+    paddingHorizontal: 0,
   },
 
   navigation: {
@@ -228,17 +222,17 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   nextButton: {
-    width: wp(12.8),
-    height: wp(12.8),
-    borderRadius: wp(6.4),
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#52B5AB",
     alignItems: "center",
     justifyContent: "center",
   },
   backButton: {
-    width: wp(12.8),
-    height: wp(12.8),
-    borderRadius: wp(6.4),
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#52B5AB",
@@ -247,8 +241,8 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
   },
   placeholder: {
-    width: wp(12.8),
-    height: wp(12.8),
+    width: 48,
+    height: 48,
   },
 
   pagination: {
