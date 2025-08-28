@@ -86,6 +86,7 @@ export interface TicketDetail {
   feedback?: {
     feedback_id: number;
     comment: string;
+    score: number;
   };
 }
 

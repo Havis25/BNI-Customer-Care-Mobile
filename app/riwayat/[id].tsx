@@ -296,16 +296,31 @@ export default function RiwayatDetailScreen() {
             </View>
           </View>
 
-          {ticketDetail.feedback &&
-            ticketDetail.customer_status?.customer_status_code === "CLOSED" && (
+          {ticketDetail.feedback && (
               <View style={styles.feedbackContainer}>
                 <View style={styles.feedbackSection}>
                   <Text style={styles.feedbackTitle}>Feedback Anda</Text>
                   <View style={styles.feedbackCard}>
+                    {/* <View style={styles.feedbackRating}>
+                      <Text style={styles.feedbackRatingLabel}>Rating:</Text>
+                      <View style={styles.feedbackStars}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <MaterialIcons
+                            key={star}
+                            name="star"
+                            size={20}
+                            color={star <= (ticketDetail.feedback?.score || 0) ? "#FFD700" : "#E5E5E5"}
+                          />
+                        ))}
+                        <Text style={styles.feedbackScore}>
+                          ({ticketDetail.feedback?.score || 0}/5)
+                        </Text>
+                      </View>
+                    </View> */}
                     <View style={styles.feedbackComment}>
                       <Text style={styles.feedbackCommentLabel}>Komentar:</Text>
                       <Text style={styles.feedbackCommentText}>
-                        {ticketDetail.feedback.comment}
+                        {ticketDetail.feedback?.comment || "Tidak ada komentar"}
                       </Text>
                     </View>
                   </View>
@@ -348,7 +363,8 @@ export default function RiwayatDetailScreen() {
           onClose={() => {}}
           ticketId={id as string}
           onSuccess={() => {
-            fetchTicketDetail(id as string);
+            // Force refresh ticket detail to get updated feedback data
+            fetchTicketDetail(id as string, true);
             setShowFeedback(false);
           }}
         />
@@ -420,7 +436,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: rf(18),
-    fontFamily: Fonts.medium,
+    fontFamily: Fonts.semiBold,
     color: "black",
   },
 
@@ -639,15 +655,15 @@ const styles = StyleSheet.create({
   feedbackTitle: {
     fontSize: 18,
     fontFamily: Fonts.medium,
-    color: "#333",
+    color: "black",
     marginBottom: 16,
   },
   feedbackCard: {
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#F1FBFB",
     borderRadius: 12,
     padding: 16,
     borderLeftWidth: 4,
-    borderLeftColor: "#52B5AB",
+    borderLeftColor: "#71DAD3",
   },
   feedbackRating: {
     flexDirection: "row",
@@ -676,7 +692,7 @@ const styles = StyleSheet.create({
   feedbackCommentLabel: {
     fontSize: 14,
     fontFamily: Fonts.medium,
-    color: "#333",
+    color: "black",
     marginBottom: 4,
   },
   feedbackCommentText: {
