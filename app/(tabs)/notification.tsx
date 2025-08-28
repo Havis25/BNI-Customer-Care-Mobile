@@ -3,12 +3,13 @@ import { Fonts } from "@/constants/Fonts";
 import { useTickets } from "@/hooks/useTickets"; // <-- pakai hook tiket
 import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import dayjs from "dayjs";
 import "dayjs/locale/id"; // supaya "5 menit lalu" pakai bahasa Indonesia
 import relativeTime from "dayjs/plugin/relativeTime";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -38,6 +39,66 @@ interface Notification {
 export default function NotificationScreen() {
   const { tickets, isLoading, error, refetch } = useTickets();
   const [readIds, setReadIds] = useState<string[]>([]);
+  const [isLoadingReadStatus, setIsLoadingReadStatus] = useState(true);
+
+  // Load read status from AsyncStorage
+  useEffect(() => {
+    const loadReadStatus = async () => {
+      try {
+        const storedReadIds = await AsyncStorage.getItem(
+          "notification_read_ids"
+        );
+        if (storedReadIds) {
+          setReadIds(JSON.parse(storedReadIds));
+        }
+      } catch (error) {
+        console.log("Error loading read status:", error);
+      } finally {
+        setIsLoadingReadStatus(false);
+      }
+    };
+
+    loadReadStatus();
+  }, []);
+
+  // Save read status to AsyncStorage whenever it changes
+  useEffect(() => {
+    const saveReadStatus = async () => {
+      if (!isLoadingReadStatus) {
+        try {
+          await AsyncStorage.setItem(
+            "notification_read_ids",
+            JSON.stringify(readIds)
+          );
+        } catch (error) {
+          console.log("Error saving read status:", error);
+        }
+      }
+    };
+
+    saveReadStatus();
+  }, [readIds, isLoadingReadStatus]);
+
+  // Cleanup old read IDs that don't correspond to current tickets (debounced)
+  useEffect(() => {
+    if (tickets.length > 0 && readIds.length > 0) {
+      const timeoutId = setTimeout(() => {
+        const currentTicketIds = tickets.map(
+          (ticket) => `ticket_${ticket.ticket_id || ticket.ticket_number}`
+        );
+        const validReadIds = readIds.filter((id) =>
+          currentTicketIds.includes(id)
+        );
+
+        // Only update if there are IDs to clean up
+        if (validReadIds.length !== readIds.length) {
+          setReadIds(validReadIds);
+        }
+      }, 500); // 500ms debounce
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [tickets, readIds]);
 
   // Transform tickets into notifications
   const notifications: Notification[] = useMemo(() => {
@@ -106,17 +167,15 @@ export default function NotificationScreen() {
         }
 
         return {
-          id: `notif_${
-            ticket.ticket_id || ticket.ticket_number
-          }_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `ticket_${ticket.ticket_id || ticket.ticket_number}`, // Use consistent ID based on ticket
           title,
           description,
           timeAgo: dayjs(ticket.created_time).fromNow(),
           iconName,
           iconColor,
           read: readIds.includes(
-            String(ticket.ticket_id || ticket.ticket_number)
-          ),
+            `ticket_${ticket.ticket_id || ticket.ticket_number}`
+          ), // Check against consistent ID
           category:
             ticket.issue_channel?.channel_name?.toLowerCase() || "general",
           ticketNumber: ticket.ticket_number,
@@ -127,7 +186,13 @@ export default function NotificationScreen() {
   }, [tickets, readIds]);
 
   const markAsRead = (id: string) => {
-    setReadIds((prev) => [...prev, id]);
+    setReadIds((prev) => {
+      // Only add if not already in the list
+      if (prev.includes(id)) {
+        return prev;
+      }
+      return [...prev, id];
+    });
   };
 
   const handleNotificationPress = (notification: Notification) => {
@@ -147,7 +212,12 @@ export default function NotificationScreen() {
   };
 
   const markAllAsRead = () => {
-    setReadIds(notifications.map((n) => n.id));
+    const allIds = notifications.map((n) => n.id);
+    setReadIds((prev) => {
+      // Merge with existing readIds to avoid duplicates
+      const newIds = allIds.filter((id) => !prev.includes(id));
+      return [...prev, ...newIds];
+    });
   };
 
   const renderItem = ({
@@ -195,7 +265,7 @@ export default function NotificationScreen() {
     </TouchableOpacity>
   );
 
-  if (isLoading) {
+  if (isLoading || isLoadingReadStatus) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <LinearGradient
