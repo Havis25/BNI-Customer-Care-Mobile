@@ -2375,7 +2375,7 @@ Sekarang Anda dapat melanjutkan:`;
 
             const validationMessage = {
               id: getUniqueId(),
-              text: "Apakah Anda ingin melanjutkan dengan live chat atau panggilan untuk mendapatkan bantuan lebih lanjut?",
+              text: "Silahkan Tekan Tombol chat untuk Menghubungkan ke Agent",
               isBot: true,
               timestamp: new Date().toLocaleTimeString("id-ID", {
                 hour: "2-digit",
@@ -3444,7 +3444,7 @@ Sekarang Anda dapat melanjutkan:`;
 
   // Handler for validation button selection
   const handleValidationSelect = useCallback(
-    (validationType: "call" | "chat" | "audio", messageId: string) => {
+    (validationType: "chat", messageId: string) => {
       // Update button group states to disable other options
       setButtonGroupStates((prev) => ({
         ...prev,
@@ -3454,9 +3454,7 @@ Sekarang Anda dapat melanjutkan:`;
         },
       }));
 
-      if (validationType === "call" || validationType === "audio") {
-        placeAudioCall();
-      } else if (validationType === "chat") {
+      if (validationType === "chat") {
         // Only when "chat" is specifically selected, connect to live chat
         setIsLiveChat(true);
 
@@ -3555,7 +3553,6 @@ Sekarang Anda dapat melanjutkan:`;
       }
     },
     [
-      placeAudioCall,
       currentTicketId,
       storageKey,
       chatUser,
@@ -3798,31 +3795,6 @@ Sekarang Anda dapat melanjutkan:`;
 
                   <Text style={styles.timestamp}>{message.timestamp}</Text>
                 </View>
-                {/* Call icons only for bot messages when live chat is active */}
-                {isLiveChat &&
-                  message.isBot &&
-                  !message.hasButtons &&
-                  !message.hasValidationButtons &&
-                  !message.hasLiveChatButtons &&
-                  !message.isCallLog && (
-                    <View style={styles.callIconsContainer}>
-                      <TouchableOpacity
-                        style={styles.callIcon}
-                        onPress={() => {
-                          if (peerCount >= 2) {
-                            placeAudioCall();
-                          } else {
-                            Alert.alert(
-                              "Agent tidak tersedia",
-                              "Sedang mencari agent untuk panggilan suara..."
-                            );
-                          }
-                        }}
-                      >
-                        <MaterialIcons name="phone" size={20} color="#4CAF50" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
               </View>
               {message.hasButtons && (
                 <View style={styles.buttonContainer}>
@@ -4240,7 +4212,7 @@ Sekarang Anda dapat melanjutkan:`;
                             setTimeout(() => {
                               const validationMessage = {
                                 id: getUniqueId(),
-                                text: "Selanjutnya mari lakukan validasi dengan agent. Pilih metode validasi:",
+                                text: "Selanjutnya Adalah Proses validasi, tunggu Agent melakukan Call atau Chat",
                                 isBot: true,
                                 timestamp: new Date().toLocaleTimeString(
                                   "id-ID",
@@ -4335,7 +4307,7 @@ Sekarang Anda dapat melanjutkan:`;
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity
                     style={[
-                      styles.audioButton,
+                      styles.chatButton,
                       buttonGroupStates[String(message.id)]?.selectedValue ===
                         "chat" && styles.disabledButton,
                     ]}
@@ -4350,54 +4322,6 @@ Sekarang Anda dapat melanjutkan:`;
                       "chat"
                     }
                     onPress={() => {
-                      if (peerCount < 2) {
-                        Alert.alert(
-                          "Agent Tidak Tersedia",
-                          "Tidak ada agent yang tersedia untuk panggilan suara saat ini."
-                        );
-                        return;
-                      }
-                      handleValidationSelect("audio", String(message.id));
-                    }}
-                  >
-                    <MaterialIcons
-                      name="phone"
-                      size={16}
-                      color={
-                        buttonGroupStates[String(message.id)]?.selectedValue ===
-                        "chat"
-                          ? "#999"
-                          : "#FFF"
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        buttonGroupStates[String(message.id)]?.selectedValue ===
-                          "chat" && { color: "#999" },
-                      ]}
-                    >
-                      Call
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.chatButton,
-                      buttonGroupStates[String(message.id)]?.selectedValue ===
-                        "call" && styles.disabledButton,
-                    ]}
-                    activeOpacity={
-                      buttonGroupStates[String(message.id)]?.selectedValue ===
-                      "call"
-                        ? 1
-                        : 0.7
-                    }
-                    disabled={
-                      buttonGroupStates[String(message.id)]?.selectedValue ===
-                      "call"
-                    }
-                    onPress={() => {
                       // Validate agent availability for chat
                       const availableAgent = activePeers.find(
                         (p) => p.userId && p.userId.startsWith("EMP-")
@@ -4406,7 +4330,7 @@ Sekarang Anda dapat melanjutkan:`;
                       if (!availableAgent && !isFromTicketDetail) {
                         Alert.alert(
                           "Agent Tidak Tersedia",
-                          "Tidak ada agent yang tersedia untuk chat saat ini. Silakan coba lagi nanti atau pilih opsi Call."
+                          "Tidak ada agent yang tersedia untuk chat saat ini. Silakan coba lagi nanti."
                         );
                         return;
                       }
@@ -4414,24 +4338,8 @@ Sekarang Anda dapat melanjutkan:`;
                       handleValidationSelect("chat", String(message.id));
                     }}
                   >
-                    <MaterialIcons
-                      name="chat"
-                      size={16}
-                      color={
-                        buttonGroupStates[String(message.id)]?.selectedValue ===
-                        "call"
-                          ? "#999"
-                          : "#FFF"
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { fontSize: 12 },
-                        buttonGroupStates[String(message.id)]?.selectedValue ===
-                          "call" && { color: "#999" },
-                      ]}
-                    >
+                    <MaterialIcons name="chat" size={16} color="#FFF" />
+                    <Text style={[styles.buttonText, { fontSize: 12 }]}>
                       Chat
                     </Text>
                   </TouchableOpacity>
@@ -5422,37 +5330,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 8,
-  },
-  callIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#F0F8F0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  callIconsContainer: {
-    flexDirection: "column",
-    gap: 4,
-  },
-  audioButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FF8636",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 4,
-  },
-  callButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 4,
   },
   chatButton: {
     flexDirection: "row",

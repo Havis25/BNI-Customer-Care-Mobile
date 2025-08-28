@@ -5,7 +5,11 @@ import { useTerminals } from "@/hooks/useTerminals";
 import { useUser } from "@/hooks/useUser";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { api } from "@/lib/api";
-import { formatAmountForDisplay, validateAmount } from "@/utils/chatValidation";
+import {
+  formatAmountForDisplay,
+  validateAmount,
+  validateTransactionDate,
+} from "@/utils/chatValidation";
 import { deviceType, hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -191,6 +195,12 @@ export default function ConfirmationScreen() {
     amountLocked: false,
     transactionDateLocked: false,
   });
+
+  // Error states for form validation
+  const [formErrors, setFormErrors] = useState({
+    amount: "",
+    transactionDate: "",
+  });
   // ====== PENTING: tinggi footer aktual agar ScrollView bisa scroll di atas keyboard ======
   const [footerHeight, setFooterHeight] = useState(120); // perkiraan awal; nanti diganti oleh onLayout
   // Get filtered categories based on selected channel
@@ -339,8 +349,8 @@ export default function ConfirmationScreen() {
       }
       // Set preset transaction date
       if (presetTransactionDate && typeof presetTransactionDate === "string") {
-        // Validate date format before setting
-        if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(presetTransactionDate)) {
+        const dateValidation = validateTransactionDate(presetTransactionDate);
+        if (dateValidation.isValid) {
           setTransactionDate(presetTransactionDate);
           newFieldStates.transactionDateLocked = true;
         }
@@ -367,16 +377,27 @@ export default function ConfirmationScreen() {
     filteredCategories.length > 0 &&
     channel?.channel_id &&
     category?.complaint_id &&
+    // Amount validation using validateAmount function
     (!requiresAmount ||
       (requiresAmount &&
         amount.trim() &&
-        /^[0-9]+$/.test(amount.trim()) &&
-        parseInt(amount.trim()) > 0)) &&
+        !formErrors.amount &&
+        (() => {
+          const amountValidation = validateAmount(amount.trim());
+          return amountValidation.isValid;
+        })())) &&
     (!requiresTerminal || (requiresTerminal && !!terminal)) &&
+    // Transaction date validation using validateTransactionDate function
     (!requiresTransactionDate ||
       (requiresTransactionDate &&
         transactionDate.trim() &&
-        /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(transactionDate.trim())));
+        !formErrors.transactionDate &&
+        (() => {
+          const dateValidation = validateTransactionDate(
+            transactionDate.trim()
+          );
+          return dateValidation.isValid;
+        })()));
   // Get account and card IDs from user data
   const getRelatedIds = () => {
     const userAccounts = user?.accounts || [];
@@ -684,6 +705,7 @@ export default function ConfirmationScreen() {
                     style={[
                       styles.textInput,
                       fieldStates.amountLocked && styles.disabledInput,
+                      formErrors.amount && styles.errorInput,
                     ]}
                     value={amount}
                     onChangeText={(text) => {
@@ -691,6 +713,25 @@ export default function ConfirmationScreen() {
                         // Only allow numbers
                         const numericText = text.replace(/[^0-9]/g, "");
                         setAmount(numericText);
+
+                        // Clear error on typing
+                        if (formErrors.amount) {
+                          setFormErrors((prev) => ({ ...prev, amount: "" }));
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      // Validate amount when user leaves the field
+                      if (requiresAmount && amount.trim()) {
+                        const amountValidation = validateAmount(amount.trim());
+                        if (!amountValidation.isValid) {
+                          setFormErrors((prev) => ({
+                            ...prev,
+                            amount:
+                              amountValidation.errorMessage ||
+                              "Nominal tidak valid",
+                          }));
+                        }
                       }
                     }}
                     placeholder="Masukkan nominal transaksi"
@@ -699,12 +740,16 @@ export default function ConfirmationScreen() {
                     returnKeyType="done"
                     editable={!fieldStates.amountLocked}
                   />
-                  <Text style={styles.helper}>
-                    {amount && formatAmountForDisplay(amount)}
-                    {!amount &&
-                      !fieldStates.amountLocked &&
-                      "Masukkan nominal dalam Rupiah (contoh: 100000)"}
-                  </Text>
+                  {formErrors.amount ? (
+                    <Text style={styles.errorText}>{formErrors.amount}</Text>
+                  ) : (
+                    <Text style={styles.helper}>
+                      {amount && formatAmountForDisplay(amount)}
+                      {!amount &&
+                        !fieldStates.amountLocked &&
+                        "Masukkan nominal dalam Rupiah (contoh: 100000)"}
+                    </Text>
+                  )}
                   {fieldStates.amountLocked && (
                     <Text style={styles.lockedHelper}>
                       ✓ Dipilih otomatis dari chatbot
@@ -720,11 +765,12 @@ export default function ConfirmationScreen() {
                     style={[
                       styles.textInput,
                       fieldStates.transactionDateLocked && styles.disabledInput,
+                      formErrors.transactionDate && styles.errorInput,
                     ]}
                     value={transactionDate}
                     onChangeText={(text) => {
                       if (!fieldStates.transactionDateLocked) {
-                        // Format and validate date input
+                        // Format date input with auto-formatting
                         let formattedText = text.replace(/[^\d\/\-]/g, "");
                         // Auto-format with slashes
                         if (
@@ -740,6 +786,30 @@ export default function ConfirmationScreen() {
                           formattedText += "/";
                         }
                         setTransactionDate(formattedText);
+
+                        // Clear error on typing
+                        if (formErrors.transactionDate) {
+                          setFormErrors((prev) => ({
+                            ...prev,
+                            transactionDate: "",
+                          }));
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      // Validate transaction date when user leaves the field
+                      if (requiresTransactionDate && transactionDate.trim()) {
+                        const dateValidation = validateTransactionDate(
+                          transactionDate.trim()
+                        );
+                        if (!dateValidation.isValid) {
+                          setFormErrors((prev) => ({
+                            ...prev,
+                            transactionDate:
+                              dateValidation.errorMessage ||
+                              "Tanggal tidak valid",
+                          }));
+                        }
                       }
                     }}
                     placeholder="DD/MM/YYYY"
@@ -749,14 +819,20 @@ export default function ConfirmationScreen() {
                     maxLength={10}
                     editable={!fieldStates.transactionDateLocked}
                   />
-                  <Text style={styles.helper}>
-                    {transactionDate &&
-                    /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(transactionDate)
-                      ? "Format tanggal valid ✓"
-                      : !fieldStates.transactionDateLocked
-                      ? "Masukkan tanggal dalam format DD/MM/YYYY (contoh: 15/08/2024)"
-                      : ""}
-                  </Text>
+                  {formErrors.transactionDate ? (
+                    <Text style={styles.errorText}>
+                      {formErrors.transactionDate}
+                    </Text>
+                  ) : (
+                    <Text style={styles.helper}>
+                      {transactionDate &&
+                      /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(transactionDate)
+                        ? "Format tanggal valid ✓"
+                        : !fieldStates.transactionDateLocked
+                        ? "Masukkan tanggal dalam format DD/MM/YYYY (contoh: 15/08/2024)"
+                        : ""}
+                    </Text>
+                  )}
                   {fieldStates.transactionDateLocked && (
                     <Text style={styles.lockedHelper}>
                       ✓ Dipilih otomatis dari chatbot
@@ -1012,6 +1088,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#52B5AB",
     color: "#666",
+  },
+  errorInput: {
+    borderWidth: 1,
+    borderColor: "#D32F2F",
+    backgroundColor: "#FFEBEE",
   },
   disabledSelectText: {
     color: "#666",
