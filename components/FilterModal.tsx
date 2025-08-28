@@ -13,7 +13,6 @@ import {
   Modal,
   Platform,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -49,21 +48,18 @@ export default function FilterModal({
 
   useEffect(() => {
     if (visible) {
-      // Background appears immediately
       Animated.timing(opacityAnim, {
         toValue: 1,
         duration: 200,
         useNativeDriver: true,
       }).start();
-
-      // Filter slides up from bottom
+      
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }).start();
     } else {
-      // Filter slides down first, then background fades
       Animated.timing(slideAnim, {
         toValue: 300,
         duration: 250,
@@ -87,8 +83,6 @@ export default function FilterModal({
   };
 
   const screenDimensions = getScreenDimensions();
-  const statusBarHeight =
-    Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0;
 
   return (
     <Modal
@@ -97,33 +91,29 @@ export default function FilterModal({
       animationType="none"
       statusBarTranslucent={Platform.OS === "android"}
     >
-      <SafeAreaView style={styles.safeArea}>
-        <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
-          <TouchableOpacity
-            style={styles.touchableOverlay}
-            activeOpacity={1}
-            onPress={onClose}
-          />
-          <Animated.View
-            style={[
-              styles.bottomSheet,
-              {
-                transform: [{ translateY: slideAnim }],
-                maxHeight: screenDimensions.isTablet ? "75%" : "90%", // Increased for all content visibility
-              },
-            ]}
-            onStartShouldSetResponder={() => true}
-          >
-            <View style={styles.sheetHeader}>
-              <View style={styles.dragIndicator} />
-              <Text style={styles.sheetTitle}>Filter & Urutkan</Text>
-            </View>
-
-            <ScrollView
-              style={styles.content}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
+      {Platform.OS === "android" ? (
+        <SafeAreaView style={styles.safeArea}>
+          <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
+            <TouchableOpacity
+              style={styles.touchableOverlay}
+              activeOpacity={1}
+              onPress={onClose}
+            />
+            <Animated.View
+              style={[
+                styles.bottomSheet,
+                {
+                  transform: [{ translateY: slideAnim }],
+                  maxHeight: screenDimensions.isTablet ? "75%" : "90%",
+                },
+              ]}
+              onStartShouldSetResponder={() => true}
             >
+              <View style={styles.sheetHeader}>
+                <View style={styles.dragIndicator} />
+                <Text style={styles.sheetTitle}>Filter & Urutkan</Text>
+              </View>
+
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Urutkan Berdasarkan</Text>
 
@@ -181,148 +171,157 @@ export default function FilterModal({
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Status Tiket</Text>
 
-                <TouchableOpacity
-                  key="Diterima"
-                  style={[
-                    styles.statusOption,
-                    selectedStatus.includes("Diterima") &&
-                      styles.selectedOption,
-                  ]}
-                  onPress={() => toggleStatus("Diterima")}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons
-                    name="description"
-                    size={rf(20)}
-                    color="#FF8636"
-                  />
-                  <Text style={styles.optionText}>Diterima</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Diterima")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={rf(20)}
-                    color={
-                      selectedStatus.includes("Diterima")
-                        ? "#1F72F1"
-                        : "#8E8E93"
-                    }
-                  />
+                {[
+                  { status: "Diterima", icon: "description", color: "#FF8636" },
+                  { status: "Verifikasi", icon: "verified", color: "#FFB600" },
+                  { status: "Diproses", icon: "history", color: "#B3BE47" },
+                  { status: "Selesai", icon: "check-circle", color: "#66C4BE" },
+                  { status: "Ditolak", icon: "cancel", color: "#E24646" },
+                ].map(({ status, icon, color }) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.statusOption,
+                      selectedStatus.includes(status) && styles.selectedOption,
+                    ]}
+                    onPress={() => toggleStatus(status)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name={icon as any} size={rf(20)} color={color} />
+                    <Text style={styles.optionText}>{status}</Text>
+                    <MaterialIcons
+                      name={
+                        selectedStatus.includes(status)
+                          ? "check-box"
+                          : "check-box-outline-blank"
+                      }
+                      size={rf(20)}
+                      color={
+                        selectedStatus.includes(status) ? "#1F72F1" : "#8E8E93"
+                      }
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.clearButton} onPress={onClear}>
+                  <Text style={styles.clearText}>Hapus</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  key="Verifikasi"
                   style={[
-                    styles.statusOption,
-                    selectedStatus.includes("Verifikasi") &&
-                      styles.selectedOption,
+                    styles.applyButton,
+                    !hasFilters && styles.disabledButton,
                   ]}
-                  onPress={() => toggleStatus("Verifikasi")}
-                  activeOpacity={0.7}
+                  onPress={onApply}
+                  disabled={!hasFilters}
                 >
-                  <MaterialIcons
-                    name="verified"
-                    size={rf(20)}
-                    color="#FFB600"
-                  />
-                  <Text style={styles.optionText}>Verifikasi</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Verifikasi")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={rf(20)}
-                    color={
-                      selectedStatus.includes("Verifikasi")
-                        ? "#1F72F1"
-                        : "#8E8E93"
-                    }
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  key="Diproses"
-                  style={[
-                    styles.statusOption,
-                    selectedStatus.includes("Diproses") &&
-                      styles.selectedOption,
-                  ]}
-                  onPress={() => toggleStatus("Diproses")}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name="history" size={rf(20)} color="#B3BE47" />
-                  <Text style={styles.optionText}>Diproses</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Diproses")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={rf(20)}
-                    color={
-                      selectedStatus.includes("Diproses")
-                        ? "#1F72F1"
-                        : "#8E8E93"
-                    }
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  key="Selesai"
-                  style={[
-                    styles.statusOption,
-                    selectedStatus.includes("Selesai") && styles.selectedOption,
-                  ]}
-                  onPress={() => toggleStatus("Selesai")}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons
-                    name="check-circle"
-                    size={rf(20)}
-                    color="#66C4BE"
-                  />
-                  <Text style={styles.optionText}>Selesai</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Selesai")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={rf(20)}
-                    color={
-                      selectedStatus.includes("Selesai") ? "#1F72F1" : "#8E8E93"
-                    }
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  key="Ditolak"
-                  style={[
-                    styles.statusOption,
-                    selectedStatus.includes("Ditolak") && styles.selectedOption,
-                  ]}
-                  onPress={() => toggleStatus("Ditolak")}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name="cancel" size={rf(20)} color="#E24646" />
-                  <Text style={styles.optionText}>Ditolak</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Ditolak")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={rf(20)}
-                    color={
-                      selectedStatus.includes("Ditolak") ? "#1F72F1" : "#8E8E93"
-                    }
-                  />
+                  <Text
+                    style={[styles.applyText, !hasFilters && styles.disabledText]}
+                  >
+                    Terapkan
+                  </Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+            </Animated.View>
+          </Animated.View>
+        </SafeAreaView>
+      ) : (
+        <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
+          <TouchableOpacity
+            style={styles.touchableOverlay}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+          <Animated.View
+            style={[
+              styles.bottomSheet,
+              { transform: [{ translateY: slideAnim }] },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Filter & Urutkan</Text>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Urutkan Berdasarkan</Text>
+
+              <TouchableOpacity
+                style={styles.sortOption}
+                onPress={() => setSortBy("tanggal-terbaru")}
+              >
+                <MaterialIcons
+                  name="calendar-today"
+                  size={20}
+                  color="#1F72F1"
+                />
+                <Text style={styles.optionText}>Terbaru</Text>
+                <MaterialIcons
+                  name={
+                    sortBy === "tanggal-terbaru"
+                      ? "radio-button-checked"
+                      : "radio-button-unchecked"
+                  }
+                  size={20}
+                  color={sortBy === "tanggal-terbaru" ? "#1F72F1" : "#8E8E93"}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sortOption}
+                onPress={() => setSortBy("tanggal-terlama")}
+              >
+                <MaterialIcons
+                  name="calendar-today"
+                  size={20}
+                  color="#1F72F1"
+                />
+                <Text style={styles.optionText}>Terlama</Text>
+                <MaterialIcons
+                  name={
+                    sortBy === "tanggal-terlama"
+                      ? "radio-button-checked"
+                      : "radio-button-unchecked"
+                  }
+                  size={20}
+                  color={sortBy === "tanggal-terlama" ? "#1F72F1" : "#8E8E93"}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Status Tiket</Text>
+
+              {[
+                { status: "Diterima", icon: "edit-document", color: "#FF8636" },
+                { status: "Verifikasi", icon: "verified", color: "#FFB600" },
+                { status: "Diproses", icon: "history", color: "#B3BE47" },
+                { status: "Selesai", icon: "check-circle-outline", color: "#66C4BE" },
+                { status: "Ditolak", icon: "block", color: "#E24646" },
+              ].map(({ status, icon, color }) => (
+                <TouchableOpacity
+                  key={status}
+                  style={styles.statusOption}
+                  onPress={() => toggleStatus(status)}
+                >
+                  <MaterialIcons name={icon as any} size={20} color={color} />
+                  <Text style={styles.optionText}>{status}</Text>
+                  <MaterialIcons
+                    name={
+                      selectedStatus.includes(status)
+                        ? "check-box"
+                        : "check-box-outline-blank"
+                    }
+                    size={20}
+                    color={
+                      selectedStatus.includes(status) ? "#1F72F1" : "#8E8E93"
+                    }
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity style={styles.clearButton} onPress={onClear}>
@@ -338,7 +337,10 @@ export default function FilterModal({
                 disabled={!hasFilters}
               >
                 <Text
-                  style={[styles.applyText, !hasFilters && styles.disabledText]}
+                  style={[
+                    styles.applyText,
+                    !hasFilters && styles.disabledText,
+                  ]}
                 >
                   Terapkan
                 </Text>
@@ -346,7 +348,7 @@ export default function FilterModal({
             </View>
           </Animated.View>
         </Animated.View>
-      </SafeAreaView>
+      )}
     </Modal>
   );
 }
@@ -365,22 +367,20 @@ const styles = StyleSheet.create({
   },
   bottomSheet: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: wp(5),
-    borderTopRightRadius: wp(5),
+    borderTopLeftRadius: Platform.OS === "android" ? wp(5) : 20,
+    borderTopRightRadius: Platform.OS === "android" ? wp(5) : 20,
     paddingHorizontal: wp(5),
-    paddingTop: hp(1),
-    paddingBottom: hp(1),
-    minHeight: deviceType.isSmall ? hp(75) : hp(72), // Increased significantly more for all 5 status options
+    paddingTop: Platform.OS === "android" ? hp(1) : hp(2.5),
+    paddingBottom: Platform.OS === "android" ? hp(1) : 0,
     ...Platform.select({
       android: {
+        minHeight: deviceType.isSmall ? hp(75) : hp(72),
         elevation: 10,
       },
       ios: {
+        maxHeight: deviceType.isTablet ? "60%" : "70%",
         shadowColor: "#000",
-        shadowOffset: {
-          width: 0,
-          height: -2,
-        },
+        shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
       },
@@ -393,97 +393,96 @@ const styles = StyleSheet.create({
     borderRadius: wp(1),
     alignSelf: "center",
     marginBottom: hp(2),
+    display: Platform.OS === "android" ? "flex" : "none",
   },
   sheetHeader: {
     alignItems: "center",
-    marginBottom: hp(2.5),
+    marginBottom: Platform.OS === "android" ? hp(2.5) : 20,
   },
   sheetTitle: {
     fontSize: rf(18),
     fontFamily: Fonts.semiBold,
     color: "#333",
   },
-  content: {
-    flex: 1,
-    paddingBottom: hp(1), // Add some padding at bottom
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: hp(2),
-  },
   section: {
-    marginBottom: hp(2.5), // Reduced margin for better spacing
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: rf(16),
     fontFamily: Fonts.medium,
     color: "#333",
-    marginBottom: hp(1.2), // Reduced for more compact layout
+    marginBottom: Platform.OS === "android" ? hp(1.2) : hp(1.5),
   },
   sortOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: hp(1.2), // Slightly reduced padding
-    paddingHorizontal: wp(3),
-    borderRadius: wp(2),
-    marginVertical: hp(0.3), // Reduced margin
-    minHeight: hp(5.5), // Slightly smaller height
+    paddingVertical: 12,
+    gap: 12,
   },
   statusOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: hp(1.5), // Increased padding
-    paddingHorizontal: wp(3),
-    borderRadius: wp(2),
-    marginVertical: hp(0.5), // Increased margin
-    minHeight: hp(6), // Increased height
+    paddingVertical: 12,
+    gap: 12,
   },
   selectedOption: {
     backgroundColor: "#F0F8FF",
+    display: Platform.OS === "android" ? "flex" : "none",
   },
   optionText: {
     flex: 1,
     fontSize: rf(14),
     fontFamily: Fonts.regular,
     color: "#333",
-    marginLeft: wp(3),
   },
   buttonContainer: {
     flexDirection: "row",
-    gap: wp(3),
-    paddingTop: hp(1.5),
-    paddingBottom: Platform.OS === "android" ? hp(4) : hp(3), // Reduced padding for better fit
-    backgroundColor: "#fff", // Ensure background is white
-    borderTopWidth: Platform.OS === "android" ? 1 : 0, // Add subtle separator on Android
-    borderTopColor: "#F0F0F0",
-    marginTop: hp(1), // Small margin to separate from content
+    gap: Platform.OS === "android" ? wp(3) : 12,
+    paddingTop: Platform.OS === "android" ? hp(1.5) : 0,
+    paddingBottom: Platform.OS === "android" ? hp(4) : 42,
+    backgroundColor: "#fff",
+    ...Platform.select({
+      android: {
+        borderTopWidth: 1,
+        borderTopColor: "#F0F0F0",
+        marginTop: hp(1),
+      },
+    }),
   },
   clearButton: {
     flex: 1,
     backgroundColor: "#E3F8F6",
-    paddingVertical: hp(1.6), // Slightly reduced
-    borderRadius: wp(2),
+    paddingVertical: Platform.OS === "android" ? hp(1.6) : 14,
+    borderRadius: Platform.OS === "android" ? wp(2) : 8,
     alignItems: "center",
-    minHeight: hp(5.5), // Reduced height
-    justifyContent: "center",
+    ...Platform.select({
+      android: {
+        minHeight: hp(5.5),
+        justifyContent: "center",
+      },
+    }),
   },
   clearText: {
     color: "#52B5AB",
-    fontSize: rf(14),
+    fontSize: Platform.OS === "android" ? rf(14) : 14,
     fontFamily: Fonts.medium,
   },
   applyButton: {
     flex: 1,
     backgroundColor: "#52B5AB",
-    paddingVertical: hp(1.6), // Slightly reduced
-    borderRadius: wp(2),
+    paddingVertical: Platform.OS === "android" ? hp(1.6) : 14,
+    borderRadius: Platform.OS === "android" ? wp(2) : 8,
     alignItems: "center",
-    minHeight: hp(5.5), // Reduced height
-    justifyContent: "center",
+    ...Platform.select({
+      android: {
+        minHeight: hp(5.5),
+        justifyContent: "center",
+      },
+    }),
   },
   applyText: {
     color: "#fff",
-    fontSize: rf(14),
+    fontSize: Platform.OS === "android" ? rf(14) : 14,
     fontFamily: Fonts.medium,
   },
   disabledButton: {

@@ -9,7 +9,7 @@ export default function ComplaintCard() {
   return (
     <TouchableOpacity
       style={styles.complaintCard}
-      onPress={() => router.push("/complaint/chat" as any)}
+      onPress={() => router.replace("/complaint/chat" as any)}
     >
       <View style={styles.cardHeader}>
         <View style={styles.iconContainer}>
