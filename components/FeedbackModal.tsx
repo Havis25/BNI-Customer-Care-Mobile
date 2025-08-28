@@ -73,6 +73,11 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
       return;
     }
     
+    if (comment.trim() === "") {
+      Alert.alert("Error", "Mohon isi komentar terlebih dahulu");
+      return;
+    }
+    
     const success = await submitFeedback(ticketId, { score, comment });
     
     if (success) {
@@ -119,7 +124,7 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
       <KeyboardAvoidingView 
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
           <TouchableOpacity 
@@ -148,7 +153,7 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
           <Text style={styles.ratingLabel}>Rating</Text>
           {renderStars()}
 
-          <Text style={styles.commentLabel}>Komentar (Opsional)</Text>
+          <Text style={styles.commentLabel}>Komentar *</Text>
           <TextInput
             style={styles.commentInput}
             placeholder="Tulis komentar Anda..."
@@ -161,14 +166,14 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
           />
 
           <TouchableOpacity
-            style={[styles.submitButton, (score === 0 || isLoading) && styles.disabledButton]}
+            style={[styles.submitButton, (score === 0 || comment.trim() === "" || isLoading) && styles.disabledButton]}
             onPress={handleSubmitFeedback}
-            disabled={score === 0 || isLoading}
+            disabled={score === 0 || comment.trim() === "" || isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={[styles.submitText, (score === 0 || isLoading) && styles.disabledText]}>
+              <Text style={[styles.submitText, (score === 0 || comment.trim() === "" || isLoading) && styles.disabledText]}>
                 Kirim
               </Text>
             )}

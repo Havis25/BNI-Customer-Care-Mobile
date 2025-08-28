@@ -296,13 +296,12 @@ export default function RiwayatDetailScreen() {
             </View>
           </View>
 
-          {ticketDetail.feedback &&
-            ticketDetail.customer_status?.customer_status_code === "CLOSED" && (
+          {ticketDetail.feedback && (
               <View style={styles.feedbackContainer}>
                 <View style={styles.feedbackSection}>
                   <Text style={styles.feedbackTitle}>Feedback Anda</Text>
                   <View style={styles.feedbackCard}>
-                    <View style={styles.feedbackRating}>
+                    {/* <View style={styles.feedbackRating}>
                       <Text style={styles.feedbackRatingLabel}>Rating:</Text>
                       <View style={styles.feedbackStars}>
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -314,14 +313,14 @@ export default function RiwayatDetailScreen() {
                           />
                         ))}
                         <Text style={styles.feedbackScore}>
-                          ({ticketDetail.feedback.score}/5)
+                          ({ticketDetail.feedback?.score || 0}/5)
                         </Text>
                       </View>
-                    </View>
+                    </View> */}
                     <View style={styles.feedbackComment}>
                       <Text style={styles.feedbackCommentLabel}>Komentar:</Text>
                       <Text style={styles.feedbackCommentText}>
-                        {ticketDetail.feedback.comment}
+                        {ticketDetail.feedback?.comment || "Tidak ada komentar"}
                       </Text>
                     </View>
                   </View>
@@ -364,7 +363,8 @@ export default function RiwayatDetailScreen() {
           onClose={() => {}}
           ticketId={id as string}
           onSuccess={() => {
-            fetchTicketDetail(id as string);
+            // Force refresh ticket detail to get updated feedback data
+            fetchTicketDetail(id as string, true);
             setShowFeedback(false);
           }}
         />

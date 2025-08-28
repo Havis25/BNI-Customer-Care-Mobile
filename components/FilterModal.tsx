@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   selectedOption: {
-    backgroundColor: "#F0F8FF",
+    backgroundColor: "#FFFFFF",
     display: Platform.OS === "android" ? "flex" : "none",
   },
   optionText: {
