@@ -34,7 +34,7 @@ export function useFaq() {
 
     try {
       
-      const response = await api<FAQ[]>("/v1/faqs");
+      const response = await api<FAQ[]>("/v1/faqs?limit=25");
 
       // Handle FAQ response - check if it's wrapped in a data property
       if (response && typeof response === "object") {
