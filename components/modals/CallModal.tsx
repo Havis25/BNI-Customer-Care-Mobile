@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import React, { useEffect, useState } from "react";
+import {
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface CallModalProps {
   visible: boolean;
@@ -15,9 +21,28 @@ interface CallModalProps {
   onHangup?: () => void;
   camRef?: React.RefObject<React.ElementRef<typeof CameraView>>;
   permission?: any;
+  isSpeakerEnabled?: boolean;
+  onToggleSpeaker?: () => void;
+  isMicEnabled?: boolean;
+  onToggleMic?: () => void;
 }
 
-export default function CallModal({ visible, callStatus, onStatusChange, onClose, onAccept, onDecline, remoteFrame, onHangup, camRef, permission: cameraPermission }: CallModalProps) {
+export default function CallModal({
+  visible,
+  callStatus,
+  onStatusChange,
+  onClose,
+  onAccept,
+  onDecline,
+  remoteFrame,
+  onHangup,
+  camRef,
+  permission: cameraPermission,
+  isSpeakerEnabled = false,
+  onToggleSpeaker,
+  isMicEnabled = true,
+  onToggleMic,
+}: CallModalProps) {
   const [localPermission, requestPermission] = useCameraPermissions();
   const permission = cameraPermission || localPermission;
   const [callDuration, setCallDuration] = useState(0);
@@ -40,7 +65,9 @@ export default function CallModal({ visible, callStatus, onStatusChange, onClose
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   const handleEndCall = () => {
@@ -63,7 +90,9 @@ export default function CallModal({ visible, callStatus, onStatusChange, onClose
             ) : (
               <View style={styles.noVideoContainer}>
                 <MaterialIcons name="account-circle" size={120} color="#666" />
-                <Text style={styles.noVideoText}>Menunggu video dari agent...</Text>
+                <Text style={styles.noVideoText}>
+                  Menunggu video dari agent...
+                </Text>
               </View>
             )}
           </View>
@@ -71,7 +100,9 @@ export default function CallModal({ visible, callStatus, onStatusChange, onClose
           {/* Call info overlay */}
           <View style={styles.callInfoOverlay}>
             <Text style={styles.callerNameOverlay}>BNI Agent</Text>
-            <Text style={styles.callDurationOverlay}>{formatDuration(callDuration)}</Text>
+            <Text style={styles.callDurationOverlay}>
+              {formatDuration(callDuration)}
+            </Text>
           </View>
 
           {/* Local camera preview */}
@@ -89,16 +120,39 @@ export default function CallModal({ visible, callStatus, onStatusChange, onClose
 
           {/* Call controls */}
           <View style={styles.callControlsOverlay}>
-            <TouchableOpacity style={styles.muteButton}>
-              <MaterialIcons name="mic" size={30} color="#FFF" />
+            <TouchableOpacity
+              style={[
+                styles.muteButton,
+                !isMicEnabled && styles.muteButtonActive,
+              ]}
+              onPress={onToggleMic}
+            >
+              <MaterialIcons
+                name={isMicEnabled ? "mic" : "mic-off"}
+                size={30}
+                color="#FFF"
+              />
             </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.endCallButton} onPress={handleEndCall}>
+
+            <TouchableOpacity
+              style={styles.endCallButton}
+              onPress={handleEndCall}
+            >
               <MaterialIcons name="call-end" size={30} color="#FFF" />
             </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.speakerButton}>
-              <MaterialIcons name="volume-up" size={30} color="#FFF" />
+
+            <TouchableOpacity
+              style={[
+                styles.speakerButton,
+                isSpeakerEnabled && styles.speakerButtonActive,
+              ]}
+              onPress={onToggleSpeaker}
+            >
+              <MaterialIcons
+                name={isSpeakerEnabled ? "volume-up" : "volume-down"}
+                size={30}
+                color="#FFF"
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -314,5 +368,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#555",
     justifyContent: "center",
     alignItems: "center",
+  },
+  muteButtonActive: {
+    backgroundColor: "#F44336",
+  },
+  speakerButtonActive: {
+    backgroundColor: "#4CAF50",
   },
 });

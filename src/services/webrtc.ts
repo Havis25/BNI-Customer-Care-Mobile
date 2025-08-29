@@ -131,6 +131,12 @@ class WebRTCService {
     }
   }
 
+  toggleSpeaker(room: string, enabled: boolean) {
+    // For React Native, speaker toggle is handled by the system
+    // We emit this to inform other participants about speaker status
+    this.socket.emit("webrtc:speaker-toggle", { room, enabled });
+  }
+
   // Video functionality removed - audio only implementation
 }
 
