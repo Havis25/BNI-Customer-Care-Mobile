@@ -63,7 +63,7 @@ const performTokenRefresh = async (): Promise<string | null> => {
         if (data.refresh_token) {
           await SecureStore.setItemAsync("refresh_token", data.refresh_token);
         }
-        
+
         return data.access_token;
       }
 
@@ -76,7 +76,6 @@ const performTokenRefresh = async (): Promise<string | null> => {
       );
 
       if (attempts >= MAX_REFRESH_ATTEMPTS) {
-        
         return null;
       }
 
@@ -109,14 +108,12 @@ export async function api<T = JSONValue>(
   ) {
     try {
       const token = await SecureStore.getItemAsync("access_token");
-      
+
       if (token) {
         // Pastikan token tidak double Bearer
         const cleanToken = token.startsWith("Bearer ") ? token.slice(7) : token;
         headers.Authorization = `Bearer ${cleanToken}`;
-        
       } else {
-        
       }
     } catch (error) {
       console.error(`❌ Error getting token for ${path}:`, error);
@@ -131,7 +128,6 @@ export async function api<T = JSONValue>(
 
   // Handle 401/419 expired token
   if ((res.status === 401 || res.status === 419) && !path.includes("/auth/")) {
-    
     const newToken = await refreshToken();
     if (newToken) {
       // Retry with new token
@@ -141,9 +137,7 @@ export async function api<T = JSONValue>(
         headers,
         signal,
       });
-      
     } else {
-      
       // For debugging - let's see the response
       const text = await res.text().catch(() => "");
 
@@ -169,4 +163,3 @@ export async function api<T = JSONValue>(
 
   return jsonResponse as T;
 }
-

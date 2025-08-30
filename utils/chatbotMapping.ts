@@ -1,5 +1,3 @@
-import { api } from "@/lib/api";
-
 // Chatbot to Database mapping
 export const CHATBOT_CHANNEL_MAPPING: Record<string, string> = {
   ATM: "ATM",
@@ -216,4 +214,3 @@ export function mapChatbotTerminalToDatabase(
 
   return terminals[0]?.terminal_id || 1;
 }
-
