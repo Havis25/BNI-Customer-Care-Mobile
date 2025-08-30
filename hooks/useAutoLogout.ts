@@ -30,7 +30,6 @@ export function useAutoLogout() {
     clearAllTimers();
 
     inactivityTimerRef.current = setTimeout(() => {
-      console.log("Auto logout: Inactivity timeout reached");
       logout(false); // Logout tanpa warning
     }, INACTIVITY_TIMEOUT);
   }, [isAuthenticated, isActive, logout, clearAllTimers]);
@@ -41,7 +40,6 @@ export function useAutoLogout() {
       if (backgroundTime) {
         const timeInBackground = Date.now() - parseInt(backgroundTime);
         if (timeInBackground >= INACTIVITY_TIMEOUT) {
-          console.log("Auto logout: Background timeout exceeded");
           logout(false);
           return;
         }
@@ -73,7 +71,6 @@ export function useAutoLogout() {
         previousState.match(/inactive|background/)
       ) {
         // App kembali ke foreground
-        console.log("App resumed from background");
         setIsActive(true);
 
         // Check jika sudah terlalu lama di background
@@ -95,7 +92,6 @@ export function useAutoLogout() {
         previousState === "active"
       ) {
         // App ke background
-        console.log("App going to background");
         setIsActive(false);
         clearInactivityTimer();
 
@@ -112,7 +108,6 @@ export function useAutoLogout() {
         // Untuk iOS, set timer untuk logout saat background
         if (Platform.OS === "ios") {
           backgroundTimerRef.current = setTimeout(() => {
-            console.log("Auto logout: iOS background timeout");
             logout(false);
           }, INACTIVITY_TIMEOUT);
         }
