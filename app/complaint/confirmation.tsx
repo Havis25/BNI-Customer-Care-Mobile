@@ -898,7 +898,10 @@ export default function ConfirmationScreen() {
               <View
                 style={[
                   styles.footerCard,
-                  { paddingBottom: 16 + insets.bottom }, // safe-area iPhone
+                  { 
+                    paddingBottom: Platform.OS === 'ios' ? 16 + insets.bottom : 16,
+                    backgroundColor: '#fff' // Ensure white background for Android
+                  }
                 ]}
                 onLayout={(e) => setFooterHeight(e.nativeEvent.layout.height)}
               >
@@ -1034,7 +1037,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingVertical: hp(3),
     paddingTop: hp(2),
-    paddingBottom: hp(5.2),
+    paddingBottom: Platform.OS === 'ios' ? hp(5.2) : hp(3),
     paddingHorizontal: wp(4),
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 0 },
