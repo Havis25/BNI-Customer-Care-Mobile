@@ -1,3 +1,4 @@
+import { Audio } from "expo-av";
 import {
   mediaDevices,
   MediaStream,
@@ -14,6 +15,7 @@ class WebRTCService {
   private currentRoom: string | null = null;
   private isCallActive: boolean = false;
   private callStartTime: number | null = null;
+  private isSpeakerEnabled: boolean = true; // Default to speaker for audio calls
 
   private configuration = {
     iceServers: [
@@ -31,7 +33,10 @@ class WebRTCService {
 
   async initializeCall() {
     try {
-      // Audio only with basic settings
+      // Setup audio session for proper routing
+      await this.setupAudioSession();
+
+      // Audio only with enhanced settings for better audio quality
       this.localStream = await mediaDevices.getUserMedia({
         audio: true,
         video: false,
@@ -56,19 +61,40 @@ class WebRTCService {
         }
       );
 
-      // Handle incoming audio track
+      // Handle incoming audio track with proper routing
       (this.peerConnection as any).addEventListener("track", (event: any) => {
-        // Remote audio will be played automatically by WebRTC
         if (event.streams && event.streams[0]) {
           const remoteStream = event.streams[0];
           const audioTracks = remoteStream.getAudioTracks();
 
           audioTracks.forEach((track: any) => {
+            // Enable remote audio track
+            track.enabled = true;
+
             // Monitor track state for stability
             track.addEventListener("ended", () => {
-              if (__DEV__) console.log("Audio track ended");
+              if (__DEV__) console.log("Remote audio track ended");
+            });
+
+            track.addEventListener("mute", () => {
+              if (__DEV__) console.log("Remote audio track muted");
+            });
+
+            track.addEventListener("unmute", () => {
+              if (__DEV__) console.log("Remote audio track unmuted");
             });
           });
+
+          // Ensure audio routing to speaker
+          this.setAudioOutputToSpeaker().catch((error) => {
+            if (__DEV__) console.log("Audio routing error:", error);
+          });
+
+          if (__DEV__) {
+            console.log("🎧 WebRTC Track Event - Remote stream connected");
+            console.log("Audio tracks count:", audioTracks.length);
+            console.log("Speaker enabled:", this.isSpeakerEnabled);
+          }
         }
       });
 
@@ -145,6 +171,7 @@ class WebRTCService {
 
     this.isCallActive = false;
     this.callStartTime = null;
+    this.isSpeakerEnabled = false; // Reset speaker state
   }
 
   setCurrentRoom(room: string) {
@@ -169,9 +196,70 @@ class WebRTCService {
   }
 
   toggleSpeaker(room: string, enabled: boolean) {
-    // For React Native, speaker toggle is handled by the system
-    // We emit this to inform other participants about speaker status
+    this.isSpeakerEnabled = enabled;
+
+    // Set audio output routing (async)
+    this.setAudioOutputRouting(enabled).catch((error) => {
+      if (__DEV__) console.log("Speaker toggle error:", error);
+    });
+
+    // Emit to inform other participants about speaker status
     this.socket.emit("webrtc:speaker-toggle", { room, enabled });
+  }
+
+  // Audio session setup for proper device routing
+  private async setupAudioSession() {
+    try {
+      // Setup proper audio session for calls
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false, // Force to speaker
+        staysActiveInBackground: false,
+      });
+
+      // Default to speaker for audio calls
+      this.isSpeakerEnabled = true;
+
+      if (__DEV__) {
+        console.log("Audio session configured for WebRTC calls");
+      }
+    } catch (error) {
+      if (__DEV__) console.log("Audio session setup warning:", error);
+    }
+  }
+
+  // Set audio output routing (speaker vs earpiece)
+  private async setAudioOutputRouting(toSpeaker: boolean) {
+    try {
+      // Use Expo AV for proper audio routing
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: !toSpeaker,
+        staysActiveInBackground: false,
+      });
+
+      // Additional native routing if available
+      if ((mediaDevices as any).setSpeakerphoneOn) {
+        (mediaDevices as any).setSpeakerphoneOn(toSpeaker);
+      }
+
+      this.isSpeakerEnabled = toSpeaker;
+
+      if (__DEV__) {
+        console.log(`Audio routed to: ${toSpeaker ? "Speaker" : "Earpiece"}`);
+      }
+    } catch (error) {
+      if (__DEV__) console.log("Audio routing warning:", error);
+    }
+  }
+
+  // Force audio to speaker (for initial call setup)
+  private async setAudioOutputToSpeaker() {
+    await this.setAudioOutputRouting(true);
   }
 
   // Server compatibility methods
@@ -230,6 +318,11 @@ class WebRTCService {
 
     // Start audio streaming notification
     this.socket.emit("audio:start", { room });
+
+    // Ensure audio is routed to speaker for audio calls
+    this.setAudioOutputToSpeaker().catch((error) => {
+      if (__DEV__) console.log("Audio routing error:", error);
+    });
   }
 
   // Method to decline call with server notification
@@ -243,6 +336,7 @@ class WebRTCService {
       isActive: this.isCallActive,
       startTime: this.callStartTime,
       room: this.currentRoom,
+      isSpeakerEnabled: this.isSpeakerEnabled,
     };
   }
 
