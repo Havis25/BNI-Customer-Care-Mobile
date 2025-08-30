@@ -494,7 +494,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: "black",
     lineHeight: 20,
-    textAlign: "justify",
   },
   complaintContainer: {
     padding: wp(4),
