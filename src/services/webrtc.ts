@@ -17,6 +17,13 @@ class WebRTCService {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:34.50.84.251:3478" }, // +1 baris
+      {
+        // +2 baris
+        urls: "turn:34.50.84.251:3478", // +3 baris
+        username: "bcare-user",
+        credential: "bcare-secret-key-2024",
+      },
     ],
   };
 
@@ -122,6 +129,12 @@ class WebRTCService {
       });
       this.socket.emit("webrtc:audio-toggle", { room, enabled });
     }
+  }
+
+  toggleSpeaker(room: string, enabled: boolean) {
+    // For React Native, speaker toggle is handled by the system
+    // We emit this to inform other participants about speaker status
+    this.socket.emit("webrtc:speaker-toggle", { room, enabled });
   }
 
   // Video functionality removed - audio only implementation

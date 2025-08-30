@@ -85,8 +85,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a2afd478-02e3-411a-afb8-6e4bbda01880"
+        "projectId": "cf5f9206-b23a-4704-9792-f3ac3effeda5"
       }
-    }
+    },
+    "owner": "havis"
   }
 }

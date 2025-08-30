@@ -1,18 +1,15 @@
-import React, { useCallback, useContext } from "react";
-
-// Create context inline to avoid circular import
-const AutoLogoutContext = React.createContext<{
-  resetInactivityTimer: () => void;
-} | null>(null);
+import { AutoLogoutContext } from "@/components/AutoLogoutProvider";
+import { useCallback, useContext } from "react";
 
 /**
  * Hook untuk mengintegrasikan auto-logout ke dalam komponen
- * Digunakan pada komponen yang memiliki user interaction
+ * Satu-satunya implementasi yang diperlukan untuk user activity tracking
  */
 export function useUserActivity() {
   const context = useContext(AutoLogoutContext);
 
   const trackActivity = useCallback(() => {
+    // Direct call ke context untuk performance optimal
     context?.resetInactivityTimer();
   }, [context]);
 
@@ -27,8 +24,33 @@ export function useUserActivity() {
     [trackActivity]
   );
 
+  // Enhanced wrapper untuk berbagai event handlers
+  const withActivity = useCallback(
+    <T extends (...args: any[]) => any>(handler?: T) => {
+      if (!handler) return trackActivity as T;
+
+      return ((...args: Parameters<T>) => {
+        trackActivity();
+        return handler(...args);
+      }) as T;
+    },
+    [trackActivity]
+  );
+
   return {
     trackActivity,
-    withActivityTracking,
+    withActivityTracking, // Legacy support
+    withActivity, // Enhanced version
   };
 }
+
+/**
+ * Direct utility function untuk trigger dari mana saja
+ * Gunakan ini jika tidak dalam React context
+ */
+export const triggerUserActivity = () => {
+  // Direct call ke global function yang di-set oleh AutoLogoutProvider
+  if ((global as any).triggerUserActivity) {
+    (global as any).triggerUserActivity();
+  }
+};

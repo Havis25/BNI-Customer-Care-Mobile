@@ -201,6 +201,8 @@ export default function ChatScreen() {
   // Audio call states only
   const [isAudioCall, setIsAudioCall] = useState(false);
   const [localStream, setLocalStream] = useState<any>(null);
+  const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(false);
+  const [isMicEnabled, setIsMicEnabled] = useState(true);
   const [inputText, setInputText] = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
@@ -300,6 +302,26 @@ export default function ChatScreen() {
   const getUniqueId = () => {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
+
+  // Toggle speaker function
+  const toggleSpeaker = useCallback(() => {
+    setIsSpeakerEnabled((prev) => {
+      const newState = !prev;
+      // Call WebRTC service to toggle speaker
+      WebRTCService.toggleSpeaker(ACTIVE_ROOM, newState);
+      return newState;
+    });
+  }, [ACTIVE_ROOM]);
+
+  // Toggle microphone function
+  const toggleMicrophone = useCallback(() => {
+    setIsMicEnabled((prev) => {
+      const newState = !prev;
+      // Call WebRTC service to toggle microphone
+      WebRTCService.toggleAudio(ACTIVE_ROOM, newState);
+      return newState;
+    });
+  }, [ACTIVE_ROOM]);
 
   // Function to check API health
   const checkApiHealth = useCallback(async () => {
@@ -5087,13 +5109,49 @@ Sekarang Anda dapat melanjutkan:`;
               )}
 
               {callStatus === "audio-call" && (
-                <TouchableOpacity
-                  style={styles.hangupButton}
-                  onPress={hangupCall}
-                >
-                  <MaterialIcons name="call-end" size={20} color="#FFF" />
-                  <Text style={styles.acceptCallText}>Tutup</Text>
-                </TouchableOpacity>
+                <View style={styles.callControlsContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.callControlButton,
+                      !isMicEnabled && styles.callControlButtonActive,
+                    ]}
+                    onPress={toggleMicrophone}
+                  >
+                    <MaterialIcons
+                      name={isMicEnabled ? "mic" : "mic-off"}
+                      size={20}
+                      color="#FFF"
+                    />
+                    <Text style={styles.callControlText}>
+                      {isMicEnabled ? "Mic" : "Muted"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.hangupButton}
+                    onPress={hangupCall}
+                  >
+                    <MaterialIcons name="call-end" size={20} color="#FFF" />
+                    <Text style={styles.acceptCallText}>Tutup</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.callControlButton,
+                      isSpeakerEnabled && styles.callControlButtonActive,
+                    ]}
+                    onPress={toggleSpeaker}
+                  >
+                    <MaterialIcons
+                      name={isSpeakerEnabled ? "volume-up" : "volume-down"}
+                      size={20}
+                      color="#FFF"
+                    />
+                    <Text style={styles.callControlText}>
+                      {isSpeakerEnabled ? "Speaker" : "Earpiece"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
           </View>
@@ -5392,6 +5450,29 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontFamily: "Poppins",
     fontWeight: "600",
+  },
+  callControlsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  callControlButton: {
+    flexDirection: "column",
+    alignItems: "center",
+    backgroundColor: "#666",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 2,
+  },
+  callControlButtonActive: {
+    backgroundColor: "#4CAF50",
+  },
+  callControlText: {
+    fontSize: 10,
+    color: "#FFF",
+    fontFamily: "Poppins",
+    fontWeight: "500",
   },
   endChatButton: {
     padding: 8,

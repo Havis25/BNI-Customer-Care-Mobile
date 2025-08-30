@@ -120,7 +120,7 @@ export default function DigitalScreen() {
                 style={[styles.iconContainer, { backgroundColor: item.color }]}
               >
                 <MaterialCommunityIcons
-                  name={item.icon as any}
+                  name={item.icon as keyof typeof MaterialCommunityIcons.glyphMap}
                   size={20}
                   color="white"
                 />
