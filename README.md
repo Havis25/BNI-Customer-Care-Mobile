@@ -1,50 +1,144 @@
-# Welcome to your Expo app 👋
+# BNI Customer Care Mobile App 🏦
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplikasi mobile customer service BNI yang dibangun dengan React Native dan Expo Router untuk memberikan layanan pelanggan yang komprehensif.
 
-## Get started
+## 🚀 Fitur Utama
 
-1. Install dependencies
+- **Authentication & Security**: Login aman dengan auto-logout dan session management
+- **Complaint Management**: Sistem pengaduan terintegrasi dengan chatbot AI
+- **Real-time Chat**: Chat langsung dengan customer service menggunakan WebRTC
+- **Service Directory**: Informasi lengkap layanan BNI (Digital, Cabang, Produk, Promo)
+- **Ticket Tracking**: Pelacakan status pengaduan dan riwayat
+- **Multi-platform**: Support Android, iOS, dan Web
 
+## 📱 Struktur Aplikasi
+
+### Core Pages
+- **Home** (`/`): Dashboard utama dengan layanan dan FAQ
+- **Login** (`/login`): Autentikasi pengguna
+- **Profile** (`/profile`): Informasi dan pengaturan akun
+- **Notifications** (`/notification`): Notifikasi dan update
+- **History** (`/riwayat`): Riwayat pengaduan dan transaksi
+
+### Services
+- **Digital Services** (`/services/digital`): Layanan perbankan digital
+- **Branch Locator** (`/services/cabang`): Pencari cabang terdekat
+- **Products** (`/services/produk`): Katalog produk BNI
+- **Promotions** (`/services/promo`): Promo dan penawaran
+- **Agent Services** (`/services/agent`): Layanan agen46
+- **Wondr Integration** (`/services/wondr`): Integrasi dengan aplikasi Wondr
+
+### Complaint System
+- **Chat Interface** (`/complaint/chat`): Chat dengan AI bot dan customer service
+- **Complaint Form** (`/complaint/confirmation`): Form pengaduan terstruktur
+- **Ticket Detail** (`/riwayat/[id]`): Detail pengaduan dan follow-up
+
+## 🛠️ Setup & Installation
+
+1. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+2. **Setup environment**
    ```bash
-   npx expo start
+   cp .env.example .env
+   # Edit .env dengan konfigurasi yang sesuai
    ```
 
-In the output, you'll find options to open the app in a
+3. **Start development server**
+   ```bash
+   npm start
+   ```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+4. **Run on specific platform**
+   ```bash
+   npm run android  # Android
+   npm run ios      # iOS
+   npm run web      # Web browser
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🏗️ Arsitektur Teknis
 
-## Get a fresh project
+### Frontend Stack
+- **React Native 0.79.5** dengan Expo SDK 53
+- **Expo Router** untuk file-based routing
+- **TypeScript** untuk type safety
+- **React Native Reanimated** untuk animasi
+- **Socket.IO** untuk real-time communication
 
-When you're ready, run:
+### State Management
+- **Custom Hooks** untuk business logic
+- **AsyncStorage** untuk local persistence
+- **Context API** untuk global state
 
-```bash
-npm run reset-project
+### Security Features
+- **Auto-logout** dengan inactivity detection
+- **XSS Protection** dengan input sanitization
+- **Secure token management** dengan refresh mechanism
+- **Path traversal protection**
+
+### Key Components
+```
+components/
+├── home/           # Homepage components
+├── modals/         # Modal dialogs
+├── shared/         # Reusable components
+└── ui/             # UI primitives
+
+hooks/
+├── useAuth.ts      # Authentication logic
+├── useAutoLogout.ts # Security & session management
+├── useTickets.ts   # Complaint management
+└── useApi.ts       # API communication
+
+utils/
+├── chatbotMapping.ts    # AI chatbot integration
+├── chatValidation.ts    # Input validation
+└── responsive.ts        # Responsive design
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🔧 Development Scripts
 
-## Learn more
+```bash
+npm start          # Start Expo development server
+npm run server     # Start backend server (if available)
+npm run lint       # Run ESLint
+npm run reset-project  # Reset to clean state
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## 📋 API Integration
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- **Authentication**: `/auth/login`, `/auth/me`, `/auth/refresh`
+- **Tickets**: `/v1/tickets` (CRUD operations)
+- **Channels & Categories**: `/v1/channels`, `/v1/categories`
+- **Terminals**: `/v1/terminals`
+- **FAQ**: `/v1/faq`
+- **Feedback**: `/v1/feedback`
 
-## Join the community
+## 🔒 Security Measures
 
-Join our community of developers creating universal apps.
+- **Input Sanitization**: XSS protection pada semua user input
+- **Session Management**: Auto-logout setelah 2 menit inaktif
+- **Token Security**: Automatic token refresh dan secure storage
+- **Path Protection**: Validasi path untuk mencegah directory traversal
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 📱 Platform Support
+
+- **Android**: Native Android app via Expo
+- **iOS**: Native iOS app via Expo
+- **Web**: Progressive Web App (PWA)
+
+## 🚀 Deployment
+
+Gunakan Expo Application Services (EAS) untuk build dan deployment:
+
+```bash
+npx eas build --platform android
+npx eas build --platform ios
+npx eas submit
+```
+
+## 📞 Support
+
+Untuk bantuan teknis atau pertanyaan pengembangan, hubungi tim development BNI Customer Care.
