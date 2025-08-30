@@ -3380,16 +3380,57 @@ Sekarang Anda dapat melanjutkan:`;
       stopCall();
     };
 
+    // Server compatibility event handlers
+    const handleCallRinging = (data: any) => {
+      setCallStatus("ringing");
+    };
+
+    const handleCallIncoming = (data: any) => {
+      setCallStatus("ringing");
+    };
+
+    const handleCallAccepted = () => {
+      setCallStatus("in-call");
+      setIsAudioCall(true);
+    };
+
+    const handleCallDeclined = () => {
+      setCallStatus("idle");
+      setIsAudioCall(false);
+    };
+
+    const handleCallEnded = () => {
+      stopCall();
+      setCallStatus("idle");
+      setIsAudioCall(false);
+    };
+
+    // WebRTC event listeners
     socket.on("webrtc:offer", handleOffer);
     socket.on("webrtc:answer", handleAnswer);
     socket.on("webrtc:ice-candidate", handleIceCandidate);
     socket.on("webrtc:end-call", handleEndCall);
 
+    // Server compatibility event listeners
+    socket.on("call:ringing", handleCallRinging);
+    socket.on("call:incoming", handleCallIncoming);
+    socket.on("call:accepted", handleCallAccepted);
+    socket.on("call:declined", handleCallDeclined);
+    socket.on("call:ended", handleCallEnded);
+
     return () => {
+      // WebRTC cleanup
       socket.off("webrtc:offer", handleOffer);
       socket.off("webrtc:answer", handleAnswer);
       socket.off("webrtc:ice-candidate", handleIceCandidate);
       socket.off("webrtc:end-call", handleEndCall);
+
+      // Server compatibility cleanup
+      socket.off("call:ringing", handleCallRinging);
+      socket.off("call:incoming", handleCallIncoming);
+      socket.off("call:accepted", handleCallAccepted);
+      socket.off("call:declined", handleCallDeclined);
+      socket.off("call:ended", handleCallEnded);
     };
   }, [socket, ACTIVE_ROOM, initializeWebRTCAudioCall, stopCall]);
 
@@ -3401,7 +3442,9 @@ Sekarang Anda dapat melanjutkan:`;
       );
       return;
     }
+    // Use both formats for compatibility
     socket.emit("audio:invite", { room: ACTIVE_ROOM });
+    socket.emit("call:invite", { room: ACTIVE_ROOM });
     setCallStatus("ringing");
     setIsAudioCall(true);
     startAudioCall();
@@ -3415,20 +3458,24 @@ Sekarang Anda dapat melanjutkan:`;
       );
       return;
     }
+    // Use both formats for compatibility
     socket.emit("audio:invite", { room: ACTIVE_ROOM });
+    socket.emit("call:invite", { room: ACTIVE_ROOM });
     setCallStatus("ringing");
     setIsAudioCall(true);
   };
 
   const acceptCall = () => {
-    socket.emit("audio:accept", { room: ACTIVE_ROOM });
+    // Use WebRTC service method for server compatibility
+    WebRTCService.acceptCall(ACTIVE_ROOM);
     setCallStatus("audio-call");
     setCallStartTime(Date.now());
     startAudioCall();
   };
 
   const declineCall = () => {
-    socket.emit("audio:decline", { room: ACTIVE_ROOM });
+    // Use WebRTC service method for server compatibility
+    WebRTCService.declineCall(ACTIVE_ROOM);
     setCallStatus("idle");
     setIsAudioCall(false);
   };
@@ -3457,7 +3504,8 @@ Sekarang Anda dapat melanjutkan:`;
       setCallStartTime(null);
     }
 
-    socket.emit("audio:hangup", { room: ACTIVE_ROOM });
+    // Use WebRTC service endCall method (includes server compatibility)
+    WebRTCService.endCall(ACTIVE_ROOM);
     stopCall();
 
     setCallStatus("idle");
