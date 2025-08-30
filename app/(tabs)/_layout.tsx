@@ -27,6 +27,16 @@ const TABBAR_BACKDROP = "#FFFFFF";
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
+  // Create refs for each tab outside of the map callback
+  const scaleAnimRefs = useRef<{ [key: string]: Animated.Value }>({});
+
+  // Initialize animation values for all routes
+  state.routes.forEach((route) => {
+    if (!scaleAnimRefs.current[route.key]) {
+      scaleAnimRefs.current[route.key] = new Animated.Value(1);
+    }
+  });
+
   return (
     <View style={styles.tabBarWrapper} pointerEvents="box-none">
       {/* Backdrop penuh di bawah tabbar: menghilangkan warna hitam di belakang sudut membulat */}
@@ -84,14 +94,16 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 ? options.tabBarIcon({ focused: isFocused, color, size })
                 : null;
 
-            // Animasi kecil saat tap icon
-            const scaleAnim = useRef(new Animated.Value(1)).current;
+            // Get animation ref for this route
+            const scaleAnim = scaleAnimRefs.current[route.key];
+
             const handlePressIn = () => {
               Animated.spring(scaleAnim, {
                 toValue: 0.95,
                 useNativeDriver: true,
               }).start();
             };
+
             const handlePressOut = () => {
               Animated.spring(scaleAnim, {
                 toValue: 1,
@@ -102,12 +114,17 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             return (
               <Animated.View
                 key={route.key}
-                style={[styles.itemTouchable, { transform: [{ scale: scaleAnim }] }]}
+                style={[
+                  styles.itemTouchable,
+                  { transform: [{ scale: scaleAnim }] },
+                ]}
               >
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityState={isFocused ? { selected: true } : {}}
-                  accessibilityLabel={(options.tabBarAccessibilityLabel as string) ?? label}
+                  accessibilityLabel={
+                    (options.tabBarAccessibilityLabel as string) ?? label
+                  }
                   testID={`tab-${route.name}`}
                   onPress={onPress}
                   onLongPress={onLongPress}
@@ -130,7 +147,9 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                   >
                     <View style={styles.iconOnly}>{icon}</View>
                     {isFocused && (
-                      <Text style={[styles.activeLabel, { color: ACTIVE_COLOR }]}>
+                      <Text
+                        style={[styles.activeLabel, { color: ACTIVE_COLOR }]}
+                      >
                         {label}
                       </Text>
                     )}
@@ -154,7 +173,10 @@ export default function TabLayout() {
         tabBarHideOnKeyboard: true,
         // bikin konten scene transparan supaya nggak “ngecat” hitam saat OS dark-mode
         // @ts-expect-error expo-router belum expose typing ini
-        sceneContainerStyle: { paddingBottom: BAR_HEIGHT, backgroundColor: "transparent" },
+        sceneContainerStyle: {
+          paddingBottom: BAR_HEIGHT,
+          backgroundColor: "transparent",
+        },
       }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
@@ -172,11 +194,7 @@ export default function TabLayout() {
         options={{
           title: "Riwayat",
           tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons
-              name="history"
-              size={24}
-              color={color}
-            />
+            <MaterialIcons name="history" size={24} color={color} />
           ),
         }}
       />
