@@ -34,6 +34,7 @@ export function useFeedback() {
         {
           method: "POST",
           headers: {
+            "Content-Type": "application/json",
             Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
           },
           body: JSON.stringify({
@@ -57,3 +58,4 @@ export function useFeedback() {
     isLoading,
   };
 }
+

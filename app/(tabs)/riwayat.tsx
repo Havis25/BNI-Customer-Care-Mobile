@@ -1,18 +1,14 @@
+import FilterModal from "@/components/FilterModal";
+import TabTransition from "@/components/TabTransition";
 import { Fonts } from "@/constants/Fonts";
+import { useTickets } from "@/hooks/useTickets";
+import { hp, rf, wp } from "@/utils/responsive";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
-  Animated,
   FlatList,
-  Modal,
   Platform,
   RefreshControl,
   StyleSheet,
@@ -23,15 +19,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import TabTransition from "@/components/TabTransition";
-import { useTickets } from "@/hooks/useTickets";
-
-// ==================== Helpers Warna Status ====================
 const getStatusColorBackground = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FFF3EB";
-    case "Verfikasi":
+    case "Verifikasi":
       return "#FFF9EB";
     case "Diproses":
       return "#FCFDEE";
@@ -47,7 +39,7 @@ const getStatusColorBadge = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FFDBC3";
-    case "Verfikasi":
+    case "Verifikasi":
       return "#FFEEC2";
     case "Diproses":
       return "#F3F8BD";
@@ -63,7 +55,7 @@ const getStatusColorText = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FF8636";
-    case "Verfikasi":
+    case "Verifikasi":
       return "#FFB600";
     case "Diproses":
       return "#B3BE47";
@@ -79,7 +71,7 @@ const getShadowColor = (status: string) => {
   switch (status) {
     case "Diterima":
       return "#FF8636";
-    case "Verfikasi":
+    case "Verifikasi":
       return "#FFC533";
     case "Diproses":
       return "#E0EE59";
@@ -92,34 +84,6 @@ const getShadowColor = (status: string) => {
   }
 };
 
-// (opsional) parser tanggal versi ID
-const parseIndonesianDate = (tanggal: string, jam: string) => {
-  const monthMap: { [key: string]: number } = {
-    Jan: 0,
-    Feb: 1,
-    Mar: 2,
-    Apr: 3,
-    Mei: 4,
-    Jun: 5,
-    Jul: 6,
-    Agu: 7,
-    Sep: 8,
-    Okt: 9,
-    Nov: 10,
-    Des: 11,
-  };
-  const [day, month, year] = tanggal.split(" ");
-  const [hour, minute] = jam.split(":");
-  return new Date(
-    parseInt(year),
-    monthMap[month],
-    parseInt(day),
-    parseInt(hour),
-    parseInt(minute)
-  );
-};
-
-// ==================== Komponen ====================
 export default function RiwayatScreen() {
   const [showFilter, setShowFilter] = useState(false);
   const [sortBy, setSortBy] = useState("");
@@ -128,19 +92,16 @@ export default function RiwayatScreen() {
   const [appliedStatus, setAppliedStatus] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [showNewTicketNotification, setShowNewTicketNotification] = useState(false);
-
-  // animasi bottom sheet
-  const slideAnim = useRef(new Animated.Value(300)).current;
+  const [showNewTicketNotification, setShowNewTicketNotification] =
+    useState(false);
 
   const { tickets, isLoading: loading, error, refetch } = useTickets();
-
   const toIndoStatus = useCallback((statusCode?: string) => {
     switch ((statusCode || "").toUpperCase()) {
       case "ACC":
         return "Diterima";
       case "VERIF":
-        return "Verfikasi";
+        return "Verifikasi";
       case "PROCESS":
         return "Diproses";
       case "CLOSED":
@@ -156,29 +117,18 @@ export default function RiwayatScreen() {
     if (!tickets) {
       return [];
     }
-    
+
     const mappedData = tickets.map((t) => ({
       ticket_id: t.ticket_id || t.ticket_number, // Use ticket_id if available, fallback to ticket_number
       ticket_number: t.ticket_number,
-      customer_status: toIndoStatus(t.customer_status.customer_status_code),
-      channel: t.issue_channel.channel_name,
+      customer_status: toIndoStatus(t.customer_status?.customer_status_code),
+      channel: t.issue_channel?.channel_name || "Tidak tersedia",
       created_time: t.created_time,
       description: t.description,
     }));
-    
+
     return mappedData;
   }, [tickets, toIndoStatus]);
-
-
-
-  // animasi open/close filter sheet
-  useEffect(() => {
-    Animated.timing(slideAnim, {
-      toValue: showFilter ? 0 : 300,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [showFilter, slideAnim]);
 
   const hasFilters = sortBy !== "" || selectedStatus.length > 0;
 
@@ -250,24 +200,22 @@ export default function RiwayatScreen() {
     }
   }, [refetch]);
 
-  // Auto-refresh saat halaman di-focus (kembali dari complaint)
   useFocusEffect(
     useCallback(() => {
       const checkRefreshFlag = async () => {
         try {
-          const shouldRefresh = await AsyncStorage.getItem('shouldRefreshRiwayat');
-          if (shouldRefresh === 'true') {
-            await AsyncStorage.removeItem('shouldRefreshRiwayat');
+          const shouldRefresh = await AsyncStorage.getItem(
+            "shouldRefreshRiwayat"
+          );
+          if (shouldRefresh === "true") {
+            await AsyncStorage.removeItem("shouldRefreshRiwayat");
             setShowNewTicketNotification(true);
             setTimeout(() => setShowNewTicketNotification(false), 3000);
             await refetch();
           }
-          // Only refetch if there's a refresh flag, not on every focus
-        } catch (error) {
-          // Don't auto-refetch on error
-        }
+        } catch {}
       };
-      
+
       checkRefreshFlag();
     }, [refetch])
   );
@@ -277,12 +225,14 @@ export default function RiwayatScreen() {
     <TabTransition>
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Riwayat Laporan</Text>
-        
+
         {/* New Ticket Notification */}
         {showNewTicketNotification && (
           <View style={styles.notificationContainer}>
             <MaterialIcons name="check-circle" size={20} color="#4CAF50" />
-            <Text style={styles.notificationText}>Tiket baru berhasil dibuat!</Text>
+            <Text style={styles.notificationText}>
+              Tiket baru berhasil dibuat!
+            </Text>
           </View>
         )}
 
@@ -312,333 +262,126 @@ export default function RiwayatScreen() {
         </View>
 
         {loading ? (
-          <Text style={styles.loadingText}>Loading...</Text>
+          <FlatList
+            data={[1, 2, 3, 4, 5]}
+            keyExtractor={(item) => item.toString()}
+            renderItem={() => <SkeletonCard />}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
         ) : error ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            <MaterialIcons name="error-outline" size={48} color="#E24646" />
+            <Text style={styles.errorTitle}>Gagal Memuat Data</Text>
+            <Text style={styles.errorText}>
+              Terjadi kesalahan saat mengambil data riwayat. Periksa koneksi
+              internet Anda.
+            </Text>
             <TouchableOpacity style={styles.retryButton} onPress={refetchAll}>
               <Text style={styles.retryText}>Coba Lagi</Text>
             </TouchableOpacity>
+          </View>
+        ) : filteredData.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="inbox" size={48} color="#999" />
+            <Text style={styles.emptyTitle}>Belum Ada Riwayat</Text>
+            <Text style={styles.emptyText}>
+              Anda belum memiliki riwayat laporan. Buat laporan pertama Anda
+              sekarang.
+            </Text>
           </View>
         ) : (
           <>
             <FlatList
               data={filteredData}
-              keyExtractor={(item) => item.ticket_number}
+              keyExtractor={(item, index) =>
+                `${item.ticket_number}_${item.ticket_id}_${index}`
+              }
               renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.card,
-                  {
-                    borderLeftColor: getStatusColorText(item.customer_status),
-                    backgroundColor: getStatusColorBackground(
-                      item.customer_status
-                    ),
-                    shadowColor: getShadowColor(item.customer_status),
-                  },
-                ]}
-                onPress={() => {
-                  router.push(`/riwayat/${item.ticket_id}` as any);
-                }}
-              >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardId}>{item.ticket_number}</Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {
-                        backgroundColor: getStatusColorBadge(
-                          item.customer_status
-                        ),
-                      },
-                    ]}
-                  >
-                    <Text
+                <TouchableOpacity
+                  style={[
+                    styles.card,
+                    {
+                      borderLeftColor: getStatusColorText(item.customer_status),
+                      backgroundColor: getStatusColorBackground(
+                        item.customer_status
+                      ),
+                      shadowColor: getShadowColor(item.customer_status),
+                    },
+                  ]}
+                  onPress={() => {
+                    router.push(`/riwayat/${item.ticket_id}` as any);
+                  }}
+                >
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardId}>{item.ticket_number}</Text>
+                    <View
                       style={[
-                        styles.statusText,
-                        { color: getStatusColorText(item.customer_status) },
+                        styles.statusBadge,
+                        {
+                          backgroundColor: getStatusColorBadge(
+                            item.customer_status
+                          ),
+                        },
                       ]}
                     >
-                      {item.customer_status}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.statusText,
+                          { color: getStatusColorText(item.customer_status) },
+                        ]}
+                      >
+                        {item.customer_status}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                <Text style={styles.cardTitle}>{item.channel}</Text>
-                <Text style={styles.cardDateTime}>
-                  {item.created_time
-                    ? `${formatDate(item.created_time)}, ${formatTime(
-                        item.created_time
-                      )}`
-                    : "-"}
-                </Text>
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#52B5AB']}
-                tintColor="#52B5AB"
-              />
-            }
-          />
+                  <Text style={styles.cardTitle}>{item.channel}</Text>
+                  <Text style={styles.cardDateTime}>
+                    {item.created_time
+                      ? `${formatDate(item.created_time)}, ${formatTime(
+                          item.created_time
+                        )}`
+                      : "-"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={["#52B5AB"]}
+                  tintColor="#52B5AB"
+                />
+              }
+            />
           </>
         )}
 
-        {/* Bottom Sheet Filter */}
-        <Modal visible={showFilter} transparent animationType="fade">
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowFilter(false)}
-          >
-            <Animated.View
-              style={[
-                styles.bottomSheet,
-                { transform: [{ translateY: slideAnim }] },
-              ]}
-              onStartShouldSetResponder={() => true}
-            >
-              <View style={styles.sheetHeader}>
-                <Text style={styles.sheetTitle}>Filter & Sort</Text>
-                <TouchableOpacity onPress={() => setShowFilter(false)}>
-                  <MaterialIcons name="close" size={24} color="#333" />
-                </TouchableOpacity>
-              </View>
-
-              <View className="section" style={styles.section}>
-                <Text style={styles.sectionTitle}>Sort By</Text>
-
-                <TouchableOpacity
-                  style={styles.sortOption}
-                  onPress={() =>
-                    setSortBy(
-                      sortBy === "tanggal-terbaru" ? "" : "tanggal-terbaru"
-                    )
-                  }
-                >
-                  <MaterialIcons
-                    name="calendar-today"
-                    size={20}
-                    color="#1F72F1"
-                  />
-                  <Text style={styles.optionText}>Tanggal Terbaru</Text>
-                  <MaterialIcons
-                    name={
-                      sortBy === "tanggal-terbaru"
-                        ? "radio-button-checked"
-                        : "radio-button-unchecked"
-                    }
-                    size={20}
-                    color={sortBy === "tanggal-terbaru" ? "#1F72F1" : "#8E8E93"}
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.sortOption}
-                  onPress={() =>
-                    setSortBy(
-                      sortBy === "tanggal-terlama" ? "" : "tanggal-terlama"
-                    )
-                  }
-                >
-                  <MaterialIcons
-                    name="calendar-today"
-                    size={20}
-                    color="#1F72F1"
-                  />
-                  <Text style={styles.optionText}>Tanggal Terlama</Text>
-                  <MaterialIcons
-                    name={
-                      sortBy === "tanggal-terlama"
-                        ? "radio-button-checked"
-                        : "radio-button-unchecked"
-                    }
-                    size={20}
-                    color={sortBy === "tanggal-terlama" ? "#1F72F1" : "#8E8E93"}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Status Ticket</Text>
-
-                <TouchableOpacity
-                  style={styles.statusOption}
-                  onPress={() =>
-                    toggleStatus("Diterima", selectedStatus, setSelectedStatus)
-                  }
-                >
-                  <MaterialIcons
-                    name="edit-document"
-                    size={20}
-                    color="#FF8636"
-                  />
-                  <Text style={styles.optionText}>Diterima</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Diterima")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={20}
-                    color={
-                      selectedStatus.includes("Diterima")
-                        ? "#1F72F1"
-                        : "#8E8E93"
-                    }
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.statusOption}
-                  onPress={() =>
-                    toggleStatus("Verfikasi", selectedStatus, setSelectedStatus)
-                  }
-                >
-                  <MaterialIcons name="verified" size={20} color="#FFB600" />
-                  <Text style={styles.optionText}>Verfikasi</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Verfikasi")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={20}
-                    color={
-                      selectedStatus.includes("Verfikasi")
-                        ? "#1F72F1"
-                        : "#8E8E93"
-                    }
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.statusOption}
-                  onPress={() =>
-                    toggleStatus("Diproses", selectedStatus, setSelectedStatus)
-                  }
-                >
-                  <MaterialIcons name="history" size={20} color="#B3BE47" />
-                  <Text style={styles.optionText}>Diproses</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Diproses")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={20}
-                    color={
-                      selectedStatus.includes("Diproses")
-                        ? "#1F72F1"
-                        : "#8E8E93"
-                    }
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.statusOption}
-                  onPress={() =>
-                    toggleStatus("Selesai", selectedStatus, setSelectedStatus)
-                  }
-                >
-                  <MaterialIcons
-                    name="check-circle-outline"
-                    size={20}
-                    color="#66C4BE"
-                  />
-                  <Text style={styles.optionText}>Selesai</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Selesai")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={20}
-                    color={
-                      selectedStatus.includes("Selesai") ? "#1F72F1" : "#8E8E93"
-                    }
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.statusOption}
-                  onPress={() =>
-                    toggleStatus("Ditolak", selectedStatus, setSelectedStatus)
-                  }
-                >
-                  <MaterialIcons name="block" size={20} color="#E24646" />
-                  <Text style={styles.optionText}>Ditolak</Text>
-                  <MaterialIcons
-                    name={
-                      selectedStatus.includes("Ditolak")
-                        ? "check-box"
-                        : "check-box-outline-blank"
-                    }
-                    size={20}
-                    color={
-                      selectedStatus.includes("Ditolak") ? "#1F72F1" : "#8E8E93"
-                    }
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={styles.clearButton}
-                  onPress={() => {
-                    setSelectedStatus([]);
-                    setSortBy("");
-                    setAppliedStatus([]);
-                    setAppliedSortBy("");
-                  }}
-                >
-                  <Text style={styles.clearText}>Hapus</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.applyButton,
-                    !hasFilters && styles.disabledButton,
-                  ]}
-                  onPress={() => {
-                    setAppliedSortBy(sortBy);
-                    setAppliedStatus(selectedStatus);
-                    setShowFilter(false);
-                  }}
-                  disabled={!hasFilters}
-                >
-                  <Text
-                    style={[
-                      styles.applyText,
-                      !hasFilters && styles.disabledText,
-                    ]}
-                  >
-                    Terapkan
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-          </TouchableOpacity>
-        </Modal>
-
-
+        <FilterModal
+          visible={showFilter}
+          onClose={() => setShowFilter(false)}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          selectedStatus={selectedStatus}
+          setSelectedStatus={setSelectedStatus}
+          onApply={() => {
+            setAppliedSortBy(sortBy);
+            setAppliedStatus(selectedStatus);
+            setShowFilter(false);
+          }}
+          onClear={() => {
+            setSelectedStatus([]);
+            setSortBy("");
+            setAppliedStatus([]);
+            setAppliedSortBy("");
+          }}
+          hasFilters={hasFilters}
+        />
       </SafeAreaView>
     </TabTransition>
-  );
-}
-
-// helper kecil untuk toggle checkbox status
-function toggleStatus(
-  status: string,
-  selected: string[],
-  setSelected: React.Dispatch<React.SetStateAction<string[]>>
-) {
-  setSelected((prev) =>
-    prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
   );
 }
 
@@ -646,14 +389,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fffefeff",
-    paddingHorizontal: 16,
-    marginBottom: Platform.OS === "ios" ? 50 : 0,
+    paddingHorizontal: wp(4),
+    marginBottom: Platform.OS === "ios" ? hp(6) : 0,
   },
   title: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontFamily: Fonts.semiBold,
     color: "black",
-    marginBottom: 16,
+    marginBottom: hp(2),
     textAlign: "center",
   },
   searchFilterContainer: {
@@ -685,12 +428,12 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   listContainer: {
-    paddingBottom: Platform.OS === "ios" ? 20 : 0,
+    paddingBottom: Platform.OS === "ios" ? 20 : 80,
   },
   card: {
-    marginTop: 12,
-    marginBottom: 18,
-    padding: 18,
+    marginTop: hp(1.5),
+    marginBottom: hp(2.2),
+    padding: wp(4.5),
     borderRadius: 14,
     borderLeftWidth: 5,
     shadowOffset: { width: 0, height: 0 },
@@ -730,93 +473,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  bottomSheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 0,
-    maxHeight: "70%",
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontFamily: Fonts.semiBold,
-    color: "#333",
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: Fonts.medium,
-    color: "#333",
-    marginBottom: 12,
-  },
-  sortOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-  },
-  statusOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-  },
-  optionText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: Fonts.regular,
-    color: "#333",
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    gap: 12,
-    paddingBottom: 42,
-  },
-  clearButton: {
-    flex: 1,
-    backgroundColor: "#E3F8F6",
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  clearText: {
-    color: "#52B5AB",
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-  },
-  applyButton: {
-    flex: 1,
-    backgroundColor: "#52B5AB",
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  applyText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-  },
-  disabledButton: {
-    backgroundColor: "#E5E5E5",
-  },
-  disabledText: {
-    color: "#999",
-  },
+
   loadingText: {
     textAlign: "center",
     fontSize: 16,
@@ -825,16 +482,25 @@ const styles = StyleSheet.create({
     marginTop: 50,
   },
   errorContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    marginTop: 50,
     paddingHorizontal: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.semiBold,
+    color: "#E24646",
+    marginTop: 16,
+    marginBottom: 8,
   },
   errorText: {
     textAlign: "center",
     fontSize: 14,
     fontFamily: Fonts.regular,
-    color: "#E24646",
-    marginBottom: 16,
+    color: "#666",
+    marginBottom: 24,
+    lineHeight: 20,
   },
   retryButton: {
     backgroundColor: "#52B5AB",
@@ -864,4 +530,81 @@ const styles = StyleSheet.create({
     color: "#2E7D32",
     flex: 1,
   },
+  skeletonCard: {
+    marginTop: 12,
+    marginBottom: 18,
+    padding: 18,
+    borderRadius: 14,
+    borderLeftWidth: 5,
+    borderLeftColor: "#E5E5E5",
+    backgroundColor: "#F8F9FA",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  skeletonHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  skeletonId: {
+    width: 80,
+    height: 12,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonBadge: {
+    width: 60,
+    height: 20,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  skeletonTitle: {
+    width: "70%",
+    height: 14,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  skeletonDateTime: {
+    width: "50%",
+    height: 12,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 6,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.semiBold,
+    color: "#333",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 20,
+  },
 });
+
+function SkeletonCard() {
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonHeader}>
+        <View style={styles.skeletonId} />
+        <View style={styles.skeletonBadge} />
+      </View>
+      <View style={styles.skeletonTitle} />
+      <View style={styles.skeletonDateTime} />
+    </View>
+  );
+}

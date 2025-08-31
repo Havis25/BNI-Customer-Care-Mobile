@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View, Image } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 const services = [
   { id: 1, name: "Produk Bank BNI", icon: "credit-card-multiple-outline", bgColor: "#1F72F1" },
@@ -62,12 +63,16 @@ export default function ServicesCard() {
               {service.isImage ? (
                 <Image
                   source={service.icon}
-                  style={{ width: 24, height: 24, resizeMode: "contain" }}
+                  style={{ 
+                    width: deviceType.isSmall ? 20 : deviceType.isTablet ? 28 : 24, 
+                    height: deviceType.isSmall ? 20 : deviceType.isTablet ? 28 : 24, 
+                    resizeMode: "contain" 
+                  }}
                 />
               ) : (
                 <MaterialCommunityIcons
                   name={service.icon as any}
-                  size={24}
+                  size={deviceType.isSmall ? 20 : deviceType.isTablet ? 28 : 24}
                   color="white"
                 />
               )}
@@ -105,25 +110,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   serviceItem: {
-    width: "30%",
+    width: deviceType.isTablet ? "15%" : "30%", // Responsive width for tablets
     alignItems: "center",
-    // marginBottom: 24,
+    marginBottom: hp(1),
   },
   serviceIconContainer: {
-    width: 50,
-    height: 50,
+    width: deviceType.isSmall ? wp(12) : deviceType.isTablet ? wp(8) : wp(13), // Responsive icon container
+    height: deviceType.isSmall ? wp(12) : deviceType.isTablet ? wp(8) : wp(13),
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: hp(1),
   },
   serviceName: {
-    fontSize: 12,
+    fontSize: rf(12), // Responsive font size
     textAlign: "center",
     color: "black",
-    paddingHorizontal: 20,
-    lineHeight: 16,
+    paddingHorizontal: deviceType.isTablet ? wp(2) : wp(5),
+    lineHeight: rf(16),
     fontFamily: Fonts.medium,
-    marginBottom: 16,
+    marginBottom: hp(2),
   },
 });

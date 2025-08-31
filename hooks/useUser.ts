@@ -67,10 +67,20 @@ export const useUser = () => {
 
   useEffect(() => {
     const loadUserWithAccounts = async () => {
+      const startTime = Date.now();
+      
       try {
         const customerData = await AsyncStorage.getItem("customer");
         if (!customerData) {
-          setLoading(false);
+          // Ensure minimum 1.5 seconds skeleton display
+          const elapsed = Date.now() - startTime;
+          const minDelay = 1500;
+          
+          if (elapsed < minDelay) {
+            setTimeout(() => setLoading(false), minDelay - elapsed);
+          } else {
+            setLoading(false);
+          }
           return;
         }
 
@@ -105,7 +115,15 @@ export const useUser = () => {
         }
       } catch (error) {
       } finally {
-        setLoading(false);
+        // Ensure minimum 1.5 seconds skeleton display
+        const elapsed = Date.now() - startTime;
+        const minDelay = 1500;
+        
+        if (elapsed < minDelay) {
+          setTimeout(() => setLoading(false), minDelay - elapsed);
+        } else {
+          setLoading(false);
+        }
       }
     };
 
@@ -129,3 +147,4 @@ export const useUser = () => {
     account_number: user?.selectedAccount?.account_number?.toString() || "N/A",
   };
 };
+

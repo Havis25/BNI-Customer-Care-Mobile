@@ -97,6 +97,7 @@ export function useTickets() {
     setIsLoading(true);
     setError(null);
     setLastFetch(now);
+    const startTime = Date.now();
 
     try {
       // Single request with reasonable limit instead of pagination loop
@@ -115,8 +116,19 @@ export function useTickets() {
       setError(errorMessage);
       setTickets([]);
     } finally {
-      setIsLoading(false);
-      setIsFetching(false);
+      // Ensure minimum 1.5 seconds skeleton display
+      const elapsed = Date.now() - startTime;
+      const minDelay = 1500;
+      
+      if (elapsed < minDelay) {
+        setTimeout(() => {
+          setIsLoading(false);
+          setIsFetching(false);
+        }, minDelay - elapsed);
+      } else {
+        setIsLoading(false);
+        setIsFetching(false);
+      }
     }
   }, [isAuthenticated]);
 
@@ -133,3 +145,4 @@ export function useTickets() {
     refetch: () => fetchTickets(true),
   };
 }
+

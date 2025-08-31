@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,11 +12,14 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
+  Animated,
 } from "react-native";
 import { Fonts } from "@/constants/Fonts";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFeedback } from "@/hooks/useFeedback";
 import { router } from "expo-router";
+import { triggerAndroidNotification } from "@/utils/androidNotification";
+import { wp, hp, rf, deviceType } from "@/utils/responsive";
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -29,6 +32,36 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
   const [score, setScore] = useState(0);
   const [comment, setComment] = useState("");
   const { submitFeedback, isLoading } = useFeedback();
+  const slideAnim = useRef(new Animated.Value(300)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 300,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [visible, slideAnim, opacityAnim]);
 
   const handleClose = () => {
     Alert.alert("Peringatan", "Anda harus memberikan feedback terlebih dahulu untuk melanjutkan");
@@ -40,9 +73,17 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
       return;
     }
     
+    if (comment.trim() === "") {
+      Alert.alert("Error", "Mohon isi komentar terlebih dahulu");
+      return;
+    }
+    
     const success = await submitFeedback(ticketId, { score, comment });
     
     if (success) {
+      // Trigger notification for both iOS and Android
+      await triggerAndroidNotification();
+      
       setScore(0);
       setComment("");
       onSuccess?.();
@@ -77,21 +118,27 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
     <Modal 
       visible={visible} 
       transparent 
-      animationType="slide"
+      animationType="none"
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView 
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <View style={styles.modalOverlay}>
+        <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
           <TouchableOpacity 
             style={styles.modalBackdrop}
             onPress={handleClose}
           />
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.feedbackSheet}>
+            <Animated.View 
+              style={[
+                styles.feedbackSheet,
+                { transform: [{ translateY: slideAnim }] }
+              ]}
+              onStartShouldSetResponder={() => true}
+            >
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Berikan Feedback</Text>
             {/* <TouchableOpacity onPress={handleClose}>
@@ -106,7 +153,7 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
           <Text style={styles.ratingLabel}>Rating</Text>
           {renderStars()}
 
-          <Text style={styles.commentLabel}>Komentar (Opsional)</Text>
+          <Text style={styles.commentLabel}>Komentar *</Text>
           <TextInput
             style={styles.commentInput}
             placeholder="Tulis komentar Anda..."
@@ -119,21 +166,21 @@ export default function FeedbackModal({ visible, onClose, ticketId, onSuccess }:
           />
 
           <TouchableOpacity
-            style={[styles.submitButton, (score === 0 || isLoading) && styles.disabledButton]}
+            style={[styles.submitButton, (score === 0 || comment.trim() === "" || isLoading) && styles.disabledButton]}
             onPress={handleSubmitFeedback}
-            disabled={score === 0 || isLoading}
+            disabled={score === 0 || comment.trim() === "" || isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={[styles.submitText, (score === 0 || isLoading) && styles.disabledText]}>
+              <Text style={[styles.submitText, (score === 0 || comment.trim() === "" || isLoading) && styles.disabledText]}>
                 Kirim
               </Text>
             )}
           </TouchableOpacity>
-            </View>
+            </Animated.View>
           </TouchableWithoutFeedback>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -155,10 +202,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 42,
-    maxHeight: "70%",
+    paddingHorizontal: wp(5),
+    paddingTop: hp(2.5),
+    paddingBottom: hp(5.2),
+    maxHeight: deviceType.isTablet ? "60%" : "70%",
   },
   sheetHeader: {
     flexDirection: "row",
@@ -167,16 +214,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontFamily: Fonts.semiBold,
     color: "#333",
   },
   feedbackQuestion: {
-    fontSize: 16,
+    fontSize: rf(16),
     fontFamily: Fonts.medium,
     color: "#333",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: hp(3),
   },
   ratingLabel: {
     fontSize: 14,
@@ -202,11 +249,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E0E0E0",
     borderRadius: 8,
-    padding: 12,
+    padding: wp(3),
     fontFamily: Fonts.regular,
-    fontSize: 14,
-    minHeight: 80,
-    marginBottom: 24,
+    fontSize: rf(14),
+    minHeight: deviceType.isTablet ? hp(8) : hp(10),
+    marginBottom: hp(3),
   },
   submitButton: {
     backgroundColor: "#52B5AB",

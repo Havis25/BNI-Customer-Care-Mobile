@@ -1,6 +1,7 @@
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { wp, hp, rf, deviceType } from '@/utils/responsive';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -9,19 +10,56 @@ interface BottomSheetProps {
 }
 
 export default function BottomSheet({ visible, onClose, onConfirm }: BottomSheetProps) {
+  const slideAnim = useRef(new Animated.Value(300)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+      
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 300,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
+      });
+    }
+  }, [visible, slideAnim, opacityAnim]);
+
   return (
     <Modal
       visible={visible}
       transparent={true}
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.bottomSheetOverlay}>
+      <Animated.View style={[styles.bottomSheetOverlay, { opacity: opacityAnim }]}>
         <TouchableOpacity 
           style={styles.bottomSheetBackdrop}
           onPress={onClose}
         />
-        <View style={styles.bottomSheetContainer}>
+        <Animated.View 
+          style={[
+            styles.bottomSheetContainer,
+            { transform: [{ translateY: slideAnim }] }
+          ]}
+          onStartShouldSetResponder={() => true}
+        >
           <MaterialIcons name="warning" size={64} color="#52B5AB" />
           <Text style={styles.bottomSheetTitle}>
             Yakin ingin membatalkan?
@@ -43,8 +81,8 @@ export default function BottomSheet({ visible, onClose, onConfirm }: BottomSheet
           >
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -62,33 +100,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
+    padding: wp(6),
     alignItems: "center",
-    minHeight: 280,
+    minHeight: deviceType.isTablet ? hp(30) : hp(35),
   },
   bottomSheetTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: "bold",
     color: "#333",
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: hp(2),
+    marginBottom: hp(1),
     fontFamily: "Poppins",
   },
   bottomSheetSubtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: "#666",
     textAlign: "center",
-    marginBottom: 32,
+    marginBottom: hp(4),
     fontFamily: "Poppins",
   },
   confirmBackButton: {
     backgroundColor: "#52B5AB",
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: hp(2),
+    paddingHorizontal: wp(8),
     borderRadius: 8,
     width: "100%",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: hp(1.5),
   },
   confirmBackText: {
     fontSize: 16,

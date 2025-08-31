@@ -1,33 +1,52 @@
 {
   "expo": {
-    "name": "Bni-Customer-Care",
-    "slug": "Bni-Customer-Care",
+    "name": "B-Care",
+    "slug": "B-Care",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-bcare.png",
     "scheme": "bnicustomercare",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.bni.bcare",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "NSCameraUsageDescription": "B-Care needs access to your camera for video calls with agents",
+        "NSMicrophoneUsageDescription": "B-Care needs access to your microphone for audio and video calls"
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/bcare-transparant.png",
+        "backgroundColor": "#E0EE59"
       },
       "splash": {
-        "image": "./assets/images/splash-icon.png",
+        "image": "./assets/images/bcare-transparant.png",
         "resizeMode": "contain",
-        "backgroundColor": "#52B5AB"
+        "backgroundColor": "#E0EE59"
       },
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "package": "com.bni.bcare",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_STATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.USE_FULL_SCREEN_INTENT"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -39,16 +58,39 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/bcare-transparant.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#52B5AB"
+          "backgroundColor": "#E0EE59"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow B-Care to access your camera for video calls",
+          "microphonePermission": "Allow B-Care to access your microphone for calls",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow B-Care to access your microphone for audio calls"
+        }
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cf5f9206-b23a-4704-9792-f3ac3effeda5"
+      }
+    },
+    "owner": "havis"
   }
 }

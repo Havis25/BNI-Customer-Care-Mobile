@@ -1,67 +1,76 @@
-import { Fonts } from '@/constants/Fonts';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { Fonts } from "@/constants/Fonts";
+import { deviceType, hp, rf, wp } from "@/utils/responsive";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import React, { useState } from "react";
 import {
+  Alert,
+  Dimensions,
   FlatList,
   Image,
+  Linking,
   Platform,
-  SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
-} from 'react-native';
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+const { width: screenWidth } = Dimensions.get("window");
+const cardWidth = deviceType.isTablet ? screenWidth * 0.45 : screenWidth * 0.75;
+const scaleFactor = screenWidth / 375;
 
 const produkData = {
   individual: [
     {
-      id: '1',
-      nama: 'BNI Taplus',
-      deskripsi: 'Tabungan untuk kebutuhan sehari-hari.',
-      gambar: require ('../../assets/images/bni-taplus.jpg'),
+      id: "1",
+      nama: "BNI Taplus",
+      deskripsi: "Tabungan untuk kebutuhan sehari-hari.",
+      gambar: require("../../assets/images/bni-taplus.jpg"),
     },
     {
-      id: '2',
-      nama: 'BNI Fleksi',
-      deskripsi: 'Kredit tanpa agunan khusus pegawai bergaji.',
-      gambar: require ('../../assets/images/bni-fleksi.jpg'),
+      id: "2",
+      nama: "BNI Fleksi",
+      deskripsi: "Kredit tanpa agunan khusus pegawai bergaji.",
+      gambar: require("../../assets/images/bni-fleksi.jpg"),
     },
     {
-      id: '3',
-      nama: 'BNI Griya',
-      deskripsi: 'Kredit kepemilikan rumah dengan bunga kompetitif.',
-      gambar: require ('../../assets/images/bni-griya.jpg'),
+      id: "3",
+      nama: "BNI Griya",
+      deskripsi: "Kredit kepemilikan rumah dengan bunga kompetitif.",
+      gambar: require("../../assets/images/bni-griya.jpg"),
     },
   ],
   korporasi: [
     {
-      id: '4',
-      nama: 'BNI Giro',
-      deskripsi: 'Layanan rekening giro untuk transaksi bisnis.',
-      gambar: require ('../../assets/images/bni-giro.jpg'),
+      id: "4",
+      nama: "BNI Giro",
+      deskripsi: "Layanan rekening giro untuk transaksi bisnis.",
+      gambar: require("../../assets/images/bni-giro.jpg"),
     },
     {
-      id: '5',
-      nama: 'BNI Cash Management',
-      deskripsi: 'Solusi pengelolaan keuangan perusahaan.',
-      gambar: require ('../../assets/images/bni-giro.jpg'),
+      id: "5",
+      nama: "BNI Cash Management",
+      deskripsi: "Solusi pengelolaan keuangan perusahaan.",
+      gambar: require("../../assets/images/bni-giro.jpg"),
     },
     {
-      id: '6',
-      nama: 'BNI Trade Finance',
-      deskripsi: 'Layanan perdagangan internasional.',
-      gambar: require ('../../assets/images/bni-giro.jpg'),
+      id: "6",
+      nama: "BNI Trade Finance",
+      deskripsi: "Layanan perdagangan internasional.",
+      gambar: require("../../assets/images/bni-giro.jpg"),
     },
   ],
   umkm: [
     {
-      id: '7',
-      nama: 'BNI Xpora',
-      deskripsi: 'Kredit modal kerja untuk usaha mikro kecil menengah.',
-      gambar: require ('../../assets/images/bni-xpora.png'),
+      id: "7",
+      nama: "BNI Xpora",
+      deskripsi: "Layanan untuk UMKM mengembangkan bisnis ke pasar...",
+      deskripsiLengkap:
+        "Layanan untuk UMKM mengembangkan bisnis ke pasar internasional dengan dukungan ekspor impor",
+      gambar: require("../../assets/images/bni-xpora.png"),
     },
   ],
 };
@@ -70,7 +79,8 @@ interface ProdukItem {
   id: string;
   nama: string;
   deskripsi: string;
-  gambar: string | any;
+  deskripsiLengkap?: string;
+  gambar: any;
 }
 
 export default function ProdukScreen() {
@@ -79,59 +89,111 @@ export default function ProdukScreen() {
     korporasi: 0,
     umkm: 0,
   });
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const handleScroll = (event: any, section: string) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const scrollPercentage = contentOffset.x / (contentSize.width - layoutMeasurement.width);
-    setScrollPositions(prev => ({ ...prev, [section]: Math.max(0, Math.min(1, scrollPercentage)) }));
+    const scrollPercentage =
+      contentOffset.x / (contentSize.width - layoutMeasurement.width);
+    setScrollPositions((prev) => ({
+      ...prev,
+      [section]: Math.max(0, Math.min(1, scrollPercentage)),
+    }));
   };
 
   const renderScrollIndicator = (section: string) => {
-    const position = scrollPositions[section as keyof typeof scrollPositions] || 0;
+    const position =
+      scrollPositions[section as keyof typeof scrollPositions] || 0;
     return (
       <View style={styles.scrollIndicatorContainer}>
         <View style={styles.scrollIndicatorTrack}>
-          <View style={[styles.scrollIndicatorThumb, { left: `${position * 70}%` }]} />
+          <View
+            style={[styles.scrollIndicatorThumb, { left: `${position * 70}%` }]}
+          />
         </View>
       </View>
     );
   };
 
-  const renderProduk = ({ item }: { item: ProdukItem }) => (
-    <TouchableOpacity style={styles.card}>
-      <Image source={typeof item.gambar === 'string' ? { uri: item.gambar } : item.gambar} style={styles.cardImage} />
-      <LinearGradient
-        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)']}
-        style={styles.cardOverlay}
-      />
-      <View style={styles.cardContent}>
-        <View style={styles.cardBadge}>
-          <MaterialCommunityIcons name="star" size={12} color="#FF6600" />
-          <Text style={styles.cardBadgeText}>Populer</Text>
+  const toggleExpanded = (itemId: string) => {
+    setExpandedItems((prev) =>
+      prev.includes(itemId)
+        ? prev.filter((id) => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handleLearnMore = async () => {
+    try {
+      const url = "https://www.bni.co.id/id-id/individu";
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "Tidak dapat membuka link");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Terjadi kesalahan saat membuka link");
+    }
+  };
+
+  const renderProduk = ({ item }: { item: ProdukItem }) => {
+    const isExpanded = expandedItems.includes(item.id);
+    const hasExpandableText = item.deskripsi.includes("...");
+    const displayText =
+      isExpanded && item.deskripsiLengkap
+        ? item.deskripsiLengkap
+        : item.deskripsi;
+
+    return (
+      <TouchableOpacity style={styles.card} activeOpacity={0.9}>
+        <Image source={item.gambar} style={styles.cardImage} />
+        <LinearGradient
+          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.6)"]}
+          style={styles.cardOverlay}
+        />
+        <View style={styles.cardContent}>
+          <View style={styles.cardBadge}>
+            <MaterialCommunityIcons name="star" size={12} color="#FF6600" />
+            <Text style={styles.cardBadgeText}>Populer</Text>
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.cardTitle}>{item.nama}</Text>
+            <TouchableOpacity
+              onPress={() =>
+                hasExpandableText ? toggleExpanded(item.id) : null
+              }
+              disabled={!hasExpandableText}
+            >
+              <Text style={styles.cardDesc}>{displayText}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cardButton}
+              onPress={handleLearnMore}
+            >
+              <Text style={styles.cardButtonText}>Pelajari</Text>
+              <Ionicons name="arrow-forward" size={14} color="white" />
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.cardText}>
-          <Text style={styles.cardTitle}>{item.nama}</Text>
-          <Text style={styles.cardDesc}>{item.deskripsi}</Text>
-          <TouchableOpacity style={styles.cardButton}>
-            <Text style={styles.cardButtonText}>Pelajari</Text>
-            <Ionicons name="arrow-forward" size={14} color="white" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
-        colors={['#DEEF5A', '#FCFDEE']}
+        colors={["#DEEF5A", "#FCFDEE"]}
         locations={[0.23, 0.37]}
         style={StyleSheet.absoluteFill}
       />
-      
+
       <View style={styles.headerSection}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color="black" />
           </TouchableOpacity>
           <Text style={styles.header}>Produk BNI</Text>
@@ -146,65 +208,83 @@ export default function ProdukScreen() {
             {/* Individual Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <MaterialCommunityIcons name="account" size={24} color="#FF6600" />
+                <MaterialCommunityIcons
+                  name="account"
+                  size={24}
+                  color="#FF6600"
+                />
                 <Text style={styles.subHeader}>Individual</Text>
               </View>
-              <Text style={styles.sectionDesc}>Produk perbankan untuk kebutuhan pribadi dan keluarga</Text>
+              <Text style={styles.sectionDesc}>
+                Produk perbankan untuk kebutuhan pribadi dan keluarga
+              </Text>
               <FlatList
                 data={produkData.individual}
                 renderItem={renderProduk}
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                onScroll={(event) => handleScroll(event, 'individual')}
+                onScroll={(event) => handleScroll(event, "individual")}
                 scrollEventThrottle={16}
                 contentContainerStyle={styles.listContainer}
               />
-              {renderScrollIndicator('individual')}
+              {renderScrollIndicator("individual")}
             </View>
 
             {/* Korporasi Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <MaterialCommunityIcons name="office-building" size={24} color="#FF6600" />
+                <MaterialCommunityIcons
+                  name="office-building"
+                  size={24}
+                  color="#FF6600"
+                />
                 <Text style={styles.subHeader}>Korporasi</Text>
               </View>
-              <Text style={styles.sectionDesc}>Solusi perbankan untuk kebutuhan perusahaan dan institusi</Text>
+              <Text style={styles.sectionDesc}>
+                Solusi perbankan untuk kebutuhan perusahaan dan institusi
+              </Text>
               <FlatList
                 data={produkData.korporasi}
                 renderItem={renderProduk}
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                onScroll={(event) => handleScroll(event, 'korporasi')}
+                onScroll={(event) => handleScroll(event, "korporasi")}
                 scrollEventThrottle={16}
                 contentContainerStyle={styles.listContainer}
               />
-              {renderScrollIndicator('korporasi')}
+              {renderScrollIndicator("korporasi")}
             </View>
 
             {/* UMKM Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <MaterialCommunityIcons name="store" size={24} color="#FF6600" />
+                <MaterialCommunityIcons
+                  name="store"
+                  size={24}
+                  color="#FF6600"
+                />
                 <Text style={styles.subHeader}>UMKM</Text>
               </View>
-              <Text style={styles.sectionDesc}>Dukungan finansial untuk usaha mikro, kecil, dan menengah</Text>
+              <Text style={styles.sectionDesc}>
+                Dukungan finansial untuk usaha mikro, kecil, dan menengah
+              </Text>
               <FlatList
                 data={produkData.umkm}
                 renderItem={renderProduk}
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                onScroll={(event) => handleScroll(event, 'umkm')}
-                scrollEventThrottle={16}
-                contentContainerStyle={styles.listContainer}
+                contentContainerStyle={[
+                  styles.listContainer,
+                  { justifyContent: "center" },
+                ]}
               />
-              {renderScrollIndicator('umkm')}
             </View>
           </View>
         )}
-        keyExtractor={() => 'produk'}
+        keyExtractor={() => "produk"}
         showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
@@ -212,158 +292,83 @@ export default function ProdukScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
+  safeArea: { flex: 1 },
   headerSection: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 10,
+    paddingBottom: 16,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   backButton: {
     marginRight: 16,
-    padding: 4,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  header: {
+    fontSize: rf(24),
+    fontFamily: Fonts.bold,
+    color: "#1A1A1A",
+    flex: 1,
   },
   container: {
     flex: 1,
     paddingHorizontal: 16,
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  header: {
-    fontSize: 24,
-    fontFamily: Fonts.bold,
-    color: 'black',
-    flex: 1,
-  },
-  heroSection: {
-    marginBottom: 16,
+    backgroundColor: "white",
     borderRadius: 20,
-    overflow: 'hidden',
+    padding: 20,
+    marginBottom: 20,
     ...Platform.select({
       ios: {
-        shadowColor: '#FF6600',
-        shadowOpacity: 0.2,
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
         shadowOffset: { width: 0, height: 4 },
         shadowRadius: 12,
       },
       android: {
-        elevation: 8,
+        elevation: 4,
       },
     }),
-  },
-  heroGradient: {
-    padding: 24,
-  },
-  heroContent: {
-    alignItems: 'center',
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontFamily: Fonts.bold,
-    color: 'white',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    fontFamily: Fonts.medium,
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  heroStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  heroStat: {
-    alignItems: 'center',
-  },
-  heroStatNumber: {
-    fontSize: 20,
-    fontFamily: Fonts.bold,
-    color: 'white',
-  },
-  heroStatLabel: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
   },
   subHeader: {
-    fontSize: 18,
-    fontFamily: Fonts.semiBold,
-    color: '#333',
+    fontSize: rf(20),
+    fontFamily: Fonts.bold,
+    color: "#1A1A1A",
+    marginLeft: wp(3),
   },
   sectionDesc: {
-    fontSize: 12,
-    fontFamily: Fonts.medium,
-    color: '#666',
-    marginBottom: 16,
-    lineHeight: 16,
+    fontSize: Math.max(12, 14 * scaleFactor),
+    fontFamily: Fonts.regular,
+    color: "#666",
+    marginBottom: 20,
+    lineHeight: Math.max(16, 20 * scaleFactor),
   },
   listContainer: {
-    paddingRight: 16,
-  },
-  scrollIndicatorContainer: {
-    marginTop: 12,
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  scrollIndicatorTrack: {
-    width: '30%',
-    height: 3,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 2,
-    position: 'relative',
-  },
-  scrollIndicatorThumb: {
-    position: 'absolute',
-    width: '30%',
-    height: 3,
-    backgroundColor: '#FF6600',
-    borderRadius: 2,
+    paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: 'white',
+    width: cardWidth,
+    height: deviceType.isTablet ? hp(25) : hp(27),
+    marginHorizontal: wp(2),
     borderRadius: 16,
-    marginRight: 16,
-    width: 280,
-    height: 320,
-    overflow: 'hidden',
-    position: 'relative',
+    overflow: "hidden",
+    backgroundColor: "white",
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.15,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 12,
+        shadowColor: "#000",
+        shadowOpacity: 0.12,
+        shadowOffset: { width: 0, height: 6 },
+        shadowRadius: 16,
       },
       android: {
         elevation: 6,
@@ -371,70 +376,87 @@ const styles = StyleSheet.create({
     }),
   },
   cardImage: {
-    width: '100%',
-    height: 160,
-    resizeMode: 'cover',
-    backgroundColor: '#f5f5f5',
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+    resizeMode: "cover",
   },
   cardOverlay: {
-    position: 'absolute',
-    top: 0,
+    position: "absolute",
+    bottom: 0,
     left: 0,
     right: 0,
-    height: 160,
+    height: "65%",
   },
   cardContent: {
-    position: 'relative',
     flex: 1,
+    justifyContent: "space-between",
+    padding: 16,
   },
   cardBadge: {
-    position: 'absolute',
-    top: -148,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: "flex-start",
   },
   cardBadgeText: {
-    fontSize: 10,
-    fontFamily: Fonts.semiBold,
-    color: '#FF6600',
+    fontSize: Math.max(9, 11 * scaleFactor),
+    fontFamily: Fonts.medium,
+    color: "#FF6600",
+    marginLeft: 4,
   },
   cardText: {
-    padding: 16,
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: "flex-end",
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: Math.max(14, 18 * scaleFactor),
     fontFamily: Fonts.bold,
-    color: '#222',
-    marginBottom: 6,
+    color: "white",
+    marginBottom: 8,
   },
   cardDesc: {
-    fontSize: 13,
-    fontFamily: Fonts.medium,
-    color: '#666',
-    lineHeight: 18,
-    marginBottom: 12,
+    fontSize: Math.max(11, 13 * scaleFactor),
+    fontFamily: Fonts.regular,
+    color: "white",
+    marginBottom: 16,
+    opacity: 0.95,
+    lineHeight: Math.max(14, 18 * scaleFactor),
   },
   cardButton: {
-    backgroundColor: '#FF6600',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 102, 0, 0.95)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignSelf: "flex-start",
   },
   cardButtonText: {
-    fontSize: 12,
-    fontFamily: Fonts.semiBold,
-    color: 'white',
+    fontSize: Math.max(11, 13 * scaleFactor),
+    fontFamily: Fonts.medium,
+    color: "white",
+    marginRight: 6,
+  },
+  scrollIndicatorContainer: {
+    alignItems: "center",
+    marginTop: 16,
+  },
+  scrollIndicatorTrack: {
+    width: 80,
+    height: 4,
+    backgroundColor: "#E8E8E8",
+    borderRadius: 2,
+    position: "relative",
+  },
+  scrollIndicatorThumb: {
+    position: "absolute",
+    width: 20,
+    height: 4,
+    backgroundColor: "#FF6600",
+    borderRadius: 2,
   },
 });

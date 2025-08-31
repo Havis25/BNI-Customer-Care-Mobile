@@ -1,6 +1,6 @@
+import { Roboto_700Bold, useFonts } from "@expo-google-fonts/roboto";
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Animated, Easing, Text } from "react-native";
-import { useFonts, Roboto_700Bold } from "@expo-google-fonts/roboto";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 
 type Props = { onFinish?: () => void };
 
